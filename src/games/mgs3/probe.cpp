@@ -126,7 +126,18 @@ bool poll_stats(GameStats& out)
     out.special_item_used = read_at<uint8_t>(StatOffsets::kSpecialItems) != 0;
     out.plants_captured = read_at<uint8_t>(StatOffsets::kPlantsCaptured);
     out.severe_injuries = read_at<uint16_t>(StatOffsets::kSevereInjuries);
-    out.damage_taken_bars = static_cast<float>(read_at<uint32_t>(StatOffsets::kTotalDamage));
+
+    const uint32_t dmg_raw = read_at<uint32_t>(StatOffsets::kTotalDamage);
+    float dmg_f;
+    std::memcpy(&dmg_f, &dmg_raw, sizeof(dmg_f));
+    if (dmg_raw <= 5000) {
+        out.damage_taken_bars = static_cast<float>(dmg_raw);
+    } else if (dmg_f >= 0.0f && dmg_f < 100000.0f) {
+        out.damage_taken_bars = dmg_f;
+    } else {
+        out.damage_taken_bars = static_cast<float>(dmg_raw);
+    }
+
     out.meals_eaten = read_at<uint16_t>(StatOffsets::kMealsEaten);
     out.play_time_seconds =
         static_cast<double>(read_at<uint32_t>(StatOffsets::kGameTimeFrames)) / 60.0;

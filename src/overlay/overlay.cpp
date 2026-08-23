@@ -178,22 +178,22 @@ void draw_panel()
         stat_row("kills", buf);
         snprintf(buf, sizeof(buf), "%d", stats.alerts);
         stat_row("alerts", buf);
+        snprintf(buf, sizeof(buf), "%.1f bars", static_cast<double>(stats.damage_taken_bars));
+        stat_row("damage taken", buf);
+        snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
+        stat_row("severe injuries", buf);
+        format_time(stats.play_time_seconds, buf, sizeof(buf));
+        stat_row("play time", buf);
         snprintf(buf, sizeof(buf), "%d", stats.continues);
         stat_row("continues", buf);
         snprintf(buf, sizeof(buf), "%d", stats.saves);
         stat_row("saves", buf);
-        snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
-        stat_row("severe injuries", buf);
-        snprintf(buf, sizeof(buf), "%.0f bars", static_cast<double>(stats.damage_taken_bars));
-        stat_row("damage taken", buf);
         snprintf(buf, sizeof(buf), "%d", stats.life_med_used);
         stat_row("life medicine", buf);
         snprintf(buf, sizeof(buf), "%d", stats.meals_eaten);
         stat_row("meals eaten", buf);
         snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
         stat_row("captures", buf);
-        format_time(stats.play_time_seconds, buf, sizeof(buf));
-        stat_row("play time", buf);
         stat_row("special items", stats.special_item_used ? "USED" : "not used");
         ImGui::EndTable();
     }
@@ -203,39 +203,40 @@ void draw_panel()
         if (ImGui::BeginTable("reqs", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 18.0f);
             ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
             for (const codename::ReqStatus& r : codename::elite_requirements_mgs3(stats)) {
+                char ratio[48];
+                switch (static_cast<codename::ReqFmt>(r.fmt)) {
+                case codename::ReqFmt::Time: {
+                    char cur[16];
+                    format_time(r.current * 3600.0, cur, sizeof(cur));
+                    snprintf(ratio, sizeof(ratio), "%s / %.0fh", cur, r.limit);
+                    break;
+                }
+                case codename::ReqFmt::Bars:
+                    snprintf(ratio, sizeof(ratio), "%.1f / %.0f", static_cast<double>(r.current),
+                             r.limit);
+                    break;
+                default:
+                    snprintf(ratio, sizeof(ratio), "%.0f / %.0f", r.current, r.limit);
+                    break;
+                }
+
+                const bool over = !r.pass;
+                const bool near_limit = !over && r.limit != 0 && r.current >= r.limit * 0.75;
+                const ImVec4 state_col = over ? ImVec4(0.95f, 0.35f, 0.35f, 1.0f)
+                                              : near_limit ? ImVec4(1.0f, 0.82f, 0.25f, 1.0f)
+                                                           : ImVec4(0.4f, 0.9f, 0.5f, 1.0f);
+                const char* marker = over ? "-" : near_limit ? "!" : "+";
+
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                ImGui::TextColored(r.pass ? ImVec4(0.4f, 0.9f, 0.5f, 1.0f) : ImVec4(0.95f, 0.4f, 0.4f, 1.0f),
-                                   "%s", r.pass ? "+" : "-");
+                ImGui::TextColored(state_col, "%s", marker);
                 ImGui::TableNextColumn();
                 ImGui::TextUnformatted(r.label);
                 ImGui::TableNextColumn();
-
-                char cur[32];
-                char lim[32];
-                switch (static_cast<codename::ReqFmt>(r.fmt)) {
-                case codename::ReqFmt::Time:
-                    format_time(r.current * 3600.0, cur, sizeof(cur));
-                    snprintf(lim, sizeof(lim), "< %.0fh", r.limit);
-                    break;
-                case codename::ReqFmt::Bars:
-                    snprintf(cur, sizeof(cur), "%.0f", r.current);
-                    snprintf(lim, sizeof(lim), "< %.0f bars", r.limit);
-                    break;
-                default:
-                    snprintf(cur, sizeof(cur), "%.0f", r.current);
-                    if (r.limit == 0) {
-                        snprintf(lim, sizeof(lim), "= 0");
-                    } else if (static_cast<codename::Op>(r.op) == codename::Op::Le) {
-                        snprintf(lim, sizeof(lim), "<= %.0f", r.limit);
-                    } else {
-                        snprintf(lim, sizeof(lim), "< %.0f", r.limit);
-                    }
-                    break;
-                }
-                ImGui::Text("%s  %s", cur, lim);
+                ImGui::TextColored(over || near_limit ? state_col : ImVec4(1, 1, 1, 0.85f), "%s",
+                                   ratio);
             }
             ImGui::EndTable();
         }
