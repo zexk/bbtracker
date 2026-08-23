@@ -45,6 +45,25 @@ struct GameStats {
     bool leech_carried = false;
 
     uint8_t difficulty_game_byte = 0;
+
+    int headshots = 0;
+    int cqc_chokes = 0;
+    int hold_ups = 0;
+    int body_searches = 0;
+    int items_given = 0;
+    int militia_praise = 0;
+    int weapons_owned = 0;
+    int combat_highs = 0;
+    int side_rolls = 0;
+    int forward_rolls = 0;
+    int crawl_seconds = 0;
+    int crouch_seconds = 0;
+    int box_seconds = 0;
+    int wall_seconds = 0;
+    int playboy_pages = 0;
+    int scan_plug_uses = 0;
+    int knife_kills = 0;
+    int weapons_picked_up = 0;
 };
 
 } // namespace bb

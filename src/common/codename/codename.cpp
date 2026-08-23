@@ -34,6 +34,24 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::TsuchinokoCarried: return s.tsuchinoko_carried ? 1.0 : 0.0;
     case StatId::LeechCarried: return s.leech_carried ? 1.0 : 0.0;
     case StatId::MissionCode: return s.mission;
+    case StatId::Headshots: return s.headshots;
+    case StatId::CqcChokes: return s.cqc_chokes;
+    case StatId::HoldUps: return s.hold_ups;
+    case StatId::BodySearches: return s.body_searches;
+    case StatId::ItemsGiven: return s.items_given;
+    case StatId::MilitiaPraise: return s.militia_praise;
+    case StatId::WeaponsOwned: return s.weapons_owned;
+    case StatId::CombatHighs: return s.combat_highs;
+    case StatId::SideRolls: return s.side_rolls;
+    case StatId::ForwardRolls: return s.forward_rolls;
+    case StatId::CrawlHours: return s.crawl_seconds / 3600.0;
+    case StatId::CrouchHours: return s.crouch_seconds / 3600.0;
+    case StatId::BoxHours: return s.box_seconds / 3600.0;
+    case StatId::WallHours: return s.wall_seconds / 3600.0;
+    case StatId::PlayboyPages: return s.playboy_pages;
+    case StatId::ScanPlugUses: return s.scan_plug_uses;
+    case StatId::KnifeKills: return s.knife_kills;
+    case StatId::WeaponsPickedUp: return s.weapons_picked_up;
     case StatId::DiscoveryRatio: {
         if (s.kills < 25) {
             return 100.0;

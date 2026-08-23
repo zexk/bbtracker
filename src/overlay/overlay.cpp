@@ -167,8 +167,9 @@ void draw_panel()
         return;
     }
 
-    auto match = g_game == Game::MGS1  ? codename::evaluate_mgs1(stats)
+    auto match = g_game == Game::MGS1   ? codename::evaluate_mgs1(stats)
                  : g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
+                 : g_game == Game::MGS4 ? std::nullopt // all_matches shown below
                                         : codename::evaluate_mgs3(stats);
 
     const ImVec4 green(0.42f, 0.90f, 0.45f, 1.0f);
@@ -236,11 +237,14 @@ void draw_panel()
     }
 
     ImGui::Spacing();
-    const char* tracker_title = g_game == Game::MGS3 ? "FOXHOUND tracker" : "BIG BOSS tracker";
+    const char* tracker_title = g_game == Game::MGS3   ? "FOXHOUND tracker"
+                                : g_game == Game::MGS4 ? "BIG BOSS tracker"
+                                                       : "BIG BOSS tracker";
     if (ImGui::CollapsingHeader(tracker_title, ImGuiTreeNodeFlags_DefaultOpen)) {
         std::vector<codename::ReqStatus> reqs =
             g_game == Game::MGS1   ? codename::elite_requirements_mgs1(stats)
             : g_game == Game::MGS2 ? codename::elite_requirements_mgs2(stats)
+            : g_game == Game::MGS4 ? codename::elite_requirements_mgs4(stats)
                                    : codename::elite_requirements_mgs3(stats);
         if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
             ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
