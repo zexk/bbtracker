@@ -30,6 +30,8 @@ struct StatOffsets {
 };
 
 const uint8_t* g_stats = nullptr;
+uintptr_t g_last_block = 0;
+unsigned g_zero_polls = 0;
 
 bool range_readable(uintptr_t addr, size_t len)
 {
@@ -53,11 +55,21 @@ bool range_readable(uintptr_t addr, size_t len)
     return true;
 }
 
-bool resolve()
+void log_hex_dump(const uint8_t* data, size_t len)
 {
-    if (g_stats) {
-        return true;
+    for (size_t row = 0; row < len; row += 16) {
+        char line[128];
+        size_t pos = 0;
+        pos += snprintf(line + pos, sizeof(line) - pos, "  %04zx:", row);
+        for (size_t i = 0; i < 16 && row + i < len; ++i) {
+            pos += snprintf(line + pos, sizeof(line) - pos, " %02X", data[row + i]);
+        }
+        LOG_INFO("%s", line);
     }
+}
+
+bool resolve(uintptr_t& out_block)
+{
     HMODULE mod = GetModuleHandleW(kModuleName);
     if (!mod) {
         return false;
@@ -72,13 +84,18 @@ bool resolve()
         return false;
     }
 
-    g_stats = reinterpret_cast<const uint8_t*>(ptr);
+    if (ptr != g_last_block) {
+        LOG_INFO("stats block %s%p", g_last_block ? "moved: " : "", reinterpret_cast<const void*>(ptr));
+        const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(mod);
+        const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+        LOG_INFO("module_timestamp=0x%08X",
+                 static_cast<unsigned>(nt->FileHeader.TimeDateStamp));
+        log_hex_dump(reinterpret_cast<const uint8_t*>(ptr), 0x50);
+        g_last_block = ptr;
+        g_zero_polls = 0;
+    }
 
-    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(mod);
-    const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
-    LOG_INFO("mgs3 stats resolved: stats=%p module_timestamp=0x%08X",
-             reinterpret_cast<const void*>(g_stats),
-             static_cast<unsigned>(nt->FileHeader.TimeDateStamp));
+    out_block = ptr;
     return true;
 }
 
@@ -94,14 +111,11 @@ T read_at(size_t offset)
 
 bool poll_stats(GameStats& out)
 {
-    if (!resolve()) {
+    uintptr_t block = 0;
+    if (!resolve(block)) {
         return false;
     }
-    if (!range_readable(reinterpret_cast<uintptr_t>(g_stats), kStatsRegionSize)) {
-        LOG_WARN("mgs3 stats region no longer readable; re-resolving next frame");
-        g_stats = nullptr;
-        return false;
-    }
+    g_stats = reinterpret_cast<const uint8_t*>(block);
 
     out.continues = read_at<uint16_t>(StatOffsets::kContinues);
     out.saves = read_at<uint16_t>(StatOffsets::kSaves);
@@ -117,14 +131,26 @@ bool poll_stats(GameStats& out)
         static_cast<double>(read_at<uint32_t>(StatOffsets::kGameTimeFrames)) / 60.0;
     out.life_med_used = read_at<uint16_t>(StatOffsets::kLifeMeds);
 
-    switch (read_at<uint8_t>(StatOffsets::kDifficulty)) {
+    const uint8_t diff = read_at<uint8_t>(StatOffsets::kDifficulty);
+    out.difficulty_raw = diff;
+    switch (diff) {
     case 0: out.difficulty = Difficulty::VeryEasy; break;
     case 1: out.difficulty = Difficulty::Easy; break;
     case 2: out.difficulty = Difficulty::Normal; break;
     case 3: out.difficulty = Difficulty::Hard; break;
     default: out.difficulty = Difficulty::Extreme; break;
     }
-    out.difficulty_raw = read_at<uint8_t>(StatOffsets::kDifficulty);
+
+    if (out.kills == 0 && out.alerts == 0 && out.saves == 0 && out.continues == 0
+        && out.play_time_seconds == 0.0) {
+        if (++g_zero_polls == 600) {
+            LOG_WARN("stats all-zero for ~10s while polling; pointer may be stale "
+                     "for this game build");
+            log_hex_dump(g_stats, 0x50);
+        }
+    } else {
+        g_zero_polls = 0;
+    }
 
     return true;
 }
