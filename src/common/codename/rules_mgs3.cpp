@@ -58,7 +58,7 @@ constexpr Cond kWorst[] = {
 };
 
 constexpr Cond kKerotan[] = {{StatId::KerotanAllShot, Op::Eq, 1}};
-constexpr Cond kMarkhor[] = {{StatId::MarkhorComplete, Op::Eq, 1}};
+constexpr Cond kMarkhor[] = {{StatId::PlantsCaptured, Op::Ge, 48}};
 constexpr Cond kTsuchinoko[] = {{StatId::TsuchinokoCarried, Op::Eq, 1}};
 constexpr Cond kChameleon[] = {{StatId::Alerts, Op::Eq, 0}};
 constexpr Cond kLeech[] = {{StatId::LeechCarried, Op::Eq, 1}};
@@ -67,20 +67,61 @@ constexpr Cond kPigeon[] = {{StatId::Kills, Op::Eq, 0}};
 constexpr Cond kLowInjury[] = {{StatId::SevereInjuries, Op::Lt, 20}};
 constexpr Cond kFast[] = {{StatId::PlayTimeHours, Op::Lt, 5}};
 constexpr Cond kManyMeals[] = {{StatId::MealsEaten, Op::Gt, 250}};
-constexpr Cond kCow[] = {{StatId::Alerts, Op::Gt, 250}};
+constexpr Cond kCow[] = {{StatId::Alerts, Op::Gt, 300}};
 constexpr Cond kManyKills[] = {{StatId::Kills, Op::Gt, 250}};
 constexpr Cond kManyInjury[] = {{StatId::SevereInjuries, Op::Gt, 250}};
 constexpr Cond kLongTime[] = {{StatId::PlayTimeHours, Op::Gt, 50}};
 constexpr Cond kManySaves[] = {{StatId::Saves, Op::Gt, 100}};
 
-constexpr Cond kRegularA[] = {
-    {StatId::Kills, Op::Ge, 1}, {StatId::Alerts, Op::Ge, 1}, {StatId::Alerts, Op::Le, 20},
+constexpr TierMask kAnyTier = kAllTiers;
+
+constexpr Cond kRegK1C50A1[] = {
+    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
+    {StatId::Alerts, Op::Ge, 1},     {StatId::Alerts, Op::Le, 20},
 };
-constexpr Cond kRegularB[] = {
-    {StatId::Kills, Op::Ge, 1}, {StatId::Alerts, Op::Ge, 21}, {StatId::Alerts, Op::Le, 50},
+constexpr Cond kRegK1C50A2[] = {
+    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
+    {StatId::Alerts, Op::Ge, 21},    {StatId::Alerts, Op::Le, 50},
 };
-constexpr Cond kRegularC[] = {
-    {StatId::Kills, Op::Ge, 1},
+constexpr Cond kRegK1C50A3[] = {
+    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 1}, {StatId::Kills, Op::Le, 100},
+    {StatId::Alerts, Op::Ge, 51},
+};
+constexpr Cond kRegK2C50A1[] = {
+    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 101},
+    {StatId::Alerts, Op::Le, 20},
+};
+constexpr Cond kRegK2C50A2[] = {
+    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 101},
+    {StatId::Alerts, Op::Ge, 21},    {StatId::Alerts, Op::Le, 50},
+};
+constexpr Cond kRegK2C50A3[] = {
+    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 101},
+    {StatId::Alerts, Op::Ge, 51},
+};
+constexpr Cond kRegK1C51A1[] = {
+    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
+    {StatId::Alerts, Op::Le, 20},
+};
+constexpr Cond kRegK1C51A2[] = {
+    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
+    {StatId::Alerts, Op::Ge, 21},    {StatId::Alerts, Op::Le, 50},
+};
+constexpr Cond kRegKomodo[] = {
+    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
+    {StatId::Alerts, Op::Ge, 81},    {StatId::Alerts, Op::Le, 248},
+    {StatId::SevereInjuries, Op::Ge, 21},
+};
+constexpr Cond kRegSpider[] = {
+    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 101},
+    {StatId::Alerts, Op::Le, 19},
+};
+constexpr Cond kRegPuma[] = {
+    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 101}, {StatId::Kills, Op::Le, 299},
+    {StatId::Alerts, Op::Ge, 22},    {StatId::Alerts, Op::Le, 50},
+};
+constexpr Cond kRegAlligator[] = {
+    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 101},
     {StatId::Alerts, Op::Ge, 51},
 };
 
@@ -148,20 +189,21 @@ const std::array<RankRule, 61> kMgs3Rules{{
     RankRule{"Deer", kN, Kind::Special, kManySaves},
     RankRule{"Cat", kVEE, Kind::Special, kManySaves},
 
-    RankRule{"Scorpion", kVEE, Kind::Regular, kRegularA},
-    RankRule{"Tarantula", kN, Kind::Regular, kRegularA},
-    RankRule{"Centipede", kH_, Kind::Regular, kRegularA},
-    RankRule{"Spider", kX, Kind::Regular, kRegularA},
+    RankRule{"Scorpion", kAnyTier, Kind::Regular, kRegK1C50A1},
+    RankRule{"Jaguar", kAnyTier, Kind::Regular, kRegK1C50A2},
+    RankRule{"Iguana", kAnyTier, Kind::Regular, kRegK1C50A3},
 
-    RankRule{"Jaguar", kVEE, Kind::Regular, kRegularB},
-    RankRule{"Panther", kN, Kind::Regular, kRegularB},
-    RankRule{"Leopard", kH_, Kind::Regular, kRegularB},
-    RankRule{"Puma", kX, Kind::Regular, kRegularB},
+    RankRule{"Tarantula", kAnyTier, Kind::Regular, kRegK2C50A1},
+    RankRule{"Panther", kAnyTier, Kind::Regular, kRegK2C50A2},
+    RankRule{"Crocodile", kAnyTier, Kind::Regular, kRegK2C50A3},
 
-    RankRule{"Iguana", kVEE, Kind::Regular, kRegularC},
-    RankRule{"Crocodile", kN, Kind::Regular, kRegularC},
-    RankRule{"Komodo Dragon", kH_, Kind::Regular, kRegularC},
-    RankRule{"Alligator", kX, Kind::Regular, kRegularC},
+    RankRule{"Centipede", kAnyTier, Kind::Regular, kRegK1C51A1},
+    RankRule{"Leopard", kAnyTier, Kind::Regular, kRegK1C51A2},
+    RankRule{"Komodo Dragon", kAnyTier, Kind::Regular, kRegKomodo},
+
+    RankRule{"Spider", kAnyTier, Kind::Regular, kRegSpider},
+    RankRule{"Puma", kAnyTier, Kind::Regular, kRegPuma},
+    RankRule{"Alligator", kAnyTier, Kind::Regular, kRegAlligator},
 }};
 
 } // namespace

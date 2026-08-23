@@ -9,8 +9,11 @@
 #include <d3d11.h>
 #include <dxgi.h>
 
+#include <cstdint>
+#include <cstdio>
 #include <filesystem>
 
+#include "../common/codename/codename.h"
 #include "../common/config.h"
 #include "../common/log.h"
 
@@ -31,6 +34,7 @@ struct OverlayState {
 };
 
 const char* g_label = "?";
+StatsFn g_stats_fn = nullptr;
 OverlayState g{};
 PresentFn oPresent = nullptr;
 ResizeBuffersFn oResizeBuffers = nullptr;
@@ -101,35 +105,136 @@ bool init_imgui(IDXGISwapChain* swap_chain)
     return true;
 }
 
+const char* difficulty_name(Difficulty d)
+{
+    switch (d) {
+    case Difficulty::VeryEasy: return "Very Easy";
+    case Difficulty::Easy: return "Easy";
+    case Difficulty::Normal: return "Normal";
+    case Difficulty::Hard: return "Hard";
+    case Difficulty::Extreme: return "Extreme";
+    default: return "?";
+    }
+}
+
+void format_time(double seconds, char* buf, size_t len)
+{
+    const int total = static_cast<int>(seconds);
+    snprintf(buf, len, "%d:%02d:%02d", total / 3600, (total / 60) % 60, total % 60);
+}
+
+void stat_row(const char* key, const char* value)
+{
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::TextUnformatted(key);
+    ImGui::TableNextColumn();
+    ImGui::TextUnformatted(value);
+}
+
 void draw_panel()
 {
     ImGuiIO& io = ImGui::GetIO();
     io.FontGlobalScale = config().scale;
 
-    ImGui::SetNextWindowSize(ImVec2(340, 260), ImGuiCond_FirstUseEver);
+    GameStats stats{};
+    const bool have_stats = g_stats_fn && g_stats_fn(stats);
+
+    ImGui::SetNextWindowSize(ImVec2(380, 480), ImGuiCond_FirstUseEver);
     ImGui::Begin("bbtracker", &g.show, ImGuiWindowFlags_NoCollapse);
     ImGui::Text("%s", g_label);
     ImGui::Separator();
-    ImGui::TextDisabled("codename: --");
-    ImGui::Spacing();
 
-    ImGui::BeginTable("stats", 2, ImGuiTableFlags_RowBg);
-    ImGui::TableSetupColumn("stat", ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed);
-    ImGui::TableHeadersRow();
-    const char* rows[] = { "kills",     "alerts",     "rations used", "saves",
-                           "continues", "shots fired", "damage taken", "play time" };
-    for (const char* r : rows) {
-        ImGui::TableNextRow();
-        ImGui::TableNextColumn();
-        ImGui::TextUnformatted(r);
-        ImGui::TableNextColumn();
-        ImGui::TextDisabled("--");
+    if (!have_stats) {
+        ImGui::TextDisabled("stats unavailable");
+        ImGui::TextDisabled("memory probe not resolved yet; see bbtracker.log");
+        ImGui::End();
+        return;
     }
-    ImGui::EndTable();
 
-    ImGui::Separator();
-    ImGui::TextDisabled("rank tracker: --");
+    auto match = codename::evaluate_mgs3(stats);
+
+    ImGui::TextDisabled("projected codename");
+    const ImVec4 green(0.42f, 0.90f, 0.45f, 1.0f);
+    ImGui::SetWindowFontScale(1.6f);
+    ImGui::TextColored(match ? green : ImVec4(1, 1, 1, 0.35f), "%s", match ? match->name : "---");
+    ImGui::SetWindowFontScale(1.0f);
+
+    ImGui::Text("difficulty: %s%s", difficulty_name(stats.difficulty),
+                stats.difficulty_raw > 4 ? " (?) " : "");
+
+    ImGui::Spacing();
+    if (ImGui::BeginTable("stats", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("stat", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+        char buf[64];
+
+        snprintf(buf, sizeof(buf), "%d", stats.kills);
+        stat_row("kills", buf);
+        snprintf(buf, sizeof(buf), "%d", stats.alerts);
+        stat_row("alerts", buf);
+        snprintf(buf, sizeof(buf), "%d", stats.continues);
+        stat_row("continues", buf);
+        snprintf(buf, sizeof(buf), "%d", stats.saves);
+        stat_row("saves", buf);
+        snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
+        stat_row("severe injuries", buf);
+        snprintf(buf, sizeof(buf), "%.0f bars", static_cast<double>(stats.damage_taken_bars));
+        stat_row("damage taken", buf);
+        snprintf(buf, sizeof(buf), "%d", stats.life_med_used);
+        stat_row("life medicine", buf);
+        snprintf(buf, sizeof(buf), "%d", stats.meals_eaten);
+        stat_row("meals eaten", buf);
+        snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
+        stat_row("captures", buf);
+        format_time(stats.play_time_seconds, buf, sizeof(buf));
+        stat_row("play time", buf);
+        stat_row("special items", stats.special_item_used ? "USED" : "not used");
+        ImGui::EndTable();
+    }
+
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("FOXHOUND tracker", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::BeginTable("reqs", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 18.0f);
+            ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+            for (const codename::ReqStatus& r : codename::elite_requirements_mgs3(stats)) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextColored(r.pass ? ImVec4(0.4f, 0.9f, 0.5f, 1.0f) : ImVec4(0.95f, 0.4f, 0.4f, 1.0f),
+                                   "%s", r.pass ? "+" : "-");
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(r.label);
+                ImGui::TableNextColumn();
+
+                char cur[32];
+                char lim[32];
+                switch (static_cast<codename::ReqFmt>(r.fmt)) {
+                case codename::ReqFmt::Time:
+                    format_time(r.current * 3600.0, cur, sizeof(cur));
+                    snprintf(lim, sizeof(lim), "< %.0fh", r.limit);
+                    break;
+                case codename::ReqFmt::Bars:
+                    snprintf(cur, sizeof(cur), "%.0f", r.current);
+                    snprintf(lim, sizeof(lim), "< %.0f bars", r.limit);
+                    break;
+                default:
+                    snprintf(cur, sizeof(cur), "%.0f", r.current);
+                    if (r.limit == 0) {
+                        snprintf(lim, sizeof(lim), "= 0");
+                    } else if (static_cast<codename::Op>(r.op) == codename::Op::Le) {
+                        snprintf(lim, sizeof(lim), "<= %.0f", r.limit);
+                    } else {
+                        snprintf(lim, sizeof(lim), "< %.0f", r.limit);
+                    }
+                    break;
+                }
+                ImGui::Text("%s  %s", cur, lim);
+            }
+            ImGui::EndTable();
+        }
+    }
 
     ImGui::End();
 }
@@ -179,9 +284,10 @@ std::filesystem::path dll_dir()
 
 } // namespace
 
-void start_overlay(const char* game_label)
+void start_overlay(const char* game_label, StatsFn stats_fn)
 {
     g_label = game_label;
+    g_stats_fn = stats_fn;
 
     std::filesystem::path dir = dll_dir();
     std::string ini_path = (dir / L"bbtracker.ini").string();

@@ -1,10 +1,11 @@
 #include <windows.h>
 
 #include "../../overlay/overlay.h"
+#include "probe.h"
 
 DWORD WINAPI init_thread(LPVOID)
 {
-    bb::start_overlay(BB_GAME_LABEL);
+    bb::start_overlay(BB_GAME_LABEL, &bb::mgs3::poll_stats);
     return 0;
 }
 

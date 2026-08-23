@@ -4,7 +4,7 @@
 
 DWORD WINAPI init_thread(LPVOID)
 {
-    bb::start_overlay(BB_GAME_LABEL);
+    bb::start_overlay(BB_GAME_LABEL, nullptr);
     return 0;
 }
 

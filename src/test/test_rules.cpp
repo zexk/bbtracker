@@ -143,12 +143,21 @@ void test_chicken_worst_very_easy()
     CHECK(std::string_view(best(s)) == "Chicken");
 }
 
-void test_cow_alerts_over_250()
+void test_cow_alerts_over_300()
 {
     GameStats s = sloppy(Difficulty::VeryEasy);
-    s.alerts = 251;
-    s.meals_eaten = 400;
-    CHECK(std::string_view(best(s)) == "Pig");
+    s.alerts = 301;
+    s.meals_eaten = 0;
+    CHECK(std::string_view(best(s)) == "Cow");
+}
+
+void test_markhor_by_capture_count()
+{
+    GameStats s = sloppy(Difficulty::Normal);
+    s.plants_captured = 48;
+    CHECK(std::string_view(best(s)) == "Markhor");
+    s.plants_captured = 47;
+    CHECK(std::string_view(best(s)) != "Markhor");
 }
 
 void test_swallow_fast_sloppy_ve()
@@ -171,11 +180,17 @@ void test_regular_fallback()
 {
     GameStats s = sloppy(Difficulty::Normal);
     s.alerts = 10;
-    CHECK(std::string_view(best(s)) == "Tarantula");
+    CHECK(std::string_view(best(s)) == "Scorpion");
     s.alerts = 30;
-    CHECK(std::string_view(best(s)) == "Panther");
+    CHECK(std::string_view(best(s)) == "Jaguar");
     s.alerts = 80;
-    CHECK(std::string_view(best(s)) == "Crocodile");
+    CHECK(std::string_view(best(s)) == "Iguana");
+
+    GameStats t = sloppy(Difficulty::Extreme);
+    t.kills = 150;
+    t.continues = 60;
+    t.alerts = 10;
+    CHECK(std::string_view(best(t)) == "Spider");
 }
 
 void test_tier_gating()
@@ -244,7 +259,8 @@ int main()
         {"chameleon_precedence_over_pigeon", test_chameleon_precedence_over_pigeon},
         {"pigeon_zero_kills_with_alerts", test_pigeon_zero_kills_with_alerts},
         {"chicken_worst_very_easy", test_chicken_worst_very_easy},
-        {"cow_alerts_over_250", test_cow_alerts_over_250},
+        {"cow_alerts_over_300", test_cow_alerts_over_300},
+        {"markhor_by_capture_count", test_markhor_by_capture_count},
         {"swallow_fast_sloppy_ve", test_swallow_fast_sloppy_ve},
         {"kerotan_flag_wins_special_block", test_kerotan_flag_wins_special_block},
         {"regular_fallback", test_regular_fallback},

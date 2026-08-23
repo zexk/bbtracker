@@ -21,10 +21,10 @@ enum class StatId : uint8_t {
     SevereInjuries,
     LifeMedUsed,
     MealsEaten,
+    PlantsCaptured,
     SpecialItemUsed,
     RadarOff,
     KerotanAllShot,
-    MarkhorComplete,
     TsuchinokoCarried,
     LeechCarried,
 };
@@ -88,6 +88,14 @@ struct ReqStatus {
     bool pass;
     double current;
     double limit;
+    uint8_t fmt; // ReqFmt
+    uint8_t op;  // Op
+};
+
+enum class ReqFmt : uint8_t {
+    Count,
+    Bars,
+    Time,
 };
 
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);

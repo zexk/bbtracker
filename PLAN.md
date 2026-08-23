@@ -118,10 +118,18 @@ outputs:
   fallback) with precedence order; eval() + FOXHOUND requirement tracker; 14 native unit
   tests green (`nix build .#checks...`); sources/conflicts documented in
   docs/rank_rules.md. MGS2 table transcription deferred to its probe phase.
-- [ ] **Phase 2 - MGS3 probe + panel** (golden child): offsets/patterns ported; live
-  stats read; panel wired to eval + requirement tracker; verify vs CE table / trainer
-  readings; resolve docs/rank_rules.md conflicts in-game.
-- [ ] **Phase 3 - MGS2 probe + panel**: same for MGS2.
+- [x] **Phase 2 - MGS3 probe + panel** (golden child): memory map extracted from
+  ANTIBigBoss trainer ([module+0xACDE98]->stats struct); VirtualQuery-guarded reads;
+  panel shows live projected codename + full stats + FOXHOUND tracker; rules updated
+  from trainer cross-check (damage=bar units resolved, regular grid matrix, Cow>300,
+  Markhor via capture count >=48). In-game verification checklist pending user run:
+  1) drop bbtracker_mgs3.asi into MGS3 folder with MGSHDFix, F3 toggles panel
+  2) stats match CE table readings
+  3) difficulty byte mapping sanity (raw shown when >4)
+  4) projected codename matches actual end-of-game award
+  5) resolve remaining docs/rank_rules.md conflicts observed in play
+- [ ] **Phase 3 - MGS2 probe + panel**: extract addresses from RMLSNK CE table /
+  sagefantasma trainer; transcribe MGS2 rank tables; same wiring.
 - [ ] **Phase 4 - polish**: config persistence, scale/position, version-detect warnings,
   README install guide, smoke-test checklist (both fixes installed simultaneously).
 - [ ] **Phase 5 - MGS1 (deferred)**: emulated-PSX RAM probe via MGSM2Fix-style access.

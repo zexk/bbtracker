@@ -20,10 +20,10 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::SevereInjuries: return s.severe_injuries;
     case StatId::LifeMedUsed: return s.life_med_used;
     case StatId::MealsEaten: return s.meals_eaten;
+    case StatId::PlantsCaptured: return s.plants_captured;
     case StatId::SpecialItemUsed: return s.special_item_used ? 1.0 : 0.0;
     case StatId::RadarOff: return s.radar_off ? 1.0 : 0.0;
     case StatId::KerotanAllShot: return s.kerotan_all_shot ? 1.0 : 0.0;
-    case StatId::MarkhorComplete: return s.markhor_complete ? 1.0 : 0.0;
     case StatId::TsuchinokoCarried: return s.tsuchinoko_carried ? 1.0 : 0.0;
     case StatId::LeechCarried: return s.leech_carried ? 1.0 : 0.0;
     }
@@ -109,17 +109,18 @@ struct ReqRow {
     StatId stat;
     Op op;
     double limit;
+    ReqFmt fmt;
 };
 
 constexpr std::array<ReqRow, 8> kFoxhoundReqs{{
-    {"alerts", StatId::Alerts, Op::Eq, 0},
-    {"kills", StatId::Kills, Op::Eq, 0},
-    {"severe injuries", StatId::SevereInjuries, Op::Lt, 20},
-    {"damage (bars)", StatId::DamageBars, Op::Lt, 5},
-    {"life medicine", StatId::LifeMedUsed, Op::Eq, 0},
-    {"play time", StatId::PlayTimeHours, Op::Lt, 5},
-    {"continues", StatId::Continues, Op::Eq, 0},
-    {"saves", StatId::Saves, Op::Lt, 25},
+    {"alerts", StatId::Alerts, Op::Eq, 0, ReqFmt::Count},
+    {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
+    {"severe injuries", StatId::SevereInjuries, Op::Lt, 20, ReqFmt::Count},
+    {"damage", StatId::DamageBars, Op::Lt, 5, ReqFmt::Bars},
+    {"life medicine", StatId::LifeMedUsed, Op::Eq, 0, ReqFmt::Count},
+    {"play time", StatId::PlayTimeHours, Op::Lt, 5, ReqFmt::Time},
+    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
+    {"saves", StatId::Saves, Op::Le, 25, ReqFmt::Count},
 }};
 
 } // namespace
@@ -133,6 +134,8 @@ std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s)
             cond_met(s, Cond{row.stat, row.op, row.limit}),
             stat_value(s, row.stat),
             row.limit,
+            static_cast<uint8_t>(row.fmt),
+            static_cast<uint8_t>(row.op),
         });
     }
     return out;

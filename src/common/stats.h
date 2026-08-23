@@ -16,6 +16,7 @@ enum class Difficulty : uint8_t {
 
 struct GameStats {
     Difficulty difficulty = Difficulty::VeryEasy;
+    uint8_t difficulty_raw = 0;
 
     int kills = 0;
     int alerts = 0;
@@ -34,9 +35,9 @@ struct GameStats {
     int life_med_used = 0;
     int meals_eaten = 0;
     int severe_injuries = 0;
+    int plants_captured = 0;
 
     bool kerotan_all_shot = false;
-    bool markhor_complete = false;
     bool tsuchinoko_carried = false;
     bool leech_carried = false;
 };

@@ -43,20 +43,54 @@ saves >100 (Hippopotamus/Zebra/Deer/Cat).
 
 1. Save cap on elite strict rows / FOX-Extreme: muni prints "Under 25" (and "Under 35");
    mainstream guides say "25 or fewer". We encode inclusive caps (`<=25`, `<=35`).
-2. Damage cap on elite strict rows: muni says "<5 life bars"; Siliconera/Game8 guides say
-   "<10". We encode 5. Verify by probing the stat counter while taking damage on a rank run.
-3. Meals threshold for Whale-family: muni says ">250"; older GameFAQs FAQ says "31+"
+2. Meals threshold for Whale-family: muni says ">250"; older GameFAQs FAQ says "31+"
    (likely cross-contaminated from MGS2's 31-rations Elephant). We encode 250.
-4. Worst-family play time: muni says >50h; GameFAQs FAQ says >30h. We encode 50.
+3. Worst-family play time: muni says >50h; GameFAQs FAQ says >30h. We encode 50.
+4. Worst-family severe injuries: muni includes injuries >250; ANTIBigBoss trainer omits
+   it. We keep muni's (stricter, more complete).
+
+## Cross-checked against ANTIBigBoss/MGS3-Cheat-Trainer-GUI rank projection
+
+Second independent source; resolved several open questions:
+
+- RESOLVED damage units: stat is a u32 already denominated in life-bar equivalents
+  (FOXHOUND cap compares against 5). No conversion needed. Conflict #2 from earlier list closed.
+- RESOLVED regular fallback grid: it is NOT difficulty-tiered ("Any"). Explicit matrix,
+  encoded verbatim: continues band {<=50, >=51} x kills band {1..100, >=101} x alerts
+  band {<=20, 21..50, >=51} -> Scorpion/Jaguar/Iguana (k low), Tarantula/Panther/Crocodile
+  (k high), Centipede/Leopard/Komodo Dragon (c high, k low), Spider/Puma/Alligator
+  (c+k high). Komodo Dragon has an odd extra cell (alerts 81..248 AND injuries >=21);
+  encoded as printed. Spider uses alerts <=19 per source.
+- Cow changed 250 -> >300 (GameFAQs FAQ + trainer agree on 300; muni says 250).
+- Markhor is count-based: plants/animals captured byte >= 48 (44 kinds + 4 cure plants),
+  so no inventory-flag hook needed.
+- DISAGREEMENT kept: trainer merges elite-ladder tiers into single rules (e.g. one FOX
+  rule for Hard+Extreme). We keep muni's per-tier rows (classic scaling where each
+  difficulty's perfect run awards that tier's top name). Verify in golden child.
+- TRAINER BUG (not replicated): their Chameleon condition compares kills instead of
+  alerts; every other source agrees Chameleon = zero alerts.
+
+## MGS3 Master Collection memory map (phase 2 probe)
+
+Source: ANTIBigBoss/MGS3-Cheat-Trainer-GUI (Constants.cs / MainPointerManager.cs).
+
+- Module: `METAL GEAR SOLID3.exe`
+- Stats base: `[[module+0x00ACDE98]]` (single pointer deref)
+- Offsets from stats base:
+  - 0x06 u8 difficulty (enum mapping unverified; values >4 render "(?)" in panel)
+  - 0x34 u16 continues, 0x36 u16 saves, 0x38 u16 alerts, 0x3A u16 kills
+  - 0x3D u8 special-items bitmask (1=stealth, 2=infinity facepaint, 4=EZ gun)
+  - 0x3F u8 plants+animals captured, 0x40 u16 severe injuries, 0x42 u32 total damage (bars)
+  - 0x46 u16 meals eaten, 0x4C u32 game time (frames @60fps), 0x5A8 u16 LifeMed used
+- Robustness: reads guarded by VirtualQuery range checks; PE TimeDateStamp logged at
+  resolve for version identification if offsets drift after a game patch.
+- Not yet probed: Kerotan (all 64 shot), Tsuchinoko carried, Leech carried (inventory
+  flags; ranks stay hidden until found).
 
 ## Regular fallback grid (approximate!)
 
-The chart prints a nested grid (Scorpion/Tarantula/Centipede/Spider,
-Jaguar/Panther/Leopard/Puma, Iguana/Crocodile/Komodo Dragon/Alligator) whose per-cell
-alert/continue/kills ranges are ambiguous in flat text. Current approximation:
-kills >= 1 AND alert bands [1..20] -> Scorpion-family, [21..50] -> Jaguar-family,
-[>=51] -> Iguana-family, member chosen by difficulty tier. This is flagged
-verify-in-game via the golden child once Phase 2 probes are wired.
+Superseded: see "Cross-checked against ANTIBigBoss" section above for the explicit
+12-rule matrix now encoded in rules_mgs3.cpp.
 
 Flag-based ranks (Kerotan/Markhor/Tsuchinoko/Leech) will read inventory/capture flags
 in Phase 2; until probed they evaluate false and simply never win precedence.
