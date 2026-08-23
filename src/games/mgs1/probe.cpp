@@ -21,7 +21,7 @@ uint8_t kSig[] = {0x00, 0x00, 0x00, 0x6F, 0x70, 0x65, 0x6E, 0x69, 0x6E, 0x67};
 
 uintptr_t g_array_start = 0;
 unsigned g_zero_polls = 0;
-uint8_t g_last_diff = 0xFF;
+uint16_t g_last_diff = 0xFFFF;
 
 struct FieldOffsets {
     constexpr static size_t kStage = 0x03;
@@ -84,6 +84,19 @@ bool plausible_work_array(uintptr_t p)
     return true;
 }
 
+void log_hex_dump(const uint8_t* data, size_t len)
+{
+    for (size_t row = 0; row < len; row += 16) {
+        char line[128];
+        size_t pos = 0;
+        pos += snprintf(line + pos, sizeof(line) - pos, "  %04zx:", row);
+        for (size_t i = 0; i < 16 && row + i < len; ++i) {
+            pos += snprintf(line + pos, sizeof(line) - pos, " %02X", data[row + i]);
+        }
+        LOG_INFO("%s", line);
+    }
+}
+
 std::vector<uintptr_t> find_candidates()
 {
     std::vector<uintptr_t> out;
@@ -128,6 +141,11 @@ std::vector<uintptr_t> find_candidates()
     return out;
 }
 
+const uint8_t* g_stats_stage()
+{
+    return reinterpret_cast<const uint8_t*>(g_array_start) + FieldOffsets::kStage;
+}
+
 } // namespace
 
 bool poll_stats(GameStats& out)
@@ -156,6 +174,7 @@ bool poll_stats(GameStats& out)
                     reinterpret_cast<const uint8_t*>(g_array_start) + FieldOffsets::kStage, 7);
         LOG_INFO("mgs1 work array at %p stage=%s", reinterpret_cast<const void*>(g_array_start),
                  stage);
+        log_hex_dump(reinterpret_cast<const uint8_t*>(g_array_start), 0xD0);
     }
 
     out.alerts = read_at<uint16_t>(g_array_start, FieldOffsets::kAlerts);
@@ -166,10 +185,10 @@ bool poll_stats(GameStats& out)
 
     const uint16_t diff = read_at<uint16_t>(g_array_start, FieldOffsets::kDifficulty);
     if (diff != g_last_diff) {
-        LOG_INFO("difficulty byte: %u", static_cast<unsigned>(diff));
-        g_last_diff = static_cast<uint8_t>(diff);
-    }
-    out.difficulty_game_byte = static_cast<uint8_t>(diff);
+        LOG_INFO("workarray+0x15 u16=%u (0x%04X)", static_cast<unsigned>(diff),
+                 static_cast<unsigned>(diff));
+        g_last_diff = diff;
+    }    out.difficulty_game_byte = static_cast<uint8_t>(diff);
     switch (diff) {
     case 0: out.difficulty = Difficulty::VeryEasy; break;
     case 1: out.difficulty = Difficulty::Easy; break;
@@ -195,6 +214,20 @@ bool poll_stats(GameStats& out)
         }
     } else {
         g_zero_polls = 0;
+    }
+
+    char stage[8]{};
+    std::memcpy(stage, g_stats_stage(), 7);
+    stage[7] = '\0';
+    for (int i = 0; i < 7; ++i) {
+        if (stage[i] < ' ' || static_cast<uint8_t>(stage[i]) > 0x7E) {
+            stage[i] = '?';
+        }
+    }
+    if (std::strcmp(stage, out.area_code) != 0) {
+        LOG_INFO("mgs1 stage: %s", stage);
+        log_hex_dump(reinterpret_cast<const uint8_t*>(g_array_start), 0xD0);
+        std::memcpy(out.area_code, stage, sizeof(out.area_code));
     }
 
     return true;
