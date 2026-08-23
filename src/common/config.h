@@ -9,6 +9,7 @@ struct Config {
     bool visible_default = true;
     float scale = 1.0f;
     int difficulty_override = -1; // -1 = auto; else Difficulty enum value
+    int radar_off_override = -1;  // -1 = auto; else force radar_off flag
 };
 
 const Config& config();

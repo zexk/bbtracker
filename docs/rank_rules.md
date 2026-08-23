@@ -139,3 +139,18 @@ matching RMLSNK's table maintenance timeline).
   BIG BOSS requires radar off which we cannot probe yet -> stays hidden until
   a radar source is found (CE table lists Radar Type values 0/4/20).
 - Not probeable yet: Sea Louse flag, Gazelle clearing-escapes counter (omitted).
+
+## Probe robustness + remaining gaps (post phase 3)
+
+- MGS3 stats slot is now located via signature scan
+  (48 8B 0D ?? ?? ?? 00 F7 41 08 00 40 00 00 75 09 8B 05 -> RIP-relative slot,
+  credit: apel/makotocchi mgs3_pc.asl) with the static RVA kept only as fallback.
+  Survives game patches that move globals.
+- Story flags slot = stats slot + 0x10; u16 words at +0x2/+0x4 are change-logged.
+  Kerotan/Tsuchinoko/Leech bits are expected somewhere in these words or nearby
+  inventory structures - correlate log lines while collecting to pin them down.
+- MGS3 area code string (stats+0x24, e.g. "s051a") shown in panel; also a good
+  probe-health indicator ("title" in menus).
+- MGS2 radar on/off has no known address yet; BIG BOSS stays hidden unless
+  bbtracker.ini sets [stats] radar_off=1. Set it only when actually playing
+  radar-off. Sea Louse and Gazelle ranks remain omitted (no flag/counter found).

@@ -19,6 +19,7 @@ struct GameStats {
     Difficulty difficulty = Difficulty::VeryEasy;
     uint8_t difficulty_raw = 0;
     int mission = -1;
+    char area_code[8] = {};
 
     int kills = 0;
     int alerts = 0;

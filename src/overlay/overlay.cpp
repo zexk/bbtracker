@@ -180,6 +180,8 @@ void draw_panel()
                 config().difficulty_override < 0 && stats.difficulty_game_byte % 10 != 0 ? " (?)" : "");
     if (g_game == Game::MGS2) {
         ImGui::Text("mission: %s", mission_name(stats.mission));
+    } else if (stats.area_code[0]) {
+        ImGui::Text("area: %s", stats.area_code);
     }
 
     ImGui::Spacing();

@@ -102,6 +102,12 @@ bool load_config(const char* ini_path, Config& out)
         }
     }
 
+    int radar_off = -1;
+    if (inipp::get_value(ini.sections["stats"], "radar_off", radar_off) && radar_off >= 0
+        && radar_off <= 1) {
+        out.radar_off_override = radar_off;
+    }
+
     g_config = out;
     return true;
 }

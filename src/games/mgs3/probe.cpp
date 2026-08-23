@@ -5,6 +5,7 @@
 #include <cstring>
 #include <cstdint>
 #include <cstdio>
+#include <iterator>
 
 #include "../../common/config.h"
 #include "../../common/log.h"
@@ -12,9 +13,17 @@
 namespace bb::mgs3 {
 namespace {
 
-constexpr uintptr_t kMainPointerOffset = 0x00ACDE98;
+constexpr uintptr_t kFallbackSlotOffset = 0x00ACDE98;
 constexpr size_t kStatsRegionSize = 0x600;
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID3.exe";
+
+constexpr uint8_t kStatsSig[] = {0x48, 0x8B, 0x0D, 0x00, 0x00, 0x00, 0x00,
+                                 0xF7, 0x41, 0x08, 0x00, 0x40, 0x00, 0x00,
+                                 0x75, 0x09, 0x8B, 0x05};
+constexpr bool kSigWildcard[std::size(kStatsSig)] = {false, false, false, true,  true,
+                                                     true,  false, false, false, false,
+                                                     false, false, false, false, false,
+                                                     false, false, false};
 
 struct StatOffsets {
     constexpr static size_t kDifficulty = 0x06;
@@ -28,16 +37,20 @@ struct StatOffsets {
     constexpr static size_t kTotalDamage = 0x42;
     constexpr static size_t kMealsEaten = 0x46;
     constexpr static size_t kGameTimeFrames = 0x4C;
+    constexpr static size_t kAreaCode = 0x24;
     constexpr static size_t kLifeMeds = 0x5A8;
 };
 
 const uint8_t* g_stats = nullptr;
 uintptr_t g_last_block = 0;
+uintptr_t g_slot_addr = 0;
 unsigned g_zero_polls = 0;
 uint16_t g_last_dmg_raw = 0;
 uint16_t g_last_unk44 = 0;
 uint8_t g_last_diff06 = 0xFF;
 uint8_t g_last_diff04 = 0xFF;
+uint16_t g_last_vm_flags = 0xFFFF;
+uint16_t g_last_se_flags = 0xFFFF;
 
 bool range_readable(uintptr_t addr, size_t len)
 {
@@ -61,6 +74,53 @@ bool range_readable(uintptr_t addr, size_t len)
     return true;
 }
 
+bool sig_match(const uint8_t* p, size_t avail)
+{
+    if (avail < std::size(kStatsSig)) {
+        return false;
+    }
+    for (size_t i = 0; i < std::size(kStatsSig); ++i) {
+        if (!kSigWildcard[i] && p[i] != kStatsSig[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool find_slot_via_sig(HMODULE mod, uintptr_t& out_slot)
+{
+    const auto base = reinterpret_cast<uintptr_t>(mod);
+    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(mod);
+    const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+    const uintptr_t scan_start = base + nt->OptionalHeader.BaseOfCode;
+    const size_t scan_size = nt->OptionalHeader.SizeOfCode;
+
+    for (uintptr_t addr = scan_start; addr < scan_start + scan_size; addr += 0x1000) {
+        MEMORY_BASIC_INFORMATION mbi{};
+        if (!VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))
+            || mbi.State != MEM_COMMIT) {
+            continue;
+        }
+        const uintptr_t region_end =
+            reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
+        const uintptr_t stop = region_end < scan_start + scan_size ? region_end : scan_start + scan_size;
+        for (uintptr_t p = addr; p + std::size(kStatsSig) <= stop; ++p) {
+            if (!sig_match(reinterpret_cast<const uint8_t*>(p), stop - p)) {
+                continue;
+            }
+            const int32_t disp = *reinterpret_cast<volatile const int32_t*>(p + 3);
+            out_slot = disp + p + 7;
+            LOG_INFO("stats slot found via signature at module+%zX",
+                     static_cast<size_t>(out_slot - base));
+            return true;
+        }
+        if (region_end > addr + 0x1000) {
+            addr = region_end - 0x1000;
+        }
+    }
+    return false;
+}
+
 void log_hex_dump(const uint8_t* data, size_t len)
 {
     for (size_t row = 0; row < len; row += 16) {
@@ -73,25 +133,39 @@ void log_hex_dump(const uint8_t* data, size_t len)
         LOG_INFO("%s", line);
     }
 }
-
-bool resolve(uintptr_t& out_block)
+bool resolve(uintptr_t& out_block, uintptr_t& out_story_base)
 {
     HMODULE mod = GetModuleHandleW(kModuleName);
     if (!mod) {
         return false;
     }
     const auto base = reinterpret_cast<uintptr_t>(mod);
-    const uintptr_t slot = base + kMainPointerOffset;
+
+    if (!g_slot_addr) {
+        uintptr_t sig_slot = 0;
+        if (find_slot_via_sig(mod, sig_slot)) {
+            g_slot_addr = sig_slot;
+        } else {
+            LOG_WARN("stats signature not found; falling back to static offset");
+            g_slot_addr = base + kFallbackSlotOffset;
+        }
+    }
+
+    const uintptr_t slot = g_slot_addr;
     if (!range_readable(slot, sizeof(uintptr_t))) {
+        g_slot_addr = 0;
         return false;
     }
     const uintptr_t ptr = *reinterpret_cast<volatile const uintptr_t*>(slot);
     if (!ptr || !range_readable(ptr, kStatsRegionSize)) {
         return false;
     }
+    const uintptr_t story_ptr =
+        *reinterpret_cast<volatile const uintptr_t*>(slot + 0x10);
 
     if (ptr != g_last_block) {
-        LOG_INFO("stats block %s%p", g_last_block ? "moved: " : "", reinterpret_cast<const void*>(ptr));
+        LOG_INFO("stats block %s%p", g_last_block ? "moved: " : "",
+                 reinterpret_cast<const void*>(ptr));
         const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(mod);
         const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
         LOG_INFO("module_timestamp=0x%08X",
@@ -102,6 +176,7 @@ bool resolve(uintptr_t& out_block)
     }
 
     out_block = ptr;
+    out_story_base = story_ptr;
     return true;
 }
 
@@ -118,7 +193,8 @@ T read_at(size_t offset)
 bool poll_stats(GameStats& out)
 {
     uintptr_t block = 0;
-    if (!resolve(block)) {
+    uintptr_t story_base = 0;
+    if (!resolve(block, story_base)) {
         return false;
     }
     g_stats = reinterpret_cast<const uint8_t*>(block);
@@ -169,6 +245,32 @@ bool poll_stats(GameStats& out)
     if (config().difficulty_override >= 0) {
         out.difficulty = static_cast<Difficulty>(config().difficulty_override);
         out.difficulty_raw = static_cast<uint8_t>(config().difficulty_override);
+    }
+
+    if (story_base && range_readable(story_base, 0x40)) {
+        const uint16_t story_vm =
+            *reinterpret_cast<volatile const uint16_t*>(story_base + 0x2);
+        const uint16_t story_se =
+            *reinterpret_cast<volatile const uint16_t*>(story_base + 0x4);
+        if (story_vm != g_last_vm_flags || story_se != g_last_se_flags) {
+            LOG_INFO("story flags vm=0x%04X se=0x%04X",
+                     static_cast<unsigned>(story_vm), static_cast<unsigned>(story_se));
+            g_last_vm_flags = story_vm;
+            g_last_se_flags = story_se;
+        }
+    }
+
+    char area[8]{};
+    std::memcpy(area, g_stats + StatOffsets::kAreaCode, 7);
+    for (int i = 0; i < 7; ++i) {
+        if ((area[i] < '0' || area[i] > 'z') && area[i] != '_') {
+            area[i] = '\0';
+            break;
+        }
+    }
+    if (std::strcmp(area, out.area_code) != 0) {
+        LOG_INFO("area: %s", area);
+        std::memcpy(out.area_code, area, sizeof(out.area_code));
     }
 
     if (out.kills == 0 && out.alerts == 0 && out.saves == 0 && out.continues == 0

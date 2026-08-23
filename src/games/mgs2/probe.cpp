@@ -99,6 +99,7 @@ bool poll_stats(GameStats& out)
         / 60.0;
     out.rations_used = read_at<uint16_t>(player, kRationsOffset);
     out.special_item_used = read_at<uint16_t>(player, kSpecialItemsOffset) != 0;
+    out.radar_off = config().radar_off_override == 1;
 
     switch (read_at<uint8_t>(player, StatOffsets::kDifficulty)) {
     case 10: out.difficulty = Difficulty::VeryEasy; break;
