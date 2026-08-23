@@ -8,12 +8,14 @@ requirement checklist. Read-only memory probing only.
 
 ## Decisions (locked)
 
-- Phase 1 targets MGS2 + MGS3. MGS1 deferred to a later phase (needs emulated-PSX RAM RE).
+- **MGS3 is the golden child** (only MGS1+3 currently installed; MGS1 needs emu RE).
+  Phase order: codename engine -> MGS3 probe -> MGS2 probe -> MGS1 later.
+- Toggle key default **F3** (was INSERT), configurable via bbtracker.ini.
+- Phase 1 targets MGS2 + MGS3 rules; MGS1 deferred (needs emulated-PSX RAM RE).
 - Deliverable shape: **per-game builds** (`bbtracker_mgs2.asi`, `bbtracker_mgs3.asi`),
   shared static core lib.
 - Panel content: projected codename + raw stats + live top-rank requirement tracker.
 - Read/probe only. Never write game memory. Never patch game code bytes.
-- Toggle key default INSERT, configurable via `bbtracker.ini`.
 - Build on Linux via Nix flake + MinGW-w64 cross toolchain; test via Proton/Steam.
 
 ## Research findings
@@ -109,15 +111,20 @@ outputs:
 
 - [x] **Phase 0 - scaffolding**: flake.nix (devshell + cross build), both .asi targets
   build as fully static PE32+ DLLs (system DLL imports only). kiero D3D11 Present +
-  ResizeBuffers hooks, ImGui panel with placeholder rows, INSERT toggle, bbtracker.ini
-  (inipp), file logger. In-game smoke test under Proton still pending user run.
-- [ ] **Phase 1 - codename engine**: GameStats struct; transcribe MGS2/MGS3 rank tables
-  into data-driven rules; eval() with attainability logic; native unit tests green.
-- [ ] **Phase 2 - MGS2 probe + panel**: offsets/patterns ported; live stats read;
-  full panel wired for MGS2; verify vs CE table readings.
-- [ ] **Phase 3 - MGS3 probe + panel**: same for MGS3; re-verify addresses vs current exe.
+  ResizeBuffers hooks, ImGui panel with placeholder rows, F3 toggle (bbtracker.ini,
+  inipp), file logger. In-game smoke test under Proton still pending user run.
+- [x] **Phase 1 - codename engine (MGS3)**: GameStats struct; muni_shinobu MGS3 chart
+  transcribed into data-driven rules (61 entries: elite ladder, worst, specials, regular
+  fallback) with precedence order; eval() + FOXHOUND requirement tracker; 14 native unit
+  tests green (`nix build .#checks...`); sources/conflicts documented in
+  docs/rank_rules.md. MGS2 table transcription deferred to its probe phase.
+- [ ] **Phase 2 - MGS3 probe + panel** (golden child): offsets/patterns ported; live
+  stats read; panel wired to eval + requirement tracker; verify vs CE table / trainer
+  readings; resolve docs/rank_rules.md conflicts in-game.
+- [ ] **Phase 3 - MGS2 probe + panel**: same for MGS2.
 - [ ] **Phase 4 - polish**: config persistence, scale/position, version-detect warnings,
   README install guide, smoke-test checklist (both fixes installed simultaneously).
+- [ ] **Phase 5 - MGS1 (deferred)**: emulated-PSX RAM probe via MGSM2Fix-style access.
 
 ### Build notes learned in Phase 0
 

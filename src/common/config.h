@@ -5,7 +5,7 @@
 namespace bb {
 
 struct Config {
-    UINT toggle_key = VK_INSERT;
+    UINT toggle_key = VK_F3;
     bool visible_default = true;
     float scale = 1.0f;
 };

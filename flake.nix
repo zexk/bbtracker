@@ -71,5 +71,31 @@
             inputsFrom = [ self.packages.${system}.bbtracker ];
           };
         });
+
+      checks = forAllSystems (system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          rules-tests = pkgs.stdenv.mkDerivation {
+            pname = "bbtracker-rules-tests";
+            version = "0.1.0";
+            src = self;
+
+            nativeBuildInputs = [
+              pkgs.cmake
+              pkgs.ninja
+            ];
+
+            dontUseCmakeInstall = true;
+            doCheck = true;
+            checkPhase = ''
+              ctest --output-on-failure
+            '';
+            installPhase = ''
+              mkdir -p $out
+            '';
+          };
+        });
     };
 }
