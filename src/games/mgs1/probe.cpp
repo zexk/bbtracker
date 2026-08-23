@@ -89,10 +89,17 @@ std::vector<uintptr_t> find_candidates()
     std::vector<uintptr_t> out;
     MEMORY_BASIC_INFORMATION mbi{};
     uintptr_t addr = 0x10000;
+    constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
+        | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
     while (VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))) {
         const uintptr_t vbase = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
         const uintptr_t region_end = vbase + mbi.RegionSize;
-        if (mbi.State == MEM_COMMIT && mbi.RegionSize > sizeof(kSig)) {
+
+        const bool readable =
+            mbi.State == MEM_COMMIT && (mbi.Protect & kReadable) != 0
+            && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize >= 0x200
+            && mbi.RegionSize <= 0x4000000;
+        if (readable) {
             const uint8_t* begin = reinterpret_cast<const uint8_t*>(vbase);
             const size_t len = mbi.RegionSize;
             for (size_t i = 0; i + sizeof(kSig) <= len; ++i) {
@@ -101,7 +108,7 @@ std::vector<uintptr_t> find_candidates()
                     continue;
                 }
                 bool ok = true;
-                for (size_t j = 3; j < sizeof(kSig); ++j) {
+                for (size_t j = 4; j < sizeof(kSig); ++j) {
                     if (begin[i + j] != kSig[j]) {
                         ok = false;
                         break;
@@ -112,10 +119,11 @@ std::vector<uintptr_t> find_candidates()
                 }
             }
         }
-        addr = region_end;
-        if (region_end <= vbase) {
+
+        if (region_end <= addr) {
             break;
         }
+        addr = region_end;
     }
     return out;
 }
