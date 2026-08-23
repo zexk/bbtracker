@@ -33,6 +33,7 @@ struct StatOffsets {
 const uint8_t* g_stats = nullptr;
 uintptr_t g_last_block = 0;
 unsigned g_zero_polls = 0;
+uint32_t g_last_dmg_raw = 0;
 
 bool range_readable(uintptr_t addr, size_t len)
 {
@@ -128,6 +129,13 @@ bool poll_stats(GameStats& out)
     out.severe_injuries = read_at<uint16_t>(StatOffsets::kSevereInjuries);
 
     const uint32_t dmg_raw = read_at<uint32_t>(StatOffsets::kTotalDamage);
+    if (dmg_raw != g_last_dmg_raw) {
+        float f;
+        std::memcpy(&f, &dmg_raw, sizeof(f));
+        LOG_INFO("dmg@0x42 raw=0x%08X u32=%u as_float=%.4f", static_cast<unsigned>(dmg_raw),
+                 static_cast<unsigned>(dmg_raw), static_cast<double>(f));
+        g_last_dmg_raw = dmg_raw;
+    }
     float dmg_f;
     std::memcpy(&dmg_f, &dmg_raw, sizeof(dmg_f));
     if (dmg_raw <= 5000) {

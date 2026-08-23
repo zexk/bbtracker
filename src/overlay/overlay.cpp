@@ -200,8 +200,7 @@ void draw_panel()
 
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("FOXHOUND tracker", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::BeginTable("reqs", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 18.0f);
+        if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
             ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
             for (const codename::ReqStatus& r : codename::elite_requirements_mgs3(stats)) {
@@ -214,11 +213,19 @@ void draw_panel()
                     break;
                 }
                 case codename::ReqFmt::Bars:
-                    snprintf(ratio, sizeof(ratio), "%.1f / %.0f", static_cast<double>(r.current),
-                             r.limit);
+                    if (r.limit == 0) {
+                        snprintf(ratio, sizeof(ratio), "%.1f", static_cast<double>(r.current));
+                    } else {
+                        snprintf(ratio, sizeof(ratio), "%.1f / %.0f", static_cast<double>(r.current),
+                                 r.limit);
+                    }
                     break;
                 default:
-                    snprintf(ratio, sizeof(ratio), "%.0f / %.0f", r.current, r.limit);
+                    if (r.limit == 0) {
+                        snprintf(ratio, sizeof(ratio), "%.0f", r.current);
+                    } else {
+                        snprintf(ratio, sizeof(ratio), "%.0f / %.0f", r.current, r.limit);
+                    }
                     break;
                 }
 
@@ -227,16 +234,12 @@ void draw_panel()
                 const ImVec4 state_col = over ? ImVec4(0.95f, 0.35f, 0.35f, 1.0f)
                                               : near_limit ? ImVec4(1.0f, 0.82f, 0.25f, 1.0f)
                                                            : ImVec4(0.4f, 0.9f, 0.5f, 1.0f);
-                const char* marker = over ? "-" : near_limit ? "!" : "+";
 
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                ImGui::TextColored(state_col, "%s", marker);
-                ImGui::TableNextColumn();
                 ImGui::TextUnformatted(r.label);
                 ImGui::TableNextColumn();
-                ImGui::TextColored(over || near_limit ? state_col : ImVec4(1, 1, 1, 0.85f), "%s",
-                                   ratio);
+                ImGui::TextColored(state_col, "%s", ratio);
             }
             ImGui::EndTable();
         }
