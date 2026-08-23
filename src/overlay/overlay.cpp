@@ -196,21 +196,30 @@ void draw_panel()
         snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
                  stats.damage_taken_units / 48.0);
         stat_row("damage taken", buf);
-        snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
-        stat_row("severe injuries", buf);
         format_time(stats.play_time_seconds, buf, sizeof(buf));
         stat_row("play time", buf);
         snprintf(buf, sizeof(buf), "%d", stats.continues);
         stat_row("continues", buf);
         snprintf(buf, sizeof(buf), "%d", stats.saves);
         stat_row("saves", buf);
-        snprintf(buf, sizeof(buf), "%d", stats.life_med_used);
-        stat_row("life medicine", buf);
-        snprintf(buf, sizeof(buf), "%d", stats.meals_eaten);
-        stat_row("meals eaten", buf);
-        snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
-        stat_row("captures", buf);
-        stat_row("special items", stats.special_item_used ? "USED" : "not used");
+
+        if (g_game == Game::MGS2) {
+            snprintf(buf, sizeof(buf), "%d", stats.shots_fired);
+            stat_row("shots fired", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.rations_used);
+            stat_row("rations used", buf);
+            stat_row("special items", stats.special_item_used ? "USED" : "not used");
+        } else {
+            snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
+            stat_row("severe injuries", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.life_med_used);
+            stat_row("life medicine", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.meals_eaten);
+            stat_row("meals eaten", buf);
+            snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
+            stat_row("captures", buf);
+            stat_row("special items", stats.special_item_used ? "USED" : "not used");
+        }
         ImGui::EndTable();
     }
 
