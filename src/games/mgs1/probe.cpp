@@ -14,7 +14,7 @@
 namespace bb::mgs1 {
 namespace {
 
-constexpr wchar_t kModuleName[] = L"MGS1.exe";
+constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID.exe";
 constexpr size_t kWorkRegionSize = 0x200;
 
 uint8_t kSig[] = {0x00, 0x00, 0x00, 0x6F, 0x70, 0x65, 0x6E, 0x69, 0x6E, 0x67};
