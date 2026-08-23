@@ -154,3 +154,22 @@ matching RMLSNK's table maintenance timeline).
 - MGS2 radar on/off has no known address yet; BIG BOSS stays hidden unless
   bbtracker.ini sets [stats] radar_off=1. Set it only when actually playing
   radar-off. Sea Louse and Gazelle ranks remain omitted (no flag/counter found).
+
+## MGS2 radar: solved via passive GameState discovery
+
+RMLSNK's table (Patch201.ct) hooks `add [rcx+0x138],eax` (AOB
+`01 81 38 01 00 00`) to capture a second stats struct ("GameState") that the
+player-block layout doesn't cover:
+- +0x06 u8 radar type {00=TYPE1 on, 20=TYPE2 on, 04=OFF}
+- +0x07 u8 game-over-if-discovered {0/16 off, 8/40 on; also encodes mission}
+- +0x11A u16 alert state {0 none,1 alert,2 evasion,3 caution}
+- +0x132/+0x136/+0x138/+0x140/+0x142 mirrors of continues/saves/gametime/
+  shots/alerts
+
+No static global holds it, so instead of injecting a mid-instruction hook we
+scan writable memory for candidates passing enum plausibility AND matching our
+already-proven player-block reads across five fields simultaneously
+(continues+saves+alerts+shots+gametime). Scan throttled to one pass per ~4s
+until found; cached hit is revalidated every poll. radar_off then reads
+directly from byte@+6, making BIG BOSS attainable in the tracker for genuine
+radar-off runs; the [stats] radar_off ini override still wins if set.
