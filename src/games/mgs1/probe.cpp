@@ -257,6 +257,8 @@ bool poll_stats(GameStats& out)
         load_config((dir / L"bbtracker.ini").string().c_str(), tmp);
     }
 
+    run_hunt();
+
     if (!g_array_start || !range_readable(g_array_start, kWorkRegionSize)) {
         g_array_start = 0;
         static uint64_t last_scan = 0;
