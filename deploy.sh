@@ -21,7 +21,7 @@ for file in "${!TARGETS[@]}"; do
     rc=1
     continue
   fi
-  cp -v "result/bin/$file" "$dest/"
+  install -v -m 644 "result/bin/$file" "$dest/"
 done
 
 exit $rc
