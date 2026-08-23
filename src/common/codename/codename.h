@@ -65,6 +65,7 @@ struct RankRule {
     TierMask tiers;
     Kind kind;
     std::span<const Cond> conds;
+    bool needs_time = false;
 };
 
 struct Match {
@@ -83,6 +84,8 @@ std::optional<Match> evaluate_mgs3(const GameStats& s);
 std::vector<Match> all_matches_mgs3(const GameStats& s);
 
 const RankRule* find_mgs3(const char* name);
+
+std::optional<Match> evaluate_mgs1(const GameStats& s);
 
 struct ReqStatus {
     const char* label;
@@ -104,5 +107,9 @@ std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);
 std::optional<Match> evaluate_mgs2(const GameStats& s);
 
 std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s);
+
+std::optional<Match> evaluate_mgs1(const GameStats& s);
+
+std::vector<ReqStatus> elite_requirements_mgs1(const GameStats& s);
 
 } // namespace bb::codename

@@ -33,8 +33,7 @@ struct OverlayState {
 
 const char* g_label = "?";
 StatsFn g_stats_fn = nullptr;
-Game g_game = Game::MGS3;
-OverlayState g{};
+Game g_game = Game::MGS3;OverlayState g{};
 
 using PresentFn = HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT);
 using ResizeBuffersFn =
@@ -168,8 +167,9 @@ void draw_panel()
         return;
     }
 
-    auto match = g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
-                                      : codename::evaluate_mgs3(stats);
+    auto match = g_game == Game::MGS1  ? codename::evaluate_mgs1(stats)
+                 : g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
+                                        : codename::evaluate_mgs3(stats);
 
     const ImVec4 green(0.42f, 0.90f, 0.45f, 1.0f);
     ImGui::SetWindowFontScale(2.0f);
@@ -181,7 +181,7 @@ void draw_panel()
     if (g_game == Game::MGS2) {
         ImGui::Text("mission: %s", mission_name(stats.mission));
     } else if (stats.area_code[0]) {
-        ImGui::Text("area: %s", stats.area_code);
+        ImGui::Text(g_game == Game::MGS1 ? "stage: %s" : "area: %s", stats.area_code);
     }
 
     ImGui::Spacing();
@@ -194,12 +194,14 @@ void draw_panel()
         snprintf(buf, sizeof(buf), "%d", stats.kills);
         stat_row("kills", buf);
         snprintf(buf, sizeof(buf), "%d", stats.alerts);
-        stat_row("alerts", buf);
-        snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
-                 stats.damage_taken_units / 48.0);
-        stat_row("damage taken", buf);
-        format_time(stats.play_time_seconds, buf, sizeof(buf));
-        stat_row("play time", buf);
+        stat_row(g_game == Game::MGS1 ? "discovered" : "alerts", buf);
+        if (g_game != Game::MGS1) {
+            snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
+                     stats.damage_taken_units / 48.0);
+            stat_row("damage taken", buf);
+            format_time(stats.play_time_seconds, buf, sizeof(buf));
+            stat_row("play time", buf);
+        }
         snprintf(buf, sizeof(buf), "%d", stats.continues);
         stat_row("continues", buf);
         snprintf(buf, sizeof(buf), "%d", stats.saves);
@@ -211,6 +213,14 @@ void draw_panel()
             snprintf(buf, sizeof(buf), "%d", stats.rations_used);
             stat_row("rations used", buf);
             stat_row("special items", stats.special_item_used ? "USED" : "not used");
+        } else if (g_game == Game::MGS1) {
+            snprintf(buf, sizeof(buf), "%d", stats.rations_used);
+            stat_row("rations used", buf);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("play time");
+            ImGui::TableNextColumn();
+            ImGui::TextDisabled("unprobed");
         } else {
             snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
             stat_row("severe injuries", buf);
@@ -226,11 +236,12 @@ void draw_panel()
     }
 
     ImGui::Spacing();
-    const char* tracker_title = g_game == Game::MGS2 ? "BIG BOSS tracker" : "FOXHOUND tracker";
+    const char* tracker_title = g_game == Game::MGS3 ? "FOXHOUND tracker" : "BIG BOSS tracker";
     if (ImGui::CollapsingHeader(tracker_title, ImGuiTreeNodeFlags_DefaultOpen)) {
-        std::vector<codename::ReqStatus> reqs = g_game == Game::MGS2
-            ? codename::elite_requirements_mgs2(stats)
-            : codename::elite_requirements_mgs3(stats);
+        std::vector<codename::ReqStatus> reqs =
+            g_game == Game::MGS1   ? codename::elite_requirements_mgs1(stats)
+            : g_game == Game::MGS2 ? codename::elite_requirements_mgs2(stats)
+                                   : codename::elite_requirements_mgs3(stats);
         if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
             ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);

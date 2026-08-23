@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "rules_mgs1.h"
 #include "rules_mgs2.h"
 #include "rules_mgs3.h"
 
@@ -63,6 +64,9 @@ TierMask tier_bit(Difficulty d)
 bool rule_matches(const GameStats& s, const RankRule& r)
 {
     if ((r.tiers & tier_bit(s.difficulty)) == 0) {
+        return false;
+    }
+    if (r.needs_time && s.play_time_seconds <= 0.0) {
         return false;
     }
     for (const Cond& c : r.conds) {
@@ -191,6 +195,56 @@ std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s)
         out.push_back(ReqStatus{
             row.label,
             cond_met(s, Cond{row.stat, row.op, row.limit}),
+            stat_value(s, row.stat),
+            row.limit,
+            static_cast<uint8_t>(row.fmt),
+            static_cast<uint8_t>(row.op),
+        });
+    }
+    return out;
+}
+
+std::optional<Match> evaluate_mgs1(const GameStats& s)
+{
+    for (const RankRule& r : mgs1_rules()) {
+        if (rule_matches(s, r)) {
+            return Match{r.name, r.kind};
+        }
+    }
+    return std::nullopt;
+}
+
+namespace {
+
+struct Mgs1ReqRow {
+    const char* label;
+    StatId stat;
+    Op op;
+    double limit;
+    ReqFmt fmt;
+};
+
+constexpr std::array<Mgs1ReqRow, 5> kIntegralLadderReqs{{
+    {"discovered", StatId::Alerts, Op::Lt, 4, ReqFmt::Count},
+    {"kills", StatId::Kills, Op::Lt, 25, ReqFmt::Count},
+    {"rations used", StatId::RationsUsed, Op::Le, 1, ReqFmt::Count},
+    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
+    {"play time", StatId::PlayTimeHours, Op::Lt, 3, ReqFmt::Time},
+}};
+
+} // namespace
+
+std::vector<ReqStatus> elite_requirements_mgs1(const GameStats& s)
+{
+    std::vector<ReqStatus> out;
+    for (const Mgs1ReqRow& row : kIntegralLadderReqs) {
+        bool pass = cond_met(s, Cond{row.stat, row.op, row.limit});
+        if (row.fmt == ReqFmt::Time && s.play_time_seconds <= 0.0) {
+            pass = false;
+        }
+        out.push_back(ReqStatus{
+            row.label,
+            pass,
             stat_value(s, row.stat),
             row.limit,
             static_cast<uint8_t>(row.fmt),
