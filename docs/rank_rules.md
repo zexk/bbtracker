@@ -116,3 +116,26 @@ in Phase 2; until probed they evaluate false and simply never win precedence.
 
 - MGS2: rank factors documented in PLAN.md research section; table transcription pending.
 - MGS1: Integral chart at https://www.tentenpro.com/muni_shinobu/mgs/int_codename.html
+
+## MGS2 Master Collection memory map (phase 3, untested in-game)
+
+Source: sagefantasma/MGS2-Cheat-Trainer (shipped offsets target MC v2.0.1,
+matching RMLSNK's table maintenance timeline).
+
+- Module: `METAL GEAR SOLID2.exe`
+- Player block: `[[module+0x00949340]]` (v2.0.2 uses 0x948340 - add version
+  fallback if reads come back empty after a patch)
+- From player pointer:
+  - 0x07 u8 gametype {0=Plant, 16=Tanker, 32=Tanker-Plant}
+  - 0x10 u8 difficulty {10..60 same enum as MGS3; 60=EuroExtreme has its own
+    rank column (muni's "Very Hard") and folds to Extreme for display}
+  - 0x12E stats chunk: +4 i16 continues, +8 i16 saves, +10 i32 playtime
+    frames@60fps, +18 i16 shots, +20 i16 alerts, +22 i16 kills, +24 i16 damage
+    (raw units, same ~48/bar assumption as MGS3 - unverified), +42 i16 mechs
+  - 0x1590 i16 rations used
+  - 0x1596 i16 special items used (bitmask)
+- Rank rules: muni MGS2 chart. Elite ladder = LADDER[min(3,s+t)] over
+  strictness rows s0..s3 x tiers t (X,VH/EE,H,N,E); all require Tanker-Plant.
+  BIG BOSS requires radar off which we cannot probe yet -> stays hidden until
+  a radar source is found (CE table lists Radar Type values 0/4/20).
+- Not probeable yet: Sea Louse flag, Gazelle clearing-escapes counter (omitted).
