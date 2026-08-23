@@ -43,6 +43,7 @@ if [[ -d "$MGS1_DIR" ]]; then
       install -v -m 644 third_party/ual/dinput8_x64.dll "$MGS1_DIR/dinput8.dll"
     fi
   fi
+  install -v -m 644 third_party/ual/winmm_x64.dll "$MGS1_DIR/winmm.dll"
 fi
 
 exit $rc
