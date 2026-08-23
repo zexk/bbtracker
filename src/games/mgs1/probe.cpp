@@ -18,7 +18,9 @@ namespace {
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID.exe";
 constexpr size_t kWorkRegionSize = 0x200;
 
-uint8_t kSig[] = {0x00, 0x00, 0x00, 0x6F, 0x70, 0x65, 0x6E, 0x69, 0x6E, 0x67};
+constexpr uint8_t kSig[] = {0x00, 0x00, 0x00, 0x6F, 0x70, 0x65, 0x6E, 0x69, 0x6E, 0x67,
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                            0x00};
 
 uintptr_t g_array_start = 0;
 unsigned g_zero_polls = 0;
@@ -322,9 +324,10 @@ bool poll_stats(GameStats& out)
             stage[i] = '?';
         }
     }
-    if (std::strcmp(stage, out.area_code) != 0) {
+    static char last_stage[8] = {};
+    if (std::strcmp(stage, last_stage) != 0) {
         LOG_INFO("mgs1 stage: %s", stage);
-        log_hex_dump(reinterpret_cast<const uint8_t*>(g_array_start), 0xD0);
+        std::memcpy(last_stage, stage, sizeof(last_stage));
         std::memcpy(out.area_code, stage, sizeof(out.area_code));
     }
 
