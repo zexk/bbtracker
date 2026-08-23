@@ -132,7 +132,14 @@ outputs:
   sagefantasma trainer; transcribe MGS2 rank tables; same wiring.
 - [ ] **Phase 4 - polish**: config persistence, scale/position, version-detect warnings,
   README install guide, smoke-test checklist (both fixes installed simultaneously).
-- [ ] **Phase 5 - MGS1 (deferred)**: emulated-PSX RAM probe via MGSM2Fix-style access.
+- [x] **Phase 5 - MGS1**: emulator work-array located via heap scan for the
+  "opening" stage-string anchor (NeopolitanDreamz MGS1_master.CT); rank fields
+  alerts/kills/rations/continues/saves u16 probed; Integral chart transcribed
+  (64 rules) with needs_time gating since playtime is unprobed; difficulty byte
+  mapping unverified (ini override available). In-game verification pending.
+- [ ] **Phase 6 - remaining gaps**: MGS3 story-flag bit hunting (kerotan/
+  tsuchinoko/leech via change-log correlation), MGS1 playtime + damage-scale
+  calibration, Sea Louse/Gazelle counters if surfaces are ever found.
 
 ### Build notes learned in Phase 0
 
