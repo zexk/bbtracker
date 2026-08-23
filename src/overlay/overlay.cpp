@@ -1,6 +1,5 @@
 #include "overlay.h"
 
-#include <kiero.h>
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
 #include <imgui_impl_win32.h>
@@ -8,6 +7,8 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <dxgi.h>
+
+#include <MinHook.h>
 
 #include <cstdint>
 #include <cstdio>
@@ -19,10 +20,6 @@
 
 namespace bb {
 namespace {
-
-using PresentFn = HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT);
-using ResizeBuffersFn =
-    HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
 
 struct OverlayState {
     bool imgui_ready = false;
@@ -36,8 +33,16 @@ struct OverlayState {
 const char* g_label = "?";
 StatsFn g_stats_fn = nullptr;
 OverlayState g{};
+
+using PresentFn = HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT);
+using ResizeBuffersFn =
+    HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
+
 PresentFn oPresent = nullptr;
 ResizeBuffersFn oResizeBuffers = nullptr;
+
+constexpr UINT kPresentIndex = 8;
+constexpr UINT kResizeBuffersIndex = 13;
 
 HMODULE own_module()
 {
@@ -275,6 +280,80 @@ HRESULT STDMETHODCALLTYPE hk_resize_buffers(IDXGISwapChain* swap_chain, UINT buf
     return hr;
 }
 
+bool install_hooks()
+{
+    WNDCLASSEXA wc{};
+    wc.cbSize = sizeof(wc);
+    wc.lpfnWndProc = DefWindowProcA;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpszClassName = "BBTrackerDummyWnd";
+    if (!RegisterClassExA(&wc)) {
+        LOG_ERROR("RegisterClassExA failed");
+        return false;
+    }
+    HWND wnd = CreateWindowExA(0, wc.lpszClassName, "", WS_OVERLAPPEDWINDOW, 0, 0, 100, 100,
+                               nullptr, nullptr, wc.hInstance, nullptr);
+
+    DXGI_SWAP_CHAIN_DESC sd{};
+    sd.BufferCount = 1;
+    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    sd.OutputWindow = wnd;
+    sd.SampleDesc.Count = 1;
+    sd.Windowed = TRUE;
+    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+    const D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_0};
+    D3D_FEATURE_LEVEL got{};
+    IDXGISwapChain* sc = nullptr;
+    ID3D11Device* dev = nullptr;
+    ID3D11DeviceContext* ctx = nullptr;
+
+    auto create = reinterpret_cast<decltype(&D3D11CreateDeviceAndSwapChain)>(
+        GetProcAddress(GetModuleHandleW(L"d3d11.dll"), "D3D11CreateDeviceAndSwapChain"));
+    HRESULT hr = create ? create(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, levels, 1,
+                                 D3D11_SDK_VERSION, &sd, &sc, &dev, &got, &ctx)
+                        : E_FAIL;
+    if (FAILED(hr) || !sc || !dev || !ctx) {
+        LOG_ERROR("dummy d3d11 device creation failed hr=0x%08lX", static_cast<unsigned long>(hr));
+        if (sc) sc->Release();
+        if (dev) dev->Release();
+        if (ctx) ctx->Release();
+        if (wnd) DestroyWindow(wnd);
+        UnregisterClassA(wc.lpszClassName, wc.hInstance);
+        return false;
+    }
+
+    void** vtable = *reinterpret_cast<void***>(sc);
+    void* present_target = vtable[kPresentIndex];
+    void* resize_target = vtable[kResizeBuffersIndex];
+
+    sc->Release();
+    dev->Release();
+    ctx->Release();
+    if (wnd) DestroyWindow(wnd);
+    UnregisterClassA(wc.lpszClassName, wc.hInstance);
+
+    if (MH_Initialize() != MH_OK) {
+        LOG_ERROR("MH_Initialize failed");
+        return false;
+    }
+    if (MH_CreateHook(present_target, reinterpret_cast<void*>(&hk_present),
+                      reinterpret_cast<void**>(&oPresent))
+            != MH_OK
+        || MH_CreateHook(resize_target, reinterpret_cast<void*>(&hk_resize_buffers),
+                         reinterpret_cast<void**>(&oResizeBuffers))
+               != MH_OK) {
+        LOG_ERROR("MH_CreateHook failed");
+        return false;
+    }
+    if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
+        LOG_ERROR("MH_EnableHook failed");
+        return false;
+    }
+    return true;
+}
+
 std::filesystem::path dll_dir()
 {
     wchar_t path[MAX_PATH]{};
@@ -315,10 +394,9 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
             Sleep(500);
             continue;
         }
-        kiero::Status::Enum st = kiero::init(kiero::RenderType::D3D11);
-        if (st != kiero::Status::Success) {
+        if (!GetModuleHandleW(L"d3d11.dll")) {
             if (!logged_wait_d3d11) {
-                LOG_INFO("waiting for d3d11 (kiero status %d)", static_cast<int>(st));
+                LOG_INFO("waiting for d3d11.dll");
                 logged_wait_d3d11 = true;
             }
             Sleep(500);
@@ -327,12 +405,10 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
         break;
     }
 
-    if (kiero::bind(8, reinterpret_cast<void**>(&oPresent), reinterpret_cast<void*>(&hk_present))
-        != kiero::Status::Success) {
-        LOG_ERROR("failed to hook Present");
-        return;
+    while (!install_hooks()) {
+        LOG_WARN("hook install failed, retrying in 5s");
+        Sleep(5000);
     }
-    kiero::bind(13, reinterpret_cast<void**>(&oResizeBuffers), reinterpret_cast<void*>(&hk_resize_buffers));
 
     LOG_INFO("hooks installed");
 }

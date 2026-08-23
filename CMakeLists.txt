@@ -6,22 +6,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(WIN32)
-  foreach(dep imgui kiero minhook inipp)
+  foreach(dep imgui minhook inipp)
     if(NOT DEFINED ENV{${dep}})
       message(FATAL_ERROR "source for '${dep}' not provided as env var (set by flake.nix)")
     endif()
   endforeach()
 
   set(IMGUI_DIR "$ENV{imgui}")
-  set(KIERO_DIR "$ENV{kiero}")
   set(MINHOOK_DIR "$ENV{minhook}")
   set(INIPP_DIR "$ENV{inipp}")
 
   add_link_options(-static -static-libgcc -static-libstdc++)
-
-  file(WRITE "${CMAKE_BINARY_DIR}/shim/Windows.h" "#pragma once
-#include <windows.h>
-")
 
   add_library(imgui STATIC
     ${IMGUI_DIR}/imgui.cpp
@@ -45,11 +40,8 @@ if(WIN32)
     src/common/config.cpp
     src/common/codename/codename.cpp
     src/common/codename/rules_mgs3.cpp
-    src/overlay/overlay.cpp
-    ${KIERO_DIR}/kiero.cpp)
-  target_include_directories(core PUBLIC src ${KIERO_DIR} ${INIPP_DIR}/inipp)
-  target_include_directories(core PRIVATE ${CMAKE_BINARY_DIR}/shim)
-  target_compile_definitions(core PUBLIC KIERO_INCLUDE_D3D11=1 KIERO_USE_MINHOOK=1 _M_X64=1)
+    src/overlay/overlay.cpp)
+  target_include_directories(core PUBLIC src ${INIPP_DIR}/inipp)
   target_link_libraries(core PUBLIC imgui minhook d3d11 dxgi d3dcompiler dwmapi)
 
   function(bb_asi name label sources)

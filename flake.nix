@@ -9,11 +9,6 @@
       flake = false;
     };
 
-    kiero = {
-      url = "github:Rebzzel/kiero";
-      flake = false;
-    };
-
     minhook = {
       url = "github:TsudaKageyu/minhook/v1.3.4";
       flake = false;
@@ -26,7 +21,7 @@
   };
 
   outputs =
-    { self, nixpkgs, imgui, kiero, minhook, inipp }:
+    { self, nixpkgs, imgui, minhook, inipp }:
     let
       systems = [ "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
@@ -47,7 +42,7 @@
               mingw.buildPackages.ninja
             ];
 
-            inherit imgui kiero minhook inipp;
+            inherit imgui minhook inipp;
 
             meta = with pkgs.lib; {
               description = "Live codename tracker overlay for MGS2/MGS3 Master Collection";
