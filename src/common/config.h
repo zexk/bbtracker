@@ -10,6 +10,7 @@ struct Config {
     float scale = 1.0f;
     int difficulty_override = -1; // -1 = auto; else Difficulty enum value
     int radar_off_override = -1;  // -1 = auto; else force radar_off flag
+    int hunt_value = -1;          // mgs1 calibration: expected true stat value
 };
 
 const Config& config();

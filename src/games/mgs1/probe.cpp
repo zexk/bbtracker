@@ -6,6 +6,7 @@
 #include <cstring>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <vector>
 
 #include "../../common/config.h"
@@ -22,6 +23,86 @@ uint8_t kSig[] = {0x00, 0x00, 0x00, 0x6F, 0x70, 0x65, 0x6E, 0x69, 0x6E, 0x67};
 uintptr_t g_array_start = 0;
 unsigned g_zero_polls = 0;
 uint16_t g_last_diff = 0xFFFF;
+std::vector<uintptr_t> g_hunt_hits;
+uint16_t g_hunt_last = 0xFFFF;
+uint64_t g_hunt_last_scan = 0;
+
+bool range_readable(uintptr_t addr, size_t len);
+
+void hunt_filter_or_scan(uint16_t want)
+{
+    if (!g_hunt_hits.empty()) {
+        std::vector<uintptr_t> keep;
+        for (uintptr_t p : g_hunt_hits) {
+            if (range_readable(p, 2)) {
+                uint16_t v{};
+                std::memcpy(&v, reinterpret_cast<const void*>(p), 2);
+                if (v == want) {
+                    keep.push_back(p);
+                }
+            }
+        }
+        if (!keep.empty() || static_cast<uint16_t>(g_hunt_last) == want) {
+            g_hunt_hits = std::move(keep);
+        }
+    }
+
+    if (g_hunt_hits.empty()) {
+        MEMORY_BASIC_INFORMATION mbi{};
+        uintptr_t addr = 0x10000;
+        constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
+            | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+        while (VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))) {
+            const uintptr_t vbase = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
+            const uintptr_t region_end = vbase + mbi.RegionSize;
+            if (mbi.State == MEM_COMMIT && (mbi.Protect & kReadable) != 0
+                && (mbi.Protect & PAGE_GUARD) == 0) {
+                for (uintptr_t p = vbase; p + 2 <= region_end; p += 2) {
+                    uint16_t v{};
+                    std::memcpy(&v, reinterpret_cast<const void*>(p), 2);
+                    if (v == want) {
+                        g_hunt_hits.push_back(p);
+                        if (g_hunt_hits.size() >= 8192) {
+                            goto done;
+                        }
+                    }
+                }
+            }
+            if (region_end <= addr) {
+                break;
+            }
+            addr = region_end;
+        }
+    done:
+        char sample[256]{};
+        size_t pos = 0;
+        for (size_t i = 0; i < g_hunt_hits.size() && i < 6; ++i) {
+            pos += snprintf(sample + pos, sizeof(sample) - pos, " %p",
+                            reinterpret_cast<const void*>(g_hunt_hits[i]));
+        }
+        LOG_INFO("hunt u16==%u: %zu hit(s)%s", static_cast<unsigned>(want),
+                 g_hunt_hits.size(), sample);
+    }
+}
+
+void run_hunt()
+{
+    const int expect = config().hunt_value;
+    if (expect < 0 || expect > 0xFFFF) {
+        return;
+    }
+    const auto want = static_cast<uint16_t>(expect);
+    if (want != g_hunt_last) {
+        g_hunt_last = want;
+        g_hunt_hits.clear();
+    }
+    const uint64_t now = GetTickCount64();
+    if (now - g_hunt_last_scan < 2000) {
+        return;
+    }
+    g_hunt_last_scan = now;
+    hunt_filter_or_scan(want);
+}
 
 struct FieldOffsets {
     constexpr static size_t kStage = 0x03;
@@ -150,6 +231,23 @@ const uint8_t* g_stats_stage()
 
 bool poll_stats(GameStats& out)
 {
+    static uint64_t last_cfg_reload = 0;
+    const uint64_t now_ms = GetTickCount64();
+    if (now_ms - last_cfg_reload > 5000) {
+        last_cfg_reload = now_ms;
+        Config tmp{};
+        std::filesystem::path dir = [] {
+            wchar_t path[MAX_PATH]{};
+            HMODULE mod = nullptr;
+            GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                                   | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                               reinterpret_cast<LPCWSTR>(&poll_stats), &mod);
+            GetModuleFileNameW(mod, path, MAX_PATH);
+            return std::filesystem::path(path).parent_path();
+        }();
+        load_config((dir / L"bbtracker.ini").string().c_str(), tmp);
+    }
+
     if (!g_array_start || !range_readable(g_array_start, kWorkRegionSize)) {
         g_array_start = 0;
         static uint64_t last_scan = 0;
@@ -229,6 +327,8 @@ bool poll_stats(GameStats& out)
         log_hex_dump(reinterpret_cast<const uint8_t*>(g_array_start), 0xD0);
         std::memcpy(out.area_code, stage, sizeof(out.area_code));
     }
+
+    run_hunt();
 
     return true;
 }

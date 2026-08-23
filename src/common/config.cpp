@@ -102,6 +102,12 @@ bool load_config(const char* ini_path, Config& out)
         }
     }
 
+    int hunt = -1;
+    if (inipp::get_value(ini.sections["stats"], "hunt_value", hunt) && hunt >= 0
+        && hunt <= 0xFFFF) {
+        out.hunt_value = hunt;
+    }
+
     int radar_off = -1;
     if (inipp::get_value(ini.sections["stats"], "radar_off", radar_off) && radar_off >= 0
         && radar_off <= 1) {
