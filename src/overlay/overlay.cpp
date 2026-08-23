@@ -284,7 +284,7 @@ std::filesystem::path dll_dir()
 
 } // namespace
 
-void start_overlay(const char* game_label, StatsFn stats_fn)
+void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game_module)
 {
     g_label = game_label;
     g_stats_fn = stats_fn;
@@ -304,10 +304,29 @@ void start_overlay(const char* game_label, StatsFn stats_fn)
 
     LOG_INFO("bbtracker starting (%s), toggle key vk=0x%02X", g_label, config().toggle_key);
 
-    if (kiero::init(kiero::RenderType::D3D11) != kiero::Status::Success) {
-        LOG_ERROR("kiero init failed: no D3D11 device found yet");
-        return;
+    bool logged_wait_module = false;
+    bool logged_wait_d3d11 = false;
+    for (;;) {
+        if (!GetModuleHandleW(game_module)) {
+            if (!logged_wait_module) {
+                LOG_INFO("waiting for game module %S", game_module);
+                logged_wait_module = true;
+            }
+            Sleep(500);
+            continue;
+        }
+        kiero::Status::Enum st = kiero::init(kiero::RenderType::D3D11);
+        if (st != kiero::Status::Success) {
+            if (!logged_wait_d3d11) {
+                LOG_INFO("waiting for d3d11 (kiero status %d)", static_cast<int>(st));
+                logged_wait_d3d11 = true;
+            }
+            Sleep(500);
+            continue;
+        }
+        break;
     }
+
     if (kiero::bind(8, reinterpret_cast<void**>(&oPresent), reinterpret_cast<void*>(&hk_present))
         != kiero::Status::Success) {
         LOG_ERROR("failed to hook Present");

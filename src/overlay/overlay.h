@@ -6,6 +6,6 @@ namespace bb {
 
 using StatsFn = bool (*)(GameStats& out);
 
-void start_overlay(const char* game_label, StatsFn stats_fn);
+void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game_module);
 
 } // namespace bb

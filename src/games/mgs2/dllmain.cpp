@@ -4,7 +4,7 @@
 
 DWORD WINAPI init_thread(LPVOID)
 {
-    bb::start_overlay(BB_GAME_LABEL, nullptr);
+    bb::start_overlay(BB_GAME_LABEL, nullptr, L"METAL GEAR SOLID2.exe");
     return 0;
 }
 

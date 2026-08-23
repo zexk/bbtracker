@@ -5,7 +5,7 @@
 
 DWORD WINAPI init_thread(LPVOID)
 {
-    bb::start_overlay(BB_GAME_LABEL, &bb::mgs3::poll_stats);
+    bb::start_overlay(BB_GAME_LABEL, &bb::mgs3::poll_stats, L"METAL GEAR SOLID3.exe");
     return 0;
 }
 
