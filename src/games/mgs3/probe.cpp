@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <cstdint>
+#include <cstdio>
 
 #include "../../common/log.h"
 
