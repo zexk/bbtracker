@@ -166,19 +166,20 @@ void draw_panel()
     ImGui::SetWindowFontScale(1.0f);
 
     ImGui::Text("difficulty: %s%s", difficulty_name(stats.difficulty),
-                stats.difficulty_raw > 4 ? " (?) " : "");
+                config().difficulty_override < 0 && stats.difficulty_game_byte % 10 != 0 ? " (?)" : "");
 
     ImGui::Spacing();
     if (ImGui::BeginTable("stats", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("stat", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 130.0f);
         char buf[64];
 
         snprintf(buf, sizeof(buf), "%d", stats.kills);
         stat_row("kills", buf);
         snprintf(buf, sizeof(buf), "%d", stats.alerts);
         stat_row("alerts", buf);
-        snprintf(buf, sizeof(buf), "%.1f bars", static_cast<double>(stats.damage_taken_bars));
+        snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
+                 stats.damage_taken_units / 48.0);
         stat_row("damage taken", buf);
         snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
         stat_row("severe injuries", buf);

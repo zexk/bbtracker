@@ -137,7 +137,7 @@ bool poll_stats(GameStats& out)
         LOG_INFO("dmg@0x42 u16=%u", static_cast<unsigned>(dmg_raw));
         g_last_dmg_raw = dmg_raw;
     }
-    out.damage_taken_bars = static_cast<float>(dmg_raw);
+    out.damage_taken_units = static_cast<int>(dmg_raw);
 
     const uint16_t unk44 = read_at<uint16_t>(StatOffsets::kTotalDamage + 2);
     if (unk44 != g_last_unk44) {
@@ -158,12 +158,12 @@ bool poll_stats(GameStats& out)
         g_last_diff06 = diff06;
         g_last_diff04 = diff04;
     }
-    out.difficulty_raw = diff06;
+    out.difficulty_game_byte = diff06;
     switch (diff06) {
-    case 0: out.difficulty = Difficulty::VeryEasy; break;
-    case 1: out.difficulty = Difficulty::Easy; break;
-    case 2: out.difficulty = Difficulty::Normal; break;
-    case 3: out.difficulty = Difficulty::Hard; break;
+    case 10: out.difficulty = Difficulty::VeryEasy; break;
+    case 20: out.difficulty = Difficulty::Easy; break;
+    case 30: out.difficulty = Difficulty::Normal; break;
+    case 40: out.difficulty = Difficulty::Hard; break;
     default: out.difficulty = Difficulty::Extreme; break;
     }
     if (config().difficulty_override >= 0) {

@@ -25,7 +25,7 @@ struct GameStats {
     int rations_used = 0;
     int shots_fired = 0;
 
-    float damage_taken_bars = 0.0f;
+    int damage_taken_units = 0;
 
     double play_time_seconds = 0.0;
 
@@ -40,6 +40,8 @@ struct GameStats {
     bool kerotan_all_shot = false;
     bool tsuchinoko_carried = false;
     bool leech_carried = false;
+
+    uint8_t difficulty_game_byte = 0;
 };
 
 } // namespace bb

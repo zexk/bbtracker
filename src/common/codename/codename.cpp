@@ -5,6 +5,11 @@
 #include "rules_mgs3.h"
 
 namespace bb::codename {
+namespace {
+
+constexpr double kDamageUnitsPerBar = 48.0;
+
+} // namespace
 
 double stat_value(const GameStats& s, StatId id)
 {
@@ -15,7 +20,7 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::Saves: return s.saves;
     case StatId::RationsUsed: return s.rations_used;
     case StatId::ShotsFired: return s.shots_fired;
-    case StatId::DamageBars: return s.damage_taken_bars;
+    case StatId::DamageBars: return s.damage_taken_units / kDamageUnitsPerBar;
     case StatId::PlayTimeHours: return s.play_time_seconds / 3600.0;
     case StatId::SevereInjuries: return s.severe_injuries;
     case StatId::LifeMedUsed: return s.life_med_used;

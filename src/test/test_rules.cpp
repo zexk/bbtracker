@@ -28,7 +28,7 @@ GameStats sloppy(Difficulty d)
     s.alerts = 7;
     s.continues = 3;
     s.saves = 40;
-    s.damage_taken_bars = 12.5f;
+    s.damage_taken_units = 600;  // ~12.5 bars
     s.play_time_seconds = 3600.0 * 9;
     s.severe_injuries = 30;
     return s;
@@ -47,7 +47,7 @@ void test_foxhound_perfect_extreme()
     s.kills = 0;
     s.continues = 0;
     s.severe_injuries = 19;
-    s.damage_taken_bars = 4.9f;
+    s.damage_taken_units = 235;  // ~4.9 bars
     s.life_med_used = 0;
     s.play_time_seconds = 3600.0 * 4.99;
     s.saves = 25;
@@ -71,7 +71,7 @@ void test_fox_hard_strict()
     s.kills = 0;
     s.continues = 0;
     s.severe_injuries = 10;
-    s.damage_taken_bars = 2.0f;
+    s.damage_taken_units = 96;   // ~2 bars
     s.play_time_seconds = 3600.0 * 4.5;
     s.saves = 24;
     CHECK(std::string_view(best(s)) == "FOX");
@@ -95,7 +95,7 @@ void test_doberman_normal_strict()
     s.kills = 0;
     s.continues = 0;
     s.severe_injuries = 5;
-    s.damage_taken_bars = 1.0f;
+    s.damage_taken_units = 48;   // ~1 bar
     s.play_time_seconds = 3600.0 * 4;
     s.saves = 20;
     CHECK(std::string_view(best(s)) == "DOBERMAN");
@@ -108,7 +108,7 @@ void test_hound_easy_strict()
     s.kills = 0;
     s.continues = 0;
     s.severe_injuries = 0;
-    s.damage_taken_bars = 0.5f;
+    s.damage_taken_units = 24;   // ~0.5 bars
     s.play_time_seconds = 3600.0 * 3;
     s.saves = 10;
     CHECK(std::string_view(best(s)) == "HOUND");
@@ -136,7 +136,7 @@ void test_chicken_worst_very_easy()
     s.kills = 300;
     s.continues = 70;
     s.saves = 120;
-    s.damage_taken_bars = 35.0f;
+    s.damage_taken_units = 1680; // ~35 bars
     s.severe_injuries = 300;
     s.life_med_used = 20;
     s.play_time_seconds = 3600.0 * 60;
@@ -227,7 +227,7 @@ void test_elite_requirements_statuses()
 
     s.continues = 0;
     s.severe_injuries = 0;
-    s.damage_taken_bars = 0.f;
+    s.damage_taken_units = 0;
     s.life_med_used = 0;
     s.play_time_seconds = 100;
     s.saves = 0;

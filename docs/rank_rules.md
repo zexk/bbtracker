@@ -89,13 +89,15 @@ Source: ANTIBigBoss/MGS3-Cheat-Trainer-GUI at "Update for Game Version 3.0.0.0"
   - 0x46 u16 meals eaten (observed 33)
   - 0x4C u32 game time frames @60fps (observed 400500 = 1h51m)
 - CORRECTED vs trainer doc:
-  - 0x42 damage is u16 (grew 3->73 while taking hits). Trainer's u32 read spans the
-    unknown u16 field at 0x44 (observed constant 1) producing garbage. Bar-scale of
-    the raw damage unit vs the "<5 bars" rank cap is UNCALIBRATED - do a controlled
-    test (note delta after one known hit) before trusting tracker ratios.
-  - 0x06 difficulty byte is NOT stable on this build (observed 0x1E in menus, 0x0A
-    in-game). Until pinned down, set `[stats] difficulty=...` in bbtracker.ini
-    (veryeasy/easy/normal/hard/extreme) to force the correct rank table column.
+  - 0x42 damage is u16 in raw engine units, NOT bars (grew 3->73 while taking hits).
+    Trainer's u32 read spans the unknown u16 field at 0x44 (observed constant 1).
+    Scale derived from the MGS2 trainer (sagefantasma): its datamined Big Boss cap is
+    DamageTaken <= 500 raw units against the community "<10.5 life bars" requirement
+    -> ~48 units/bar. We use kDamageUnitsPerBar = 48; recalibrate with a controlled
+    single-hit test if tracker ratios look wrong.
+  - 0x06 difficulty byte uses enum {10=VeryEasy, 20=Easy, 30=Normal, 40=Hard,
+    50=Extreme, 60=EuropeanExtreme} (trainer DifficultyMappings). EE maps to Extreme
+    for rank purposes. The INI `[stats] difficulty=` override still wins if set.
 - Robustness: reads guarded by VirtualQuery range checks; PE TimeDateStamp logged at
   resolve for version identification if offsets drift after a game patch.
 - Not yet probed: Kerotan (all 64 shot), Tsuchinoko carried, Leech carried (inventory
