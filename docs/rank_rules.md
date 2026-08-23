@@ -173,3 +173,19 @@ already-proven player-block reads across five fields simultaneously
 until found; cached hit is revalidated every poll. radar_off then reads
 directly from byte@+6, making BIG BOSS attainable in the tracker for genuine
 radar-off runs; the [stats] radar_off ini override still wins if set.
+
+## MGS1 variant split (1998 vs Integral) - important
+
+MC ships BOTH MGS1 versions (launcher picks the ISO). Two different rank systems:
+- Original 1998 US/JP: muni /mgs/codename.html. Simple flat list - BIG BOSS adds
+  radar-off over FOX ladder (disc<4/kills<25/rations<=1/cont=0/<3h); Falcon(<2.5h),
+  Jaws(>250 kills), Pig(>120 rations), Hippo(>80 saves), Turtle(>18h),
+  Chicken(all three); regular grid Leopard/Grizzly/Jackal/Tarantula/Gazelle via
+  discovered bands x Y=10*disc/(kills-25). NO difficulty dimension.
+- Integral: muni /mgs/int_codename.html (the 64-rule system previously encoded).
+rules_mgs1.cpp currently implements the 1998 system since the user plays US
+original. If Integral support is ever needed, preserve both variants behind a
+config flag - the work-array probe is shared, only rules differ.
+
+Hunt mode ([stats] hunt_value=N) exists because work-array field offsets drift
+per language/iso; three narrowing rounds pin real addresses empirically.
