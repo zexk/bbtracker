@@ -1,0 +1,98 @@
+{
+  "nodes": {
+    "imgui": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1785507282,
+        "narHash": "sha256-IjW+qddzKu9jOj3QCGhkChVK2UOvwl493ffUIIn/ZVQ=",
+        "owner": "ocornut",
+        "repo": "imgui",
+        "rev": "f1cc2ae15e53a861a874c3034aae6798fde194ab",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ocornut",
+        "ref": "v1.92.9b",
+        "repo": "imgui",
+        "type": "github"
+      }
+    },
+    "inipp": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1727171111,
+        "narHash": "sha256-fKJt/PIy9GgCreu3Q5JjHPrHLEfL440GDeSWaqf65B8=",
+        "owner": "mcmtroffaes",
+        "repo": "inipp",
+        "rev": "3c1668812026f1a94471b85ac5ab11ab87c43607",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mcmtroffaes",
+        "ref": "1.0.13",
+        "repo": "inipp",
+        "type": "github"
+      }
+    },
+    "kiero": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1777891852,
+        "narHash": "sha256-z9LwufU6kzur8v8yY0pgWkBsyJswlLulJ52nkflTpRo=",
+        "owner": "Rebzzel",
+        "repo": "kiero",
+        "rev": "5539f06a03154ad3c30702792f88a220ac54958d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Rebzzel",
+        "repo": "kiero",
+        "type": "github"
+      }
+    },
+    "minhook": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1743163800,
+        "narHash": "sha256-0eGFfg365bb4zic1WTHMvKHbxuhhGp72/clu8OklHXs=",
+        "owner": "TsudaKageyu",
+        "repo": "minhook",
+        "rev": "c3fcafdc10146beb5919319d0683e44e3c30d537",
+        "type": "github"
+      },
+      "original": {
+        "owner": "TsudaKageyu",
+        "ref": "v1.3.4",
+        "repo": "minhook",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1787360063,
+        "narHash": "sha256-dt4WdcvsA8/RCe+VZZwqU0X+XMM3wBbGCWA0/sFWzGo=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "2c423e03bbafcff28bfadc6781a4a8257f205cb5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "imgui": "imgui",
+        "inipp": "inipp",
+        "kiero": "kiero",
+        "minhook": "minhook",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

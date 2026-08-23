@@ -107,8 +107,10 @@ outputs:
 
 ## Phases (commit at end of each)
 
-- [ ] **Phase 0 - scaffolding**: flake.nix (devshell + cross build), hello-world .asi
-  builds; kiero Present hook renders empty ImGui window; toggle key works.
+- [x] **Phase 0 - scaffolding**: flake.nix (devshell + cross build), both .asi targets
+  build as fully static PE32+ DLLs (system DLL imports only). kiero D3D11 Present +
+  ResizeBuffers hooks, ImGui panel with placeholder rows, INSERT toggle, bbtracker.ini
+  (inipp), file logger. In-game smoke test under Proton still pending user run.
 - [ ] **Phase 1 - codename engine**: GameStats struct; transcribe MGS2/MGS3 rank tables
   into data-driven rules; eval() with attainability logic; native unit tests green.
 - [ ] **Phase 2 - MGS2 probe + panel**: offsets/patterns ported; live stats read;
@@ -116,6 +118,20 @@ outputs:
 - [ ] **Phase 3 - MGS3 probe + panel**: same for MGS3; re-verify addresses vs current exe.
 - [ ] **Phase 4 - polish**: config persistence, scale/position, version-detect warnings,
   README install guide, smoke-test checklist (both fixes installed simultaneously).
+
+### Build notes learned in Phase 0
+
+- kiero.h keys off MSVC `_M_X64`: compile with `-D_M_X64=1` under MinGW.
+- kiero.cpp `#include <Windows.h>` breaks on case-sensitive FS: generate a shim header
+  dir in CMake (`Windows.h -> windows.h`).
+- MinHook layout at v1.3.4: sources under `src/`, HDE under `src/hde/hde64.c`.
+- inipp 1.0.13: API is `ini.parse(is)` + free fn `inipp::get_value(ini.sections[...], key, val)`;
+  header at `inipp/inipp.h`.
+- nixpkgs GCC15 mingw uses mcfgthread; `-static` on link options resolves it into the
+  DLL statically (GNU ld synthesizes __imp_ thunks) — same trick pragmatrainer uses;
+  do NOT ship libmcfgthread-2.dll alongside.
+- ImGui deps to link: d3dcompiler (D3DCompile) + dwmapi (imgui_impl_win32).
+- Flake gotcha: packages/devShells are TOP-LEVEL keys keyed by system, not nested inside.
 
 ## Compatibility rules (hard requirements)
 
