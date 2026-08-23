@@ -94,14 +94,18 @@ void run_hunt()
     }
     const auto want = static_cast<uint16_t>(expect);
     if (want != g_hunt_last) {
+        LOG_INFO("hunt target changed -> %u", static_cast<unsigned>(want));
         g_hunt_last = want;
         g_hunt_hits.clear();
+        g_hunt_last_scan = 0;
     }
     const uint64_t now = GetTickCount64();
     if (now - g_hunt_last_scan < 2000) {
         return;
     }
     g_hunt_last_scan = now;
+    LOG_INFO("hunt scan starting for u16==%u over writable memory...",
+             static_cast<unsigned>(want));
     hunt_filter_or_scan(want);
 }
 
