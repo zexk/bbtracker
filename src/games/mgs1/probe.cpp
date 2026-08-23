@@ -18,9 +18,8 @@ namespace {
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID.exe";
 constexpr size_t kWorkRegionSize = 0x200;
 
-constexpr uint8_t kSig[] = {0x00, 0x00, 0x00, 0x6F, 0x70, 0x65, 0x6E, 0x69, 0x6E, 0x67,
-                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                            0x00};
+constexpr uint8_t kSig[] = {0x00, 0x00, 0x00, 0x6F, 0x70, 0x65, 0x6E, 0x69, 0x6E,
+                            0x67, 0x00};
 
 uintptr_t g_array_start = 0;
 unsigned g_zero_polls = 0;
@@ -167,6 +166,14 @@ bool plausible_work_array(uintptr_t p)
     return true;
 }
 
+bool is_logger_table(uintptr_t p)
+{
+    static constexpr char kLoggerTail[] = " session";
+    char tail[9]{};
+    std::memcpy(tail, reinterpret_cast<const uint8_t*>(p) + FieldOffsets::kStage + 7, 8);
+    return std::memcmp(tail, kLoggerTail, 8) == 0;
+}
+
 void log_hex_dump(const uint8_t* data, size_t len)
 {
     for (size_t row = 0; row < len; row += 16) {
@@ -210,7 +217,7 @@ std::vector<uintptr_t> find_candidates()
                         break;
                     }
                 }
-                if (ok && plausible_work_array(vbase + i)) {
+                if (ok && !is_logger_table(vbase + i) && plausible_work_array(vbase + i)) {
                     out.push_back(vbase + i);
                 }
             }
