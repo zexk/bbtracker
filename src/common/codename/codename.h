@@ -28,6 +28,7 @@ enum class StatId : uint8_t {
     TsuchinokoCarried,
     LeechCarried,
     MissionCode,
+    DiscoveryRatio,
 };
 
 enum class Op : uint8_t {

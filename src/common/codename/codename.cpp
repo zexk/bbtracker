@@ -34,6 +34,13 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::TsuchinokoCarried: return s.tsuchinoko_carried ? 1.0 : 0.0;
     case StatId::LeechCarried: return s.leech_carried ? 1.0 : 0.0;
     case StatId::MissionCode: return s.mission;
+    case StatId::DiscoveryRatio: {
+        if (s.kills < 25) {
+            return 100.0;
+        }
+        const double denom = static_cast<double>(s.kills - 25);
+        return static_cast<double>(s.alerts) * 10.0 / (denom < 1.0 ? 1.0 : denom);
+    }
     }
     return 0.0;
 }
@@ -224,7 +231,8 @@ struct Mgs1ReqRow {
     ReqFmt fmt;
 };
 
-constexpr std::array<Mgs1ReqRow, 5> kIntegralLadderReqs{{
+constexpr std::array<Mgs1ReqRow, 6> kIntegralLadderReqs{{
+    {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
     {"discovered", StatId::Alerts, Op::Lt, 4, ReqFmt::Count},
     {"kills", StatId::Kills, Op::Lt, 25, ReqFmt::Count},
     {"rations used", StatId::RationsUsed, Op::Le, 1, ReqFmt::Count},
