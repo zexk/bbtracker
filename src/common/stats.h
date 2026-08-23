@@ -10,6 +10,7 @@ enum class Difficulty : uint8_t {
     Normal,
     Hard,
     Extreme,
+    EuroExtreme,
 
     Count,
 };
@@ -17,6 +18,7 @@ enum class Difficulty : uint8_t {
 struct GameStats {
     Difficulty difficulty = Difficulty::VeryEasy;
     uint8_t difficulty_raw = 0;
+    int mission = -1;
 
     int kills = 0;
     int alerts = 0;

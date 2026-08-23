@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <vector>
 #include <filesystem>
 
 #include "../common/codename/codename.h"
@@ -32,6 +33,7 @@ struct OverlayState {
 
 const char* g_label = "?";
 StatsFn g_stats_fn = nullptr;
+Game g_game = Game::MGS3;
 OverlayState g{};
 
 using PresentFn = HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT);
@@ -118,6 +120,17 @@ const char* difficulty_name(Difficulty d)
     case Difficulty::Normal: return "Normal";
     case Difficulty::Hard: return "Hard";
     case Difficulty::Extreme: return "Extreme";
+    case Difficulty::EuroExtreme: return "Euro Extreme";
+    default: return "?";
+    }
+}
+
+const char* mission_name(int mission)
+{
+    switch (mission) {
+    case 16: return "Tanker";
+    case 0: return "Plant";
+    case 32: return "Tanker-Plant";
     default: return "?";
     }
 }
@@ -155,7 +168,8 @@ void draw_panel()
         return;
     }
 
-    auto match = codename::evaluate_mgs3(stats);
+    auto match = g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
+                                      : codename::evaluate_mgs3(stats);
 
     const ImVec4 green(0.42f, 0.90f, 0.45f, 1.0f);
     ImGui::SetWindowFontScale(2.0f);
@@ -164,6 +178,9 @@ void draw_panel()
 
     ImGui::Text("difficulty: %s%s", difficulty_name(stats.difficulty),
                 config().difficulty_override < 0 && stats.difficulty_game_byte % 10 != 0 ? " (?)" : "");
+    if (g_game == Game::MGS2) {
+        ImGui::Text("mission: %s", mission_name(stats.mission));
+    }
 
     ImGui::Spacing();
     ImGui::TextDisabled("stats");
@@ -198,11 +215,15 @@ void draw_panel()
     }
 
     ImGui::Spacing();
-    if (ImGui::CollapsingHeader("FOXHOUND tracker", ImGuiTreeNodeFlags_DefaultOpen)) {
+    const char* tracker_title = g_game == Game::MGS2 ? "BIG BOSS tracker" : "FOXHOUND tracker";
+    if (ImGui::CollapsingHeader(tracker_title, ImGuiTreeNodeFlags_DefaultOpen)) {
+        std::vector<codename::ReqStatus> reqs = g_game == Game::MGS2
+            ? codename::elite_requirements_mgs2(stats)
+            : codename::elite_requirements_mgs3(stats);
         if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
             ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-            for (const codename::ReqStatus& r : codename::elite_requirements_mgs3(stats)) {
+            for (const codename::ReqStatus& r : reqs) {
                 char ratio[48];
                 switch (static_cast<codename::ReqFmt>(r.fmt)) {
                 case codename::ReqFmt::Time: {
@@ -366,10 +387,11 @@ std::filesystem::path dll_dir()
 
 } // namespace
 
-void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game_module)
+void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game_module, Game game)
 {
     g_label = game_label;
     g_stats_fn = stats_fn;
+    g_game = game;
 
     std::filesystem::path dir = dll_dir();
     std::string ini_path = (dir / L"bbtracker.ini").string();

@@ -40,6 +40,7 @@ if(WIN32)
     src/common/config.cpp
     src/common/codename/codename.cpp
     src/common/codename/rules_mgs3.cpp
+    src/common/codename/rules_mgs2.cpp
     src/overlay/overlay.cpp)
   target_include_directories(core PUBLIC src ${INIPP_DIR}/inipp)
   target_link_libraries(core PUBLIC imgui minhook d3d11 dxgi d3dcompiler dwmapi)
@@ -60,11 +61,21 @@ if(WIN32)
 endif()
 
 if(UNIX)
-  add_executable(rules_tests
+  add_executable(rules_mgs3_tests
     src/test/test_rules.cpp
     src/common/codename/codename.cpp
+    src/common/codename/rules_mgs3.cpp
+    src/common/codename/rules_mgs2.cpp)
+  target_include_directories(rules_mgs3_tests PRIVATE src)
+
+  add_executable(rules_mgs2_tests
+    src/test/test_rules_mgs2.cpp
+    src/common/codename/codename.cpp
+    src/common/codename/rules_mgs2.cpp
     src/common/codename/rules_mgs3.cpp)
-  target_include_directories(rules_tests PRIVATE src)
+  target_include_directories(rules_mgs2_tests PRIVATE src)
+
   enable_testing()
-  add_test(NAME rules COMMAND rules_tests)
+  add_test(NAME mgs3_rules COMMAND rules_mgs3_tests)
+  add_test(NAME mgs2_rules COMMAND rules_mgs2_tests)
 endif()

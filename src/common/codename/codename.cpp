@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "rules_mgs2.h"
 #include "rules_mgs3.h"
 
 namespace bb::codename {
@@ -31,6 +32,7 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::KerotanAllShot: return s.kerotan_all_shot ? 1.0 : 0.0;
     case StatId::TsuchinokoCarried: return s.tsuchinoko_carried ? 1.0 : 0.0;
     case StatId::LeechCarried: return s.leech_carried ? 1.0 : 0.0;
+    case StatId::MissionCode: return s.mission;
     }
     return 0.0;
 }
@@ -54,6 +56,7 @@ TierMask tier_bit(Difficulty d)
     if (d == Difficulty::Easy) return kE;
     if (d == Difficulty::Normal) return kN;
     if (d == Difficulty::Hard) return kH;
+    if (d == Difficulty::EuroExtreme) return 1u << 5;
     return kX;
 }
 
@@ -134,6 +137,57 @@ std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s)
 {
     std::vector<ReqStatus> out;
     for (const ReqRow& row : kFoxhoundReqs) {
+        out.push_back(ReqStatus{
+            row.label,
+            cond_met(s, Cond{row.stat, row.op, row.limit}),
+            stat_value(s, row.stat),
+            row.limit,
+            static_cast<uint8_t>(row.fmt),
+            static_cast<uint8_t>(row.op),
+        });
+    }
+    return out;
+}
+
+std::optional<Match> evaluate_mgs2(const GameStats& s)
+{
+    for (const RankRule& r : mgs2_rules()) {
+        if (rule_matches(s, r)) {
+            return Match{r.name, r.kind};
+        }
+    }
+    return std::nullopt;
+}
+
+namespace {
+
+struct Mgs2ReqRow {
+    const char* label;
+    StatId stat;
+    Op op;
+    double limit;
+    ReqFmt fmt;
+};
+
+constexpr std::array<Mgs2ReqRow, 10> kBigBossReqs{{
+    {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
+    {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
+    {"shots fired", StatId::ShotsFired, Op::Le, 700, ReqFmt::Count},
+    {"alerts", StatId::Alerts, Op::Le, 3, ReqFmt::Count},
+    {"damage", StatId::DamageBars, Op::Lt, 10, ReqFmt::Bars},
+    {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
+    {"rations used", StatId::RationsUsed, Op::Eq, 0, ReqFmt::Count},
+    {"play time", StatId::PlayTimeHours, Op::Lt, 3, ReqFmt::Time},
+    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
+    {"saves", StatId::Saves, Op::Le, 8, ReqFmt::Count},
+}};
+
+} // namespace
+
+std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s)
+{
+    std::vector<ReqStatus> out;
+    for (const Mgs2ReqRow& row : kBigBossReqs) {
         out.push_back(ReqStatus{
             row.label,
             cond_met(s, Cond{row.stat, row.op, row.limit}),

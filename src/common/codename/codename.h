@@ -27,6 +27,7 @@ enum class StatId : uint8_t {
     KerotanAllShot,
     TsuchinokoCarried,
     LeechCarried,
+    MissionCode,
 };
 
 enum class Op : uint8_t {
@@ -99,5 +100,9 @@ enum class ReqFmt : uint8_t {
 };
 
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);
+
+std::optional<Match> evaluate_mgs2(const GameStats& s);
+
+std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s);
 
 } // namespace bb::codename

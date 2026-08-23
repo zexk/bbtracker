@@ -1,10 +1,11 @@
 #include <windows.h>
 
 #include "../../overlay/overlay.h"
+#include "probe.h"
 
 DWORD WINAPI init_thread(LPVOID)
 {
-    bb::start_overlay(BB_GAME_LABEL, nullptr, L"METAL GEAR SOLID2.exe");
+    bb::start_overlay(BB_GAME_LABEL, &bb::mgs2::poll_stats, L"METAL GEAR SOLID2.exe", bb::Game::MGS2);
     return 0;
 }
 
