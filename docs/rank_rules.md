@@ -94,7 +94,8 @@ Source: ANTIBigBoss/MGS3-Cheat-Trainer-GUI at "Update for Game Version 3.0.0.0"
     Scale derived from the MGS2 trainer (sagefantasma): its datamined Big Boss cap is
     DamageTaken <= 500 raw units against the community "<10.5 life bars" requirement
     -> ~48 units/bar. We use kDamageUnitsPerBar = 48; recalibrate with a controlled
-    single-hit test if tracker ratios look wrong.
+    single-hit test if tracker ratios look wrong. NOTE: not yet verified empirically
+    against the game's own end-of-rank screen, but in-game values look plausible.
   - 0x06 difficulty byte uses enum {10=VeryEasy, 20=Easy, 30=Normal, 40=Hard,
     50=Extreme, 60=EuropeanExtreme} (trainer DifficultyMappings). EE maps to Extreme
     for rank purposes. The INI `[stats] difficulty=` override still wins if set.
