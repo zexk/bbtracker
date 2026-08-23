@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 
+#include "../../common/config.h"
 #include "../../common/log.h"
 
 namespace bb::mgs3 {
@@ -33,7 +34,10 @@ struct StatOffsets {
 const uint8_t* g_stats = nullptr;
 uintptr_t g_last_block = 0;
 unsigned g_zero_polls = 0;
-uint32_t g_last_dmg_raw = 0;
+uint16_t g_last_dmg_raw = 0;
+uint16_t g_last_unk44 = 0;
+uint8_t g_last_diff06 = 0xFF;
+uint8_t g_last_diff04 = 0xFF;
 
 bool range_readable(uintptr_t addr, size_t len)
 {
@@ -128,22 +132,17 @@ bool poll_stats(GameStats& out)
     out.plants_captured = read_at<uint8_t>(StatOffsets::kPlantsCaptured);
     out.severe_injuries = read_at<uint16_t>(StatOffsets::kSevereInjuries);
 
-    const uint32_t dmg_raw = read_at<uint32_t>(StatOffsets::kTotalDamage);
+    const uint16_t dmg_raw = read_at<uint16_t>(StatOffsets::kTotalDamage);
     if (dmg_raw != g_last_dmg_raw) {
-        float f;
-        std::memcpy(&f, &dmg_raw, sizeof(f));
-        LOG_INFO("dmg@0x42 raw=0x%08X u32=%u as_float=%.4f", static_cast<unsigned>(dmg_raw),
-                 static_cast<unsigned>(dmg_raw), static_cast<double>(f));
+        LOG_INFO("dmg@0x42 u16=%u", static_cast<unsigned>(dmg_raw));
         g_last_dmg_raw = dmg_raw;
     }
-    float dmg_f;
-    std::memcpy(&dmg_f, &dmg_raw, sizeof(dmg_f));
-    if (dmg_raw <= 5000) {
-        out.damage_taken_bars = static_cast<float>(dmg_raw);
-    } else if (dmg_f >= 0.0f && dmg_f < 100000.0f) {
-        out.damage_taken_bars = dmg_f;
-    } else {
-        out.damage_taken_bars = static_cast<float>(dmg_raw);
+    out.damage_taken_bars = static_cast<float>(dmg_raw);
+
+    const uint16_t unk44 = read_at<uint16_t>(StatOffsets::kTotalDamage + 2);
+    if (unk44 != g_last_unk44) {
+        LOG_INFO("field@0x44 u16=%u", static_cast<unsigned>(unk44));
+        g_last_unk44 = unk44;
     }
 
     out.meals_eaten = read_at<uint16_t>(StatOffsets::kMealsEaten);
@@ -151,14 +150,25 @@ bool poll_stats(GameStats& out)
         static_cast<double>(read_at<uint32_t>(StatOffsets::kGameTimeFrames)) / 60.0;
     out.life_med_used = read_at<uint16_t>(StatOffsets::kLifeMeds);
 
-    const uint8_t diff = read_at<uint8_t>(StatOffsets::kDifficulty);
-    out.difficulty_raw = diff;
-    switch (diff) {
+    const uint8_t diff06 = read_at<uint8_t>(StatOffsets::kDifficulty);
+    const uint8_t diff04 = read_at<uint8_t>(StatOffsets::kDifficulty - 2);
+    if (diff06 != g_last_diff06 || diff04 != g_last_diff04) {
+        LOG_INFO("difficulty candidates: @0x04=%u @0x06=%u",
+                 static_cast<unsigned>(diff04), static_cast<unsigned>(diff06));
+        g_last_diff06 = diff06;
+        g_last_diff04 = diff04;
+    }
+    out.difficulty_raw = diff06;
+    switch (diff06) {
     case 0: out.difficulty = Difficulty::VeryEasy; break;
     case 1: out.difficulty = Difficulty::Easy; break;
     case 2: out.difficulty = Difficulty::Normal; break;
     case 3: out.difficulty = Difficulty::Hard; break;
     default: out.difficulty = Difficulty::Extreme; break;
+    }
+    if (config().difficulty_override >= 0) {
+        out.difficulty = static_cast<Difficulty>(config().difficulty_override);
+        out.difficulty_raw = static_cast<uint8_t>(config().difficulty_override);
     }
 
     if (out.kills == 0 && out.alerts == 0 && out.saves == 0 && out.continues == 0

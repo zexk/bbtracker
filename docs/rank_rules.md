@@ -72,16 +72,30 @@ Second independent source; resolved several open questions:
 
 ## MGS3 Master Collection memory map (phase 2 probe)
 
-Source: ANTIBigBoss/MGS3-Cheat-Trainer-GUI (Constants.cs / MainPointerManager.cs).
+Source: ANTIBigBoss/MGS3-Cheat-Trainer-GUI at "Update for Game Version 3.0.0.0"
+(2026-02-15), verified against a live 0x6980B92F (Feb 2026) exe via hex dumps.
 
 - Module: `METAL GEAR SOLID3.exe`
-- Stats base: `[[module+0x00ACDE98]]` (single pointer deref)
-- Offsets from stats base:
-  - 0x06 u8 difficulty (enum mapping unverified; values >4 render "(?)" in panel)
+- Stats base: `[[module+0x00ACDE98]]` (single pointer deref; RVA was 0xACBE18 pre-3.0).
+  The slot holds the CURRENT engine record cursor, which moves between contexts
+  (title/save/stage records carry ASCII tags like "title", "s051a", "r_sna01").
+  During gameplay with a save loaded it points at the live stats block; in menus it
+  points elsewhere and reads yield zeros/garbage. Re-deref every poll, never cache.
+- Offsets CONFIRMED against observed gameplay data:
   - 0x34 u16 continues, 0x36 u16 saves, 0x38 u16 alerts, 0x3A u16 kills
-  - 0x3D u8 special-items bitmask (1=stealth, 2=infinity facepaint, 4=EZ gun)
-  - 0x3F u8 plants+animals captured, 0x40 u16 severe injuries, 0x42 u32 total damage (bars)
-  - 0x46 u16 meals eaten, 0x4C u32 game time (frames @60fps), 0x5A8 u16 LifeMed used
+  - 0x3D u8 special-items bitmask (observed 4 = EZ Gun)
+  - 0x3F u8 plants+animals captured (observed 23/48)
+  - 0x40 u16 severe injuries (observed 4)
+  - 0x46 u16 meals eaten (observed 33)
+  - 0x4C u32 game time frames @60fps (observed 400500 = 1h51m)
+- CORRECTED vs trainer doc:
+  - 0x42 damage is u16 (grew 3->73 while taking hits). Trainer's u32 read spans the
+    unknown u16 field at 0x44 (observed constant 1) producing garbage. Bar-scale of
+    the raw damage unit vs the "<5 bars" rank cap is UNCALIBRATED - do a controlled
+    test (note delta after one known hit) before trusting tracker ratios.
+  - 0x06 difficulty byte is NOT stable on this build (observed 0x1E in menus, 0x0A
+    in-game). Until pinned down, set `[stats] difficulty=...` in bbtracker.ini
+    (veryeasy/easy/normal/hard/extreme) to force the correct rank table column.
 - Robustness: reads guarded by VirtualQuery range checks; PE TimeDateStamp logged at
   resolve for version identification if offsets drift after a game patch.
 - Not yet probed: Kerotan (all 64 shot), Tsuchinoko carried, Leech carried (inventory

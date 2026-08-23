@@ -5,6 +5,7 @@
 #include <cstring>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace bb {
@@ -82,6 +83,23 @@ bool load_config(const char* ini_path, Config& out)
     float scale = 0.0f;
     if (inipp::get_value(ini.sections["overlay"], "scale", scale) && scale >= 0.25f && scale <= 8.0f) {
         out.scale = scale;
+    }
+
+    std::string diff;
+    if (inipp::get_value(ini.sections["stats"], "difficulty", diff)) {
+        static const std::pair<const char*, int> kDiffMap[] = {
+            {"veryeasy", 0}, {"very easy", 0}, {"ve", 0},
+            {"easy", 1},     {"e", 1},
+            {"normal", 2},   {"n", 2},
+            {"hard", 3},     {"h", 3},
+            {"extreme", 4},  {"x", 4}, {"euro", 4}, {"ee", 4},
+        };
+        for (const auto& [name, val] : kDiffMap) {
+            if (_stricmp(diff.c_str(), name) == 0) {
+                out.difficulty_override = val;
+                break;
+            }
+        }
     }
 
     g_config = out;
