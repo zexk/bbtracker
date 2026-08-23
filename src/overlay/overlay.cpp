@@ -147,8 +147,6 @@ void draw_panel()
 
     ImGui::SetNextWindowSize(ImVec2(380, 480), ImGuiCond_FirstUseEver);
     ImGui::Begin("bbtracker", &g.show, ImGuiWindowFlags_NoCollapse);
-    ImGui::Text("%s", g_label);
-    ImGui::Separator();
 
     if (!have_stats) {
         ImGui::TextDisabled("stats unavailable");
@@ -159,9 +157,8 @@ void draw_panel()
 
     auto match = codename::evaluate_mgs3(stats);
 
-    ImGui::TextDisabled("projected codename");
     const ImVec4 green(0.42f, 0.90f, 0.45f, 1.0f);
-    ImGui::SetWindowFontScale(1.6f);
+    ImGui::SetWindowFontScale(2.0f);
     ImGui::TextColored(match ? green : ImVec4(1, 1, 1, 0.35f), "%s", match ? match->name : "---");
     ImGui::SetWindowFontScale(1.0f);
 
@@ -169,6 +166,7 @@ void draw_panel()
                 config().difficulty_override < 0 && stats.difficulty_game_byte % 10 != 0 ? " (?)" : "");
 
     ImGui::Spacing();
+    ImGui::TextDisabled("stats");
     if (ImGui::BeginTable("stats", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("stat", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 130.0f);
