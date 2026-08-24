@@ -351,6 +351,68 @@ void stat_row(const char* key, const char* value)
     ImGui::TextUnformatted(value);
 }
 
+void checklist(const char* id, const char* const* names, size_t count, uint64_t mask)
+{
+    if (ImGui::BeginChild(id, ImVec2(0, 360), true)) {
+        for (size_t i = 0; i < count; ++i) {
+            const bool done = (mask & (uint64_t{1} << i)) != 0;
+            ImGui::TextColored(done ? ImVec4(0.42f, 0.90f, 0.45f, 1.0f)
+                                    : ImVec4(1, 1, 1, 0.35f),
+                               "%s  %s", done ? "x" : "-", names[i]);
+        }
+    }
+    ImGui::EndChild();
+}
+
+constexpr const char* kMgs3Captures[] = {
+    "King Cobra", "Taiwanese Cobra", "Thai Cobra", "Coral Snake",
+    "Milk Snake", "Green Tree Python", "Giant Anaconda", "Reticulated Python",
+    "Snake Liquid", "Snake Solid", "Snake Solidus", "Indian Gavial",
+    "Otton Frog", "Tree Frog", "Poison Dart Frog", "Rat",
+    "European Rabbit", "Flying Squirrel", "Markhor", "Vampire Bat",
+    "Hornet's Nest", "Emperor Scorpion", "Cobalt Blue Tarantula", "Parrot",
+    "White-Rumped Vulture", "Red Avadavat", "Magpie", "Sund Whistling-Thrush",
+    "Bigeye Trevally", "Maroon Shark", "Arowana", "Kenyan Mangrove Crab",
+    "Russian Oyster Mushroom", "Ural Luminescent Mushroom", "Siberian Ink Cap",
+    "Fly Agaric", "Russian Glowcap", "Spatsa", "Baikal Scaly Tooth",
+    "Yabloko Moloko", "Russian False Mango", "Golova", "Vine Melon",
+    "Instant Noodles", "Russian Ration", "Calorie Mate", "Hive of Pain Hornets",
+    "Tsuchinoko",
+};
+
+constexpr const char* kMgs3Kerotans[] = {
+    "01 Dremuchij South (VM)", "02 Dremuchij Swampland (VM)",
+    "03 Dremuchij North (VM)", "04 Dolinovodno (VM)", "05 Rassvet (VM)",
+    "06 Dremuchij East", "07 Rassvet", "08 Dolinovodno", "09 Dremuchij North",
+    "10 Dremuchij Swampland", "11 Dremuchij South", "12 Chyornyj Prud",
+    "13 Bolshaya Past South", "14 Bolshaya Past Base", "15 Bolshaya Past Crevice",
+    "16 Chyornaya Peschera Cave Branch", "17 Chyornaya Peschera Cave",
+    "18 Chyornaya Peschera Cave Entrance", "19 Ponizovje South", "20 Ponizovje West",
+    "21 Ponizovje Warehouse Exterior", "22 Ponizovje Warehouse 1F",
+    "23 Graniny Gorki South", "24 Graniny Gorki Lab Exterior Perimeter",
+    "25 Graniny Gorki Lab Exterior Yard", "26 Graniny Gorki Lab 1F",
+    "27 Graniny Gorki Lab B1 East", "28 Graniny Gorki Lab B1 West",
+    "29 Svyatogornyj South", "30 Svyatogornyj West", "31 Svyatogornyj East",
+    "32 Sokrovenno South", "33 Sokrovenno West", "34 Sokrovenno North",
+    "35 Krasnogorje Tunnel", "36 Krasnogorje Mountain Base",
+    "37 Krasnogorje Mountainside", "38 Krasnogorje Mountaintop",
+    "39 Krasnogorje Mountaintop Behind Ruins", "40 Krasnogorje Mountaintop Ruins",
+    "41 Groznyj Grad Underground Tunnel", "42 Groznyj Grad Southwest",
+    "43 Groznyj Grad Northwest", "44 Groznyj Grad Northeast",
+    "45 Groznyj Grad Southeast", "46 Groznyj Grad Holding Facility",
+    "47 Weapons Lab East Wing 2F", "48 Weapons Lab West Wing 2F Corridor",
+    "49 Tikhogornyj", "50 Tikhogornyj Behind Waterfall",
+    "51 Weapons Lab Main Wing 1F", "52 Groznyj Grad B1F",
+    "53 Groznyj Grad Escape", "54 Groznyj Grad Runway South",
+    "55 Groznyj Grad Runway", "56 Groznyj Grad Runway After WIG",
+    "57 Rail Bridge C3", "58 Rail Bridge Shagohod", "59 Rail Bridge North",
+    "60 Lazorevo South", "61 Lazorevo North", "62 Zaozyorje West",
+    "63 Zaozyorje East", "64 Rokovoj Bereg",
+};
+
+static_assert(std::size(kMgs3Captures) == 48);
+static_assert(std::size(kMgs3Kerotans) == 64);
+
 void draw_panel()
 {
     static GameStats stats{};
@@ -374,6 +436,9 @@ void draw_panel()
         return;
     }
 
+    const bool tabs = g_game == Game::MGS3 && ImGui::BeginTabBar("mgs3_tabs");
+    const bool summary = !tabs || ImGui::BeginTabItem("Summary");
+    if (summary) {
     auto match = g_game == Game::MGS1   ? codename::evaluate_mgs1(stats)
                  : g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
                                         : codename::evaluate_mgs3(stats);
@@ -514,6 +579,25 @@ void draw_panel()
             plain_row("special items", buf);
         }
         ImGui::EndTable();
+    }
+
+    if (tabs) {
+        ImGui::EndTabItem();
+    }
+    }
+
+    if (tabs && ImGui::BeginTabItem("Capture")) {
+        ImGui::Text("%d / 48", stats.plants_captured);
+        checklist("captures", kMgs3Captures, std::size(kMgs3Captures), stats.capture_mask);
+        ImGui::EndTabItem();
+    }
+    if (tabs && ImGui::BeginTabItem("Kerotan")) {
+        ImGui::Text("%d / 64", stats.kerotans);
+        checklist("kerotans", kMgs3Kerotans, std::size(kMgs3Kerotans), stats.kerotan_mask);
+        ImGui::EndTabItem();
+    }
+    if (tabs) {
+        ImGui::EndTabBar();
     }
 
     ImGui::End();

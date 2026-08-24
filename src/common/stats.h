@@ -54,6 +54,8 @@ struct GameStats {
     int severe_injuries = 0;
     int plants_captured = 0;
     int kerotans = 0;
+    uint64_t capture_mask = 0;
+    uint64_t kerotan_mask = 0;
     bool leech_attached = false;
     bool tsuchinoko_alive = false;
 

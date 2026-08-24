@@ -41,6 +41,7 @@ struct StatOffsets {
     constexpr static size_t kAreaCode = 0x24;
     constexpr static size_t kLifeMeds = 0x5A8;
     constexpr static size_t kKerotans = 0x31D6;
+    constexpr static size_t kCaptureMask = 0x18A0;
     constexpr static size_t kInjuries = 0x688;
     constexpr static size_t kInjurySize = 0x0E;
     constexpr static size_t kInjuryType = 0x08;
@@ -236,9 +237,21 @@ bool poll_stats(GameStats& out)
     out.life_med_used = read_at<uint16_t>(StatOffsets::kLifeMeds);
 
     out.kerotans = 0;
+    out.kerotan_mask = 0;
     if (range_readable(reinterpret_cast<uintptr_t>(g_stats + StatOffsets::kKerotans), 8)) {
         for (size_t i = 0; i < 8; ++i) {
-            out.kerotans += std::popcount(read_at<uint8_t>(StatOffsets::kKerotans + i));
+            const uint8_t bits = read_at<uint8_t>(StatOffsets::kKerotans + i);
+            out.kerotan_mask |= static_cast<uint64_t>(bits) << (i * 8);
+            out.kerotans += std::popcount(bits);
+        }
+    }
+
+    out.capture_mask = 0;
+    if (range_readable(reinterpret_cast<uintptr_t>(g_stats + StatOffsets::kCaptureMask), 6)) {
+        for (size_t i = 0; i < 6; ++i) {
+            out.capture_mask |= static_cast<uint64_t>(
+                                    read_at<uint8_t>(StatOffsets::kCaptureMask + i))
+                << (i * 8);
         }
     }
 
