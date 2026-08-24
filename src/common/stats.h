@@ -52,33 +52,10 @@ struct GameStats {
     int severe_injuries = 0;
     int plants_captured = 0;
 
-    bool kerotan_all_shot = false;
-    uint64_t kerotan_mask = 0; // bit i = kerotan i shot
-    uint8_t kerotan_count = 0;
-    bool tsuchinoko_carried = false;
-    bool leech_carried = false;
-
     uint8_t difficulty_game_byte = 0;
+    bool mgs1_integral = false;
     bool mgs1_japanese_original = false;
 
-    int headshots = 0;
-    int cqc_chokes = 0;
-    int hold_ups = 0;
-    int body_searches = 0;
-    int items_given = 0;
-    int militia_praise = 0;
-    int weapons_owned = 0;
-    int combat_highs = 0;
-    int side_rolls = 0;
-    int forward_rolls = 0;
-    int crawl_seconds = 0;
-    int crouch_seconds = 0;
-    int box_seconds = 0;
-    int wall_seconds = 0;
-    int playboy_pages = 0;
-    int scan_plug_uses = 0;
-    int knife_kills = 0;
-    int weapons_picked_up = 0;
 };
 
 } // namespace bb

@@ -209,13 +209,6 @@ void test_swallow_fast_sloppy_ve()
     CHECK(std::string_view(best(s)) == "Swallow");
 }
 
-void test_kerotan_flag_wins_special_block()
-{
-    GameStats s = sloppy(Difficulty::Normal);
-    s.kerotan_all_shot = true;
-    CHECK(std::string_view(best(s)) == "Kerotan");
-}
-
 void test_regular_fallback()
 {
     GameStats s = sloppy(Difficulty::Normal);
@@ -304,7 +297,6 @@ int main()
         {"exact_damage_bars_override_estimate", test_exact_damage_bars_override_estimate},
         {"markhor_by_capture_count", test_markhor_by_capture_count},
         {"swallow_fast_sloppy_ve", test_swallow_fast_sloppy_ve},
-        {"kerotan_flag_wins_special_block", test_kerotan_flag_wins_special_block},
         {"regular_fallback", test_regular_fallback},
         {"tier_gating", test_tier_gating},
         {"elite_requirements_statuses", test_elite_requirements_statuses},

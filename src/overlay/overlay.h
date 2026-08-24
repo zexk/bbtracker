@@ -8,7 +8,6 @@ enum class Game : int {
     MGS1,
     MGS2,
     MGS3,
-    MGS4,
 };
 
 using StatsFn = bool (*)(GameStats& out);

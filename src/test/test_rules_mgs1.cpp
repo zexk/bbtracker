@@ -70,6 +70,46 @@ void test_japanese_original_bypasses_difficulty()
     CHECK(std::string_view(best(s)) == "BIG BOSS");
 }
 
+void test_integral_elite_ladder_uses_difficulty()
+{
+    GameStats s = with(2.9);
+    s.mgs1_integral = true;
+    s.alerts = 3;
+    s.kills = 24;
+    s.rations_used = 1;
+
+    s.difficulty = Difficulty::Extreme;
+    CHECK(std::string_view(best(s)) == "BIG BOSS");
+    s.difficulty = Difficulty::Normal;
+    CHECK(std::string_view(best(s)) == "DOBERMAN");
+    s.difficulty = Difficulty::Easy;
+    CHECK(std::string_view(best(s)) == "HOUND");
+}
+
+void test_integral_special_family_uses_difficulty()
+{
+    GameStats s = with(5);
+    s.mgs1_integral = true;
+    s.alerts = 10;
+    s.kills = 5;
+
+    s.difficulty = Difficulty::Extreme;
+    CHECK(std::string_view(best(s)) == "Scorpion");
+    s.difficulty = Difficulty::Hard;
+    CHECK(std::string_view(best(s)) == "Centipede");
+}
+
+void test_integral_requirements_do_not_include_radar()
+{
+    GameStats s = with(2.9);
+    s.mgs1_integral = true;
+    const auto reqs = elite_requirements_mgs1(s);
+    CHECK(reqs.size() == 5);
+    for (const ReqStatus& req : reqs) {
+        CHECK(std::string_view(req.label) != "radar");
+    }
+}
+
 void test_ladder_gated_on_unknown_time()
 {
     GameStats s{};
@@ -174,6 +214,10 @@ int main()
         {"fox_when_radar_on", test_fox_when_radar_on},
         {"elite_wrong_difficulty_rejected", test_elite_wrong_difficulty_rejected},
         {"japanese_original_bypasses_difficulty", test_japanese_original_bypasses_difficulty},
+        {"integral_elite_ladder_uses_difficulty", test_integral_elite_ladder_uses_difficulty},
+        {"integral_special_family_uses_difficulty", test_integral_special_family_uses_difficulty},
+        {"integral_requirements_do_not_include_radar",
+         test_integral_requirements_do_not_include_radar},
         {"ladder_gated_on_unknown_time", test_ladder_gated_on_unknown_time},
         {"falcon_precedes_jaws", test_falcon_precedes_jaws},
         {"jaws", test_jaws},

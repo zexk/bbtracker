@@ -7,5 +7,6 @@
 namespace bb::codename {
 
 std::span<const RankRule> mgs1_rules();
+std::span<const RankRule> mgs1_integral_rules();
 
 }

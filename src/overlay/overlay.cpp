@@ -18,7 +18,6 @@
 
 #include "../common/codename/codename.h"
 #include "../common/log.h"
-#include "../games/mgs3/kerotan_stages.h"
 
 namespace bb {
 namespace {
@@ -34,7 +33,8 @@ struct OverlayState {
 
 const char* g_label = "?";
 StatsFn g_stats_fn = nullptr;
-Game g_game = Game::MGS3;OverlayState g{};
+Game g_game = Game::MGS3;
+OverlayState g{};
 
 using PresentFn = HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT);
 using ResizeBuffersFn =
@@ -326,22 +326,12 @@ const char* mgs2_area_name(const char* code)
     return exact_area_name(code, kAreas, std::size(kAreas));
 }
 
-const char* mgs3_area_name(const char* code)
-{
-    for (const mgs3::KerotanStage& area : mgs3::kKerotanStages) {
-        if (std::strcmp(code, area.code) == 0) {
-            return area.name;
-        }
-    }
-    return nullptr;
-}
-
 const char* area_name(Game game, const char* code)
 {
     switch (game) {
     case Game::MGS1: return mgs1_area_name(code);
     case Game::MGS2: return mgs2_area_name(code);
-    case Game::MGS3: return mgs3_area_name(code);
+    case Game::MGS3: return nullptr;
     default: return nullptr;
     }
 }
@@ -372,9 +362,7 @@ void draw_panel()
         next_poll = now + 250;
     }
 
-    const char* panel_title = g_game == Game::MGS3   ? "FOXHOUND tracker"
-                              : g_game == Game::MGS4 ? "BIG BOSS tracker"
-                                                     : "BIG BOSS tracker";
+    const char* panel_title = g_game == Game::MGS3 ? "FOXHOUND tracker" : "BIG BOSS tracker";
     ImGui::SetNextWindowSize(ImVec2(380, 480), ImGuiCond_FirstUseEver);
     ImGui::Begin(panel_title, &g.show,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
@@ -388,7 +376,6 @@ void draw_panel()
 
     auto match = g_game == Game::MGS1   ? codename::evaluate_mgs1(stats)
                  : g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
-                 : g_game == Game::MGS4 ? std::nullopt
                                         : codename::evaluate_mgs3(stats);
 
     const ImVec4 green(0.42f, 0.90f, 0.45f, 1.0f);
@@ -420,7 +407,6 @@ void draw_panel()
         std::vector<codename::ReqStatus> reqs =
             g_game == Game::MGS1   ? codename::elite_requirements_mgs1(stats)
             : g_game == Game::MGS2 ? codename::elite_requirements_mgs2(stats)
-            : g_game == Game::MGS4 ? codename::elite_requirements_mgs4(stats)
                                    : codename::elite_requirements_mgs3(stats);
         for (const codename::ReqStatus& r : reqs) {
             char ratio[96];
@@ -526,48 +512,8 @@ void draw_panel()
             plain_count("meals eaten", stats.meals_eaten);
             snprintf(buf, sizeof(buf), "0x%02X", stats.special_items_mask);
             plain_row("special items", buf);
-            plain_row("kerotans", stats.kerotan_count > 0
-                                      ? (stats.kerotan_all_shot ? "all shot" : "incomplete")
-                                      : "unavailable");
         }
         ImGui::EndTable();
-    }
-
-    if (g_game == Game::MGS3 && stats.kerotan_count > 0) {
-        ImGui::Spacing();
-        if (ImGui::CollapsingHeader("Kerotan frogs", ImGuiTreeNodeFlags_DefaultOpen)) {
-            const int total = mgs3::kKerotanCount;
-            int shot = 0;
-            for (int i = 0; i < total; ++i) {
-                if (stats.kerotan_mask & (1ULL << i)) {
-                    ++shot;
-                }
-            }
-            ImGui::Text("%d / %d", shot, total);
-            ImGui::SameLine();
-
-            const float cell = ImGui::GetFrameHeight() * 0.55f;
-            const float spacing = 2.0f;
-            int cols = static_cast<int>(ImGui::GetContentRegionAvail().x / (cell + spacing));
-            if (cols < 1) cols = 8;
-            for (int i = 0; i < total; ++i) {
-                const bool shot_i = (stats.kerotan_mask >> i) & 1;
-                if (i % cols != 0) {
-                    ImGui::SameLine();
-                }
-                const ImVec4 col = shot_i ? ImVec4(0.3f, 0.85f, 0.35f, 1.0f)
-                                          : ImVec4(0.25f, 0.25f, 0.28f, 1.0f);
-                ImGui::PushID(i);
-                ImGui::ColorButton("##kerotan", col,
-                                   ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
-                                   ImVec2(cell, cell));
-                if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("%s\n%s", mgs3::kKerotanStages[i].code,
-                                      mgs3::kKerotanStages[i].name);
-                }
-                ImGui::PopID();
-            }
-        }
     }
 
     ImGui::End();

@@ -29,8 +29,20 @@ uint32_t g_last_game_frames = 0;
 std::array<uint32_t, kGameTimeOffsets.size()> g_time_samples{};
 uint64_t g_time_sample_tick = 0;
 int g_game_time_index = -1;
+bool g_integral = false;
 
 bool range_readable(uintptr_t addr, size_t len);
+
+constexpr bool integral_serial(std::string_view text)
+{
+    return text.find("SLPM_862.47") != std::string_view::npos
+        || text.find("SLPM_862.48") != std::string_view::npos
+        || text.find("SLPM-86247") != std::string_view::npos
+        || text.find("SLPM-86248") != std::string_view::npos;
+}
+
+static_assert(integral_serial("cdrom:\\SLPM_862.47;1"));
+static_assert(!integral_serial("cdrom:\\SLUS_005.94;1"));
 
 struct FieldOffsets {
     constexpr static size_t kStage = 0x03;
@@ -68,6 +80,42 @@ bool range_readable(uintptr_t addr, size_t len)
         addr = region_end;
     }
     return true;
+}
+
+bool detect_integral()
+{
+    HMODULE self = nullptr;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                                | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPCWSTR>(&detect_integral), &self)) {
+        return false;
+    }
+    MODULEINFO self_info{};
+    if (!GetModuleInformation(GetCurrentProcess(), self, &self_info, sizeof(self_info))) {
+        return false;
+    }
+    const uintptr_t self_begin = reinterpret_cast<uintptr_t>(self_info.lpBaseOfDll);
+    const uintptr_t self_end = self_begin + self_info.SizeOfImage;
+
+    uintptr_t cursor = 0x10000;
+    MEMORY_BASIC_INFORMATION mbi{};
+    constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
+        | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+    while (VirtualQuery(reinterpret_cast<LPCVOID>(cursor), &mbi, sizeof(mbi))) {
+        const uintptr_t base = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
+        const uintptr_t end = base + mbi.RegionSize;
+        if ((base < self_begin || base >= self_end) && mbi.State == MEM_COMMIT
+            && (mbi.Protect & kReadable) != 0
+            && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize <= 0x4000000
+            && integral_serial({reinterpret_cast<const char*>(base), mbi.RegionSize})) {
+            return true;
+        }
+        if (end <= cursor) {
+            break;
+        }
+        cursor = end;
+    }
+    return false;
 }
 
 template <typename T>
@@ -353,6 +401,8 @@ bool poll_stats(GameStats& out)
         LOG_INFO("mgs1 work array at %p stage=%s score=%d",
                  reinterpret_cast<const void*>(g_array_start), stage, best_score);
         log_hex_dump(reinterpret_cast<const uint8_t*>(g_array_start), 0xD0);
+        g_integral = detect_integral();
+        LOG_INFO("mgs1 variant=%s", g_integral ? "Integral" : "original");
         g_time_sample_tick = 0;
     }
 
@@ -387,7 +437,8 @@ bool poll_stats(GameStats& out)
         g_last_radar_state = radar_state;
     }
 
-    out.mgs1_japanese_original = g_game_time_index == 1;
+    out.mgs1_integral = g_integral;
+    out.mgs1_japanese_original = !g_integral && g_game_time_index == 1;
     const int8_t diff = out.mgs1_japanese_original
         ? 0
         : read_at<int8_t>(g_array_start, FieldOffsets::kDifficulty);

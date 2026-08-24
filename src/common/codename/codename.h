@@ -24,29 +24,8 @@ enum class StatId : uint8_t {
     PlantsCaptured,
     SpecialItemUsed,
     RadarOff,
-    KerotanAllShot,
-    TsuchinokoCarried,
-    LeechCarried,
     MissionCode,
     DiscoveryRatio,
-    Headshots,
-    CqcChokes,
-    HoldUps,
-    BodySearches,
-    ItemsGiven,
-    MilitiaPraise,
-    WeaponsOwned,
-    CombatHighs,
-    SideRolls,
-    ForwardRolls,
-    CrawlHours,
-    CrouchHours,
-    BoxHours,
-    WallHours,
-    PlayboyPages,
-    ScanPlugUses,
-    KnifeKills,
-    WeaponsPickedUp,
 };
 
 enum class Op : uint8_t {
@@ -128,9 +107,5 @@ std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s);
 std::optional<Match> evaluate_mgs1(const GameStats& s);
 
 std::vector<ReqStatus> elite_requirements_mgs1(const GameStats& s);
-
-std::vector<Match> all_matches_mgs4(const GameStats& s);
-
-std::vector<ReqStatus> elite_requirements_mgs4(const GameStats& s);
 
 } // namespace bb::codename

@@ -32,28 +32,7 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::PlantsCaptured: return s.plants_captured;
     case StatId::SpecialItemUsed: return s.special_item_used ? 1.0 : 0.0;
     case StatId::RadarOff: return s.radar_off ? 1.0 : 0.0;
-    case StatId::KerotanAllShot: return s.kerotan_all_shot ? 1.0 : 0.0;
-    case StatId::TsuchinokoCarried: return s.tsuchinoko_carried ? 1.0 : 0.0;
-    case StatId::LeechCarried: return s.leech_carried ? 1.0 : 0.0;
     case StatId::MissionCode: return s.mission;
-    case StatId::Headshots: return s.headshots;
-    case StatId::CqcChokes: return s.cqc_chokes;
-    case StatId::HoldUps: return s.hold_ups;
-    case StatId::BodySearches: return s.body_searches;
-    case StatId::ItemsGiven: return s.items_given;
-    case StatId::MilitiaPraise: return s.militia_praise;
-    case StatId::WeaponsOwned: return s.weapons_owned;
-    case StatId::CombatHighs: return s.combat_highs;
-    case StatId::SideRolls: return s.side_rolls;
-    case StatId::ForwardRolls: return s.forward_rolls;
-    case StatId::CrawlHours: return s.crawl_seconds / 3600.0;
-    case StatId::CrouchHours: return s.crouch_seconds / 3600.0;
-    case StatId::BoxHours: return s.box_seconds / 3600.0;
-    case StatId::WallHours: return s.wall_seconds / 3600.0;
-    case StatId::PlayboyPages: return s.playboy_pages;
-    case StatId::ScanPlugUses: return s.scan_plug_uses;
-    case StatId::KnifeKills: return s.knife_kills;
-    case StatId::WeaponsPickedUp: return s.weapons_picked_up;
     case StatId::DiscoveryRatio: {
         if (s.kills < 25) {
             return 100.0;
@@ -233,9 +212,10 @@ std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s)
 
 std::optional<Match> evaluate_mgs1(const GameStats& s)
 {
-    for (const RankRule& r : mgs1_rules()) {
+    const std::span<const RankRule> rules = s.mgs1_integral ? mgs1_integral_rules() : mgs1_rules();
+    for (const RankRule& r : rules) {
         bool matches = rule_matches(s, r);
-        if (!matches && s.mgs1_japanese_original && r.kind == Kind::Elite) {
+        if (!matches && !s.mgs1_integral && s.mgs1_japanese_original && r.kind == Kind::Elite) {
             GameStats jp = s;
             jp.difficulty = r.name[0] == 'B' ? Difficulty::Extreme : Difficulty::Hard;
             matches = rule_matches(jp, r);
@@ -257,8 +237,16 @@ struct Mgs1ReqRow {
     ReqFmt fmt;
 };
 
-constexpr std::array<Mgs1ReqRow, 6> kIntegralLadderReqs{{
+constexpr std::array<Mgs1ReqRow, 6> kOriginalLadderReqs{{
     {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
+    {"discovered", StatId::Alerts, Op::Lt, 4, ReqFmt::Count},
+    {"kills", StatId::Kills, Op::Lt, 25, ReqFmt::Count},
+    {"rations used", StatId::RationsUsed, Op::Le, 1, ReqFmt::Count},
+    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
+    {"play time", StatId::PlayTimeHours, Op::Lt, 3, ReqFmt::Time},
+}};
+
+constexpr std::array<Mgs1ReqRow, 5> kIntegralLadderReqs{{
     {"discovered", StatId::Alerts, Op::Lt, 4, ReqFmt::Count},
     {"kills", StatId::Kills, Op::Lt, 25, ReqFmt::Count},
     {"rations used", StatId::RationsUsed, Op::Le, 1, ReqFmt::Count},
@@ -271,7 +259,10 @@ constexpr std::array<Mgs1ReqRow, 6> kIntegralLadderReqs{{
 std::vector<ReqStatus> elite_requirements_mgs1(const GameStats& s)
 {
     std::vector<ReqStatus> out;
-    for (const Mgs1ReqRow& row : kIntegralLadderReqs) {
+    const std::span<const Mgs1ReqRow> rows =
+        s.mgs1_integral ? std::span<const Mgs1ReqRow>{kIntegralLadderReqs}
+                        : std::span<const Mgs1ReqRow>{kOriginalLadderReqs};
+    for (const Mgs1ReqRow& row : rows) {
         bool pass = cond_met(s, Cond{row.stat, row.op, row.limit});
         if (row.fmt == ReqFmt::Time && s.play_time_seconds <= 0.0) {
             pass = false;
