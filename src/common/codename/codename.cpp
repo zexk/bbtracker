@@ -32,6 +32,9 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::LifeMedUsed: return s.life_med_used;
     case StatId::MealsEaten: return s.meals_eaten;
     case StatId::PlantsCaptured: return s.plants_captured;
+    case StatId::Kerotans: return s.kerotans;
+    case StatId::LeechAttached: return s.leech_attached ? 1.0 : 0.0;
+    case StatId::TsuchinokoAlive: return s.tsuchinoko_alive ? 1.0 : 0.0;
     case StatId::SpecialItemUsed: return s.special_item_used ? 1.0 : 0.0;
     case StatId::RadarOff: return s.radar_off ? 1.0 : 0.0;
     case StatId::MissionCode: return s.mission;

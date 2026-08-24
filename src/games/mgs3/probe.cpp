@@ -2,6 +2,7 @@
 
 #include <windows.h>
 
+#include <bit>
 #include <cstring>
 #include <cstdint>
 #include <cstdio>
@@ -13,6 +14,7 @@ namespace bb::mgs3 {
 namespace {
 
 constexpr uintptr_t kFallbackSlotOffset = 0x00ACDE98;
+constexpr uintptr_t kFoodSlotOffset = 0x01D2F110;
 constexpr size_t kStatsRegionSize = 0x600;
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID3.exe";
 
@@ -38,6 +40,12 @@ struct StatOffsets {
     constexpr static size_t kGameTimeFrames = 0x4C;
     constexpr static size_t kAreaCode = 0x24;
     constexpr static size_t kLifeMeds = 0x5A8;
+    constexpr static size_t kKerotans = 0x31D6;
+    constexpr static size_t kInjuries = 0x688;
+    constexpr static size_t kInjurySize = 0x0E;
+    constexpr static size_t kInjuryType = 0x08;
+    constexpr static size_t kInjuryHealth = 0x0C;
+    constexpr static size_t kInjuryCount = 50;
 };
 
 const uint8_t* g_stats = nullptr;
@@ -226,6 +234,50 @@ bool poll_stats(GameStats& out)
     out.play_time_seconds =
         static_cast<double>(read_at<uint32_t>(StatOffsets::kGameTimeFrames)) / 60.0;
     out.life_med_used = read_at<uint16_t>(StatOffsets::kLifeMeds);
+
+    out.kerotans = 0;
+    if (range_readable(reinterpret_cast<uintptr_t>(g_stats + StatOffsets::kKerotans), 8)) {
+        for (size_t i = 0; i < 8; ++i) {
+            out.kerotans += std::popcount(read_at<uint8_t>(StatOffsets::kKerotans + i));
+        }
+    }
+
+    out.leech_attached = false;
+    constexpr size_t kInjuriesSize = StatOffsets::kInjurySize * StatOffsets::kInjuryCount;
+    if (range_readable(reinterpret_cast<uintptr_t>(g_stats + StatOffsets::kInjuries),
+                       kInjuriesSize)) {
+        for (size_t i = 0; i < StatOffsets::kInjuryCount; ++i) {
+            const size_t injury = StatOffsets::kInjuries + i * StatOffsets::kInjurySize;
+            if (read_at<uint8_t>(injury + StatOffsets::kInjuryType) == 7
+                && read_at<uint16_t>(injury + StatOffsets::kInjuryHealth) > 0) {
+                out.leech_attached = true;
+                break;
+            }
+        }
+    }
+
+    out.tsuchinoko_alive = false;
+    if (HMODULE mod = GetModuleHandleW(kModuleName)) {
+        const uintptr_t food_slot = reinterpret_cast<uintptr_t>(mod) + kFoodSlotOffset;
+        if (range_readable(food_slot, sizeof(uintptr_t))) {
+            const uintptr_t food =
+                *reinterpret_cast<volatile const uintptr_t*>(food_slot);
+            constexpr size_t kCageTypes[] = {0x0, 0x8, 0x10};
+            constexpr size_t kCageOccupied[] = {0xFEC, 0x103C, 0x108C};
+            if (food && range_readable(food, kCageOccupied[2] + sizeof(uint16_t))) {
+                for (size_t i = 0; i < std::size(kCageTypes); ++i) {
+                    const auto type = *reinterpret_cast<volatile const uint16_t*>(
+                        food + kCageTypes[i]);
+                    const auto occupied = *reinterpret_cast<volatile const uint16_t*>(
+                        food + kCageOccupied[i]);
+                    if (type == 130 && occupied != 0) {
+                        out.tsuchinoko_alive = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
     const uint8_t diff06 = read_at<uint8_t>(StatOffsets::kDifficulty);
     const uint8_t diff04 = read_at<uint8_t>(StatOffsets::kDifficulty - 2);

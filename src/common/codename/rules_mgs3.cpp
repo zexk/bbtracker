@@ -58,6 +58,9 @@ constexpr Cond kWorst[] = {
 };
 
 constexpr Cond kMarkhor[] = {{StatId::PlantsCaptured, Op::Ge, 48}};
+constexpr Cond kKerotan[] = {{StatId::Kerotans, Op::Eq, 64}};
+constexpr Cond kLeech[] = {{StatId::LeechAttached, Op::Eq, 1}};
+constexpr Cond kTsuchinoko[] = {{StatId::TsuchinokoAlive, Op::Eq, 1}};
 constexpr Cond kChameleon[] = {{StatId::Alerts, Op::Eq, 0}};
 constexpr Cond kPigeon[] = {{StatId::Kills, Op::Eq, 0}};
 
@@ -121,7 +124,7 @@ constexpr Cond kRegAlligator[] = {
     {StatId::Alerts, Op::Ge, 51},
 };
 
-const std::array<RankRule, 58> kMgs3Rules{{
+const std::array<RankRule, 61> kMgs3Rules{{
     RankRule{"FOXHOUND", kX, Kind::Elite, kFoxhound},
 
     RankRule{"FOX", kH_, Kind::Elite, kStrictRow},
@@ -141,8 +144,11 @@ const std::array<RankRule, 58> kMgs3Rules{{
     RankRule{"Rabbit", kH_, Kind::Worst, kWorst},
     RankRule{"Ostrich", kX, Kind::Worst, kWorst},
 
+    RankRule{"Kerotan", kAllTiers, Kind::Special, kKerotan},
     RankRule{"Markhor", kAllTiers, Kind::Special, kMarkhor},
+    RankRule{"Tsuchinoko", kAllTiers, Kind::Special, kTsuchinoko},
     RankRule{"Chameleon", kAllTiers, Kind::Special, kChameleon},
+    RankRule{"Leech", kAllTiers, Kind::Special, kLeech},
     RankRule{"Pigeon", kAllTiers, Kind::Special, kPigeon},
 
     RankRule{"Night Owl", kX, Kind::Special, kLowInjury},

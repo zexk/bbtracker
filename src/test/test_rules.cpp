@@ -200,6 +200,33 @@ void test_markhor_by_capture_count()
     CHECK(std::string_view(best(s)) != "Markhor");
 }
 
+void test_kerotan_by_count()
+{
+    GameStats s = sloppy(Difficulty::Normal);
+    s.kerotans = 64;
+    CHECK(std::string_view(best(s)) == "Kerotan");
+    s.kerotans = 63;
+    CHECK(std::string_view(best(s)) != "Kerotan");
+}
+
+void test_leech_attached()
+{
+    GameStats s = sloppy(Difficulty::Normal);
+    s.leech_attached = true;
+    CHECK(std::string_view(best(s)) == "Leech");
+    s.leech_attached = false;
+    CHECK(std::string_view(best(s)) != "Leech");
+}
+
+void test_tsuchinoko_alive()
+{
+    GameStats s = sloppy(Difficulty::Normal);
+    s.tsuchinoko_alive = true;
+    CHECK(std::string_view(best(s)) == "Tsuchinoko");
+    s.tsuchinoko_alive = false;
+    CHECK(std::string_view(best(s)) != "Tsuchinoko");
+}
+
 void test_swallow_fast_sloppy_ve()
 {
     GameStats s = sloppy(Difficulty::VeryEasy);
@@ -296,6 +323,9 @@ int main()
         {"mgs3_boundaries", test_mgs3_boundaries},
         {"exact_damage_bars_override_estimate", test_exact_damage_bars_override_estimate},
         {"markhor_by_capture_count", test_markhor_by_capture_count},
+        {"kerotan_by_count", test_kerotan_by_count},
+        {"leech_attached", test_leech_attached},
+        {"tsuchinoko_alive", test_tsuchinoko_alive},
         {"swallow_fast_sloppy_ve", test_swallow_fast_sloppy_ve},
         {"regular_fallback", test_regular_fallback},
         {"tier_gating", test_tier_gating},

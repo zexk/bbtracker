@@ -53,8 +53,15 @@ fallback. Damage bars use accumulated end-screen field, not an estimated unit
 conversion. Difficulty byte values are 10 through 60; European Extreme uses Extreme
 rank rules.
 
-Known gaps: Kerotan, Tsuchinoko, and Leech game fields remain unavailable, so those
-ranks are omitted.
+Kerotan uses the 64-bit hit mask at stats-block offset `0x31D6`, verified by
+decrypting controlled 63/64 and 64/64 saves.
+
+Leech scans 50 injury records from stats-block offset `0x688`. Records are `0x0E`
+bytes; type `7` with positive injury health means a leech remains attached.
+
+Tsuchinoko checks all three live-animal cages for food type `130` with an active
+occupancy record. Cage memory was verified by changing a live rabbit (`114`) into
+a Tsuchinoko and carrying it across an area transition.
 
 ## Verification
 

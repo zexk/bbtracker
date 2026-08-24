@@ -4,11 +4,6 @@ Live codename tracker overlay for Metal Gear Solid 1, 2, and 3 in Metal Gear
 Solid: Master Collection. Shows projected rank, requirements, and run stats.
 Press `F3` to toggle overlay.
 
-## Status
-
-- MGS3 Kerotan, Tsuchinoko, and Leech ranks need unknown game fields.
-- Game updates may require new memory layouts.
-
 ## Install
 
 bbtracker requires Ultimate ASI Loader. Recommended setup:

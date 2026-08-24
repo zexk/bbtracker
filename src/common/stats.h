@@ -53,6 +53,9 @@ struct GameStats {
     int meals_eaten = 0;
     int severe_injuries = 0;
     int plants_captured = 0;
+    int kerotans = 0;
+    bool leech_attached = false;
+    bool tsuchinoko_alive = false;
 
     uint8_t difficulty_game_byte = 0;
     bool mgs1_integral = false;
