@@ -25,10 +25,10 @@ jobs:
           VERSION: ${{ github.ref_name }}
         run: |
           mkdir dist
-          cp result/bin/bbtracker_mgs{1,2,3}.asi dist/
+          cp result/bin/bbtracker_{mg12,mgs1,mgs2,mgs3}.asi dist/
           cd dist
           python3 -m zipfile -c "bbtracker-${VERSION}.zip" ./*.asi
-          for game in mgs1 mgs2 mgs3; do
+          for game in mg12 mgs1 mgs2 mgs3; do
             python3 -m zipfile -c "bbtracker-${game}-${VERSION}.zip" "bbtracker_${game}.asi"
           done
 
