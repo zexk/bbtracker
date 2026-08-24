@@ -219,6 +219,38 @@ void apply_game_theme()
         return;
     }
 
+    if (g_game == Game::MGS4) {
+        colors[ImGuiCol_Text]              = ImVec4(0.84f, 0.83f, 0.66f, 1.00f);
+        colors[ImGuiCol_TextDisabled]      = ImVec4(0.49f, 0.48f, 0.36f, 1.00f);
+        colors[ImGuiCol_WindowBg]          = ImVec4(0.08f, 0.08f, 0.05f, 0.96f);
+        colors[ImGuiCol_Border]            = ImVec4(0.52f, 0.48f, 0.31f, 0.72f);
+        colors[ImGuiCol_FrameBg]           = ImVec4(0.17f, 0.16f, 0.10f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered]    = ImVec4(0.42f, 0.30f, 0.08f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]     = ImVec4(0.62f, 0.42f, 0.08f, 1.00f);
+        colors[ImGuiCol_TitleBg]           = ImVec4(0.13f, 0.12f, 0.07f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]     = ImVec4(0.32f, 0.27f, 0.12f, 1.00f);
+        colors[ImGuiCol_CheckMark]         = ImVec4(0.94f, 0.66f, 0.14f, 1.00f);
+        colors[ImGuiCol_SliderGrab]        = ImVec4(0.58f, 0.53f, 0.32f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive]  = ImVec4(0.94f, 0.66f, 0.14f, 1.00f);
+        colors[ImGuiCol_Button]            = ImVec4(0.21f, 0.20f, 0.12f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]     = ImVec4(0.42f, 0.30f, 0.08f, 1.00f);
+        colors[ImGuiCol_ButtonActive]      = ImVec4(0.62f, 0.42f, 0.08f, 1.00f);
+        colors[ImGuiCol_Header]            = ImVec4(0.21f, 0.20f, 0.12f, 1.00f);
+        colors[ImGuiCol_HeaderHovered]     = ImVec4(0.42f, 0.30f, 0.08f, 1.00f);
+        colors[ImGuiCol_HeaderActive]      = ImVec4(0.62f, 0.42f, 0.08f, 1.00f);
+        colors[ImGuiCol_Tab]               = ImVec4(0.17f, 0.16f, 0.10f, 1.00f);
+        colors[ImGuiCol_TabHovered]        = ImVec4(0.42f, 0.30f, 0.08f, 1.00f);
+        colors[ImGuiCol_TabActive]         = ImVec4(0.62f, 0.42f, 0.08f, 1.00f);
+        colors[ImGuiCol_TabUnfocused]      = ImVec4(0.13f, 0.12f, 0.07f, 1.00f);
+        colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.32f, 0.27f, 0.12f, 1.00f);
+        colors[ImGuiCol_Separator]         = ImVec4(0.52f, 0.48f, 0.31f, 0.68f);
+        colors[ImGuiCol_TableRowBgAlt]     = ImVec4(0.20f, 0.19f, 0.12f, 0.60f);
+        colors[ImGuiCol_ResizeGrip]        = ImVec4(0.62f, 0.42f, 0.08f, 0.35f);
+        colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.94f, 0.66f, 0.14f, 0.75f);
+        colors[ImGuiCol_ResizeGripActive]  = ImVec4(0.94f, 0.66f, 0.14f, 1.00f);
+        return;
+    }
+
     colors[ImGuiCol_Text]                 = ImVec4(0.86f, 0.87f, 0.76f, 1.00f);
     colors[ImGuiCol_TextDisabled]         = ImVec4(0.48f, 0.49f, 0.42f, 1.00f);
     colors[ImGuiCol_WindowBg]             = ImVec4(0.09f, 0.10f, 0.08f, 0.96f);
@@ -537,19 +569,38 @@ void draw_panel()
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 
     if (!have_stats) {
-        ImGui::TextDisabled("stats unavailable");
-        ImGui::TextDisabled(g_game == Game::MGS4
-                                ? "MGS4 memory probe pending"
-                                : "memory probe not resolved yet; see bbtracker.log");
-        if (g_game == Game::MGS4
-            && ImGui::BeginTable("mgs4_pending", 2,
-                                 ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-            constexpr const char* rows[] = {
-                "emblem", "difficulty", "alerts", "kills", "continues",
-                "recovery items", "play time", "special items",
-            };
-            for (const char* row : rows) stat_row(row, "--");
-            ImGui::EndTable();
+        if (g_game == Game::MGS4) {
+            ImGui::SetWindowFontScale(2.0f);
+            ImGui::TextDisabled("---");
+            ImGui::SetWindowFontScale(1.0f);
+            ImGui::Separator();
+            ImGui::Spacing();
+            if (ImGui::BeginTable("mgs4_pending", 2,
+                                  ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+                ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+                constexpr const char* requirements[] = {
+                    "difficulty", "alerts", "kills", "continues",
+                    "recovery items", "play time", "special items",
+                };
+                constexpr const char* secondary[] = {
+                    "headshots", "CQC holds", "knife defeats",
+                    "CQC chokes", "hold-ups", "body searches", "combat highs",
+                };
+                for (const char* row : requirements) stat_row(row, "--");
+                for (const char* row : secondary) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextDisabled("%s", row);
+                    ImGui::TableNextColumn();
+                    ImGui::TextDisabled("--");
+                }
+                ImGui::EndTable();
+            }
+            ImGui::TextDisabled("MGS4 memory probe pending");
+        } else {
+            ImGui::TextDisabled("stats unavailable");
+            ImGui::TextDisabled("memory probe not resolved yet; see bbtracker.log");
         }
         ImGui::End();
         return;
@@ -649,6 +700,10 @@ void draw_panel()
                        && (g_game == Game::MG1 || g_game == Game::MG2)) {
                 snprintf(ratio, sizeof(ratio), "%s",
                          stats.special_item_used ? "Infinity Bandana" : "NONE");
+            } else if (std::strcmp(r.label, "special items") == 0
+                       && g_game == Game::MGS4) {
+                snprintf(ratio, sizeof(ratio), "%s",
+                         stats.special_item_used ? "USED" : "NONE");
             } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS1) {
                 snprintf(ratio, sizeof(ratio), "%s", stats.radar_off ? "OFF" : "ON");
             } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS2) {
@@ -741,6 +796,14 @@ void draw_panel()
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
             plain_row("captures", buf);
             plain_count("meals eaten", stats.meals_eaten);
+        } else if (g_game == Game::MGS4) {
+            plain_count("headshots", stats.headshots);
+            plain_count("CQC holds", stats.cqc_holds);
+            plain_count("knife defeats", stats.knife_defeats);
+            plain_count("CQC chokes", stats.cqc_chokes);
+            plain_count("hold-ups", stats.hold_ups);
+            plain_count("body searches", stats.body_searches);
+            plain_count("combat highs", stats.combat_highs);
         }
         if (stats.area_code[0]) {
             char buf[96];
