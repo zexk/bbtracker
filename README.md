@@ -1,13 +1,24 @@
-# bbtracker
+# bbtracker — Metal Gear rank tracker
 
-Live codename tracker overlay for Metal Gear 1/2 and Metal Gear Solid 1, 2, and 3 in Metal Gear
-Solid: Master Collection. Shows projected rank, requirements, and run stats.
-Press `F3` to toggle overlay.
-In MGS3, press `F4` to cycle tabs and `Up`/`Down` to scroll checklists.
+Live rank and codename tracker overlay for Metal Gear Solid: Master Collection.
+Tracks Metal Gear, Metal Gear 2, MGS1, MGS2, and MGS3 runs in real time,
+including projected rank, requirements, and run stats.
+
+[Download latest release](https://github.com/zexk/bbtracker/releases/latest)
+
+## Features
+
+- Live projected rank and codename
+- Rank requirements and remaining allowances
+- Run stats, special-rank counters, and MGS3 checklists
+- Windows, Linux, and Steam Deck support through ASI Loader and Proton
+
+Press `F3` to toggle overlay. In MGS3, press `F4` to cycle tabs and
+`Up`/`Down` to scroll checklists.
 
 ## Install
 
-bbtracker requires Ultimate ASI Loader. Recommended setup:
+Requires Ultimate ASI Loader. Recommended setup:
 
 - MGS1: install [MGSM2Fix](https://github.com/nuggslet/MGSM2Fix/releases).
 - MGS2/MGS3: install [MGSHDFix](https://github.com/ShizCalev/MGSHDFix/releases).
