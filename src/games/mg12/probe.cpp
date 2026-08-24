@@ -68,7 +68,7 @@ bool poll_mg2(GameStats& out)
     set_common(out, read<uint32_t>(state + 0x88), read<uint32_t>(module + 0x45790),
                read<uint32_t>(module + 0x45794), read<uint32_t>(module + 0x45798),
                read<uint32_t>(module + 0x4579C), read<uint32_t>(module + 0x457A0),
-               read<uint32_t>(module + 0x457A8), 60.0);
+               read<uint32_t>(module + 0x457A8), 30.0);
     return true;
 }
 
