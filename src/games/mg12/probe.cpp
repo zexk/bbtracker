@@ -34,7 +34,7 @@ void set_common(GameStats& out, uint32_t difficulty, uint32_t timer, uint32_t ra
     out = {};
     out.difficulty_raw = static_cast<uint8_t>(difficulty);
     out.difficulty_game_byte = static_cast<uint8_t>(difficulty);
-    out.difficulty = difficulty == 0 ? Difficulty::Extreme : Difficulty::Easy;
+    out.difficulty = difficulty == 0 ? Difficulty::Easy : Difficulty::Extreme;
     out.play_time_seconds = timer / ticks_per_second;
     out.rations_used = static_cast<int>(rations);
     out.kills = static_cast<int>(kills);
@@ -68,7 +68,7 @@ bool poll_mg2(GameStats& out)
     set_common(out, read<uint32_t>(state + 0x88), read<uint32_t>(module + 0x45790),
                read<uint32_t>(module + 0x45794), read<uint32_t>(module + 0x45798),
                read<uint32_t>(module + 0x4579C), read<uint32_t>(module + 0x457A0),
-               read<uint32_t>(module + 0x457A8), 240.0);
+               read<uint32_t>(module + 0x457A8), 60.0);
     return true;
 }
 
