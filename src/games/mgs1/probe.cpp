@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <string_view>
+#include <vector>
 
 #include "../../common/log.h"
 
@@ -87,6 +88,14 @@ constexpr uint32_t clock_score(uint32_t delta, uint32_t expected)
 
 static_assert(clock_score(60, 60) == 0);
 static_assert(clock_score(0, 60) == UINT32_MAX);
+
+constexpr bool clock_reset(uint32_t previous, uint32_t current)
+{
+    return current < previous && current <= 60;
+}
+
+static_assert(clock_reset(1234, 0));
+static_assert(!clock_reset(0, 0));
 
 uint32_t read_game_frames()
 {
@@ -229,15 +238,50 @@ void log_hex_dump(const uint8_t* data, size_t len)
 
 bool find_candidate(uintptr_t& out)
 {
+    struct Candidate {
+        uintptr_t address;
+        std::array<uint32_t, kGameTimeOffsets.size()> clocks;
+        uint64_t tick;
+    };
     static uintptr_t cursor = 0x10000;
-    static uintptr_t best = 0;
-    static int best_score = -1;
-    LARGE_INTEGER frequency{};
-    LARGE_INTEGER started{};
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&started);
-    const int64_t deadline = started.QuadPart + frequency.QuadPart / 1000;
-    unsigned checks = 0;
+    static std::vector<Candidate> candidates;
+    static uint64_t next_scan = 0;
+
+    const uint64_t now_ms = GetTickCount64();
+    for (Candidate& candidate : candidates) {
+        const uint64_t elapsed = now_ms - candidate.tick;
+        const uint32_t expected = static_cast<uint32_t>(
+            elapsed * kGameTimeFramesPerSecond / 1000.0);
+        for (size_t i = 0; i < candidate.clocks.size(); ++i) {
+            const uintptr_t clock = candidate.address - kGameTimeOffsets[i];
+            const uint32_t current = range_readable(clock, sizeof(uint32_t))
+                ? read_at<uint32_t>(clock, 0)
+                : 0;
+            const uint32_t delta = current >= candidate.clocks[i]
+                ? current - candidate.clocks[i]
+                : UINT32_MAX;
+            if (clock_reset(candidate.clocks[i], current)
+                || (elapsed >= 1000 && clock_score(delta, expected) != UINT32_MAX)) {
+                out = candidate.address;
+                g_game_time_index = static_cast<int>(i);
+                candidates.clear();
+                cursor = 0x10000;
+                return true;
+            }
+            if (elapsed >= 1000) {
+                candidate.clocks[i] = current;
+            }
+        }
+        if (elapsed >= 1000) {
+            candidate.tick = now_ms;
+        }
+    }
+
+    if (now_ms < next_scan) {
+        return false;
+    }
+    next_scan = now_ms + 1000;
+
     MEMORY_BASIC_INFORMATION mbi{};
     constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
         | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
@@ -254,19 +298,20 @@ bool find_candidate(uintptr_t& out)
             const size_t len = mbi.RegionSize;
             size_t i = cursor > vbase ? cursor - vbase : 0;
             for (; i + kWorkRegionSize <= len; ++i) {
-                if ((checks++ & 0xFFF) == 0) {
-                    LARGE_INTEGER now{};
-                    QueryPerformanceCounter(&now);
-                    if (now.QuadPart >= deadline) {
-                        cursor = vbase + i;
-                        return false;
-                    }
-                }
                 if (looks_like_stage_anchor(begin + i) && !is_logger_table(vbase + i)) {
-                    const int score = candidate_score(vbase + i);
-                    if (score >= 8 && score > best_score) {
-                        best = vbase + i;
-                        best_score = score;
+                    bool known = false;
+                    for (const Candidate& candidate : candidates) {
+                        known |= candidate.address == vbase + i;
+                    }
+                    if (!known) {
+                        Candidate candidate{vbase + i, {}, GetTickCount64()};
+                        for (size_t clock = 0; clock < candidate.clocks.size(); ++clock) {
+                            const uintptr_t address = candidate.address - kGameTimeOffsets[clock];
+                            candidate.clocks[clock] = range_readable(address, sizeof(uint32_t))
+                                ? read_at<uint32_t>(address, 0)
+                                : 0;
+                        }
+                        candidates.push_back(candidate);
                     }
                 }
             }
@@ -277,11 +322,9 @@ bool find_candidate(uintptr_t& out)
         }
         cursor = region_end;
     }
-    out = best;
+    out = 0;
     cursor = 0x10000;
-    best = 0;
-    best_score = -1;
-    return true;
+    return false;
 }
 
 const uint8_t* g_stats_stage()
@@ -311,7 +354,6 @@ bool poll_stats(GameStats& out)
                  reinterpret_cast<const void*>(g_array_start), stage, best_score);
         log_hex_dump(reinterpret_cast<const uint8_t*>(g_array_start), 0xD0);
         g_time_sample_tick = 0;
-        g_game_time_index = -1;
     }
 
     out.alerts = read_at<uint16_t>(g_array_start, FieldOffsets::kAlerts);
@@ -390,7 +432,7 @@ bool poll_stats(GameStats& out)
     }
     std::memcpy(out.area_code, stage, sizeof(out.area_code));
 
-    return true;
+    return g_game_time_index >= 0;
 }
 
 } // namespace bb::mgs1
