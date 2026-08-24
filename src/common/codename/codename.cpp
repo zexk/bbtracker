@@ -286,4 +286,76 @@ std::vector<ReqStatus> elite_requirements_mgs1(const GameStats& s)
     return out;
 }
 
+namespace {
+
+constexpr std::array<ReqRow, 6> kMg1Reqs{{
+    {"play time", StatId::PlayTimeHours, Op::Lt, 50.0 / 60.0, ReqFmt::Time},
+    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
+    {"alerts", StatId::Alerts, Op::Le, 8, ReqFmt::Count},
+    {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
+    {"rations used", StatId::RationsUsed, Op::Le, 1, ReqFmt::Count},
+    {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
+}};
+
+constexpr std::array<ReqRow, 6> kMg2Reqs{{
+    {"play time", StatId::PlayTimeHours, Op::Lt, 1.75, ReqFmt::Time},
+    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
+    {"alerts", StatId::Alerts, Op::Le, 6, ReqFmt::Count},
+    {"kills", StatId::Kills, Op::Le, 5, ReqFmt::Count},
+    {"rations used", StatId::RationsUsed, Op::Eq, 0, ReqFmt::Count},
+    {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
+}};
+
+std::vector<ReqStatus> mg_requirements(const GameStats& s, std::span<const ReqRow> rows)
+{
+    std::vector<ReqStatus> out;
+    for (const ReqRow& row : rows) {
+        bool pass = cond_met(s, Cond{row.stat, row.op, row.limit});
+        if (row.fmt == ReqFmt::Time && s.play_time_seconds <= 0.0) {
+            pass = false;
+        }
+        out.push_back({row.label, pass, stat_value(s, row.stat), row.limit,
+                       static_cast<uint8_t>(row.fmt), static_cast<uint8_t>(row.op)});
+    }
+    return out;
+}
+
+bool all_pass(const std::vector<ReqStatus>& requirements)
+{
+    for (const ReqStatus& requirement : requirements) {
+        if (!requirement.pass) return false;
+    }
+    return true;
+}
+
+} // namespace
+
+std::optional<Match> evaluate_mg1(const GameStats& s)
+{
+    if ((s.difficulty == Difficulty::Extreme || s.difficulty == Difficulty::Easy)
+        && all_pass(elite_requirements_mg1(s))) {
+        return Match{s.difficulty == Difficulty::Extreme ? "BIG BOSS" : "FOX", Kind::Elite};
+    }
+    return std::nullopt;
+}
+
+std::vector<ReqStatus> elite_requirements_mg1(const GameStats& s)
+{
+    return mg_requirements(s, kMg1Reqs);
+}
+
+std::optional<Match> evaluate_mg2(const GameStats& s)
+{
+    if ((s.difficulty == Difficulty::Extreme || s.difficulty == Difficulty::Easy)
+        && all_pass(elite_requirements_mg2(s))) {
+        return Match{s.difficulty == Difficulty::Extreme ? "BIG BOSS" : "FOX", Kind::Elite};
+    }
+    return std::nullopt;
+}
+
+std::vector<ReqStatus> elite_requirements_mg2(const GameStats& s)
+{
+    return mg_requirements(s, kMg2Reqs);
+}
+
 } // namespace bb::codename

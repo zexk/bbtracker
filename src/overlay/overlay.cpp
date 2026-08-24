@@ -46,6 +46,16 @@ ResizeBuffersFn oResizeBuffers = nullptr;
 constexpr UINT kPresentIndex = 8;
 constexpr UINT kResizeBuffersIndex = 13;
 constexpr UINT kToggleKey = VK_F3;
+constexpr UINT kTabKey = VK_F4;
+
+bool key_pressed(UINT key)
+{
+    static bool was_down[256]{};
+    const bool down = (GetAsyncKeyState(key) & 0x8000) != 0;
+    const bool pressed = down && !was_down[key];
+    was_down[key] = down;
+    return pressed;
+}
 
 HMODULE own_module()
 {
@@ -88,7 +98,8 @@ bool create_rtv(IDXGISwapChain* swap_chain)
 void apply_game_theme()
 {
     ImGui::StyleColorsDark();
-    if (g_game != Game::MGS1 && g_game != Game::MGS2 && g_game != Game::MGS3) {
+    if (g_game != Game::MG1 && g_game != Game::MG2
+        && g_game != Game::MGS1 && g_game != Game::MGS2 && g_game != Game::MGS3) {
         return;
     }
 
@@ -96,9 +107,10 @@ void apply_game_theme()
     style.WindowRounding = 0.0f;
     style.FrameRounding = 0.0f;
     style.GrabRounding = 0.0f;
+    style.TabRounding = 0.0f;
 
     ImVec4* colors = style.Colors;
-    if (g_game == Game::MGS1) {
+    if (g_game == Game::MG1 || g_game == Game::MGS1) {
         colors[ImGuiCol_Text]              = ImVec4(0.55f, 0.76f, 0.69f, 1.00f);
         colors[ImGuiCol_TextDisabled]      = ImVec4(0.32f, 0.47f, 0.43f, 1.00f);
         colors[ImGuiCol_WindowBg]          = ImVec4(0.03f, 0.07f, 0.07f, 0.96f);
@@ -125,7 +137,7 @@ void apply_game_theme()
         return;
     }
 
-    if (g_game == Game::MGS2) {
+    if (g_game == Game::MG2 || g_game == Game::MGS2) {
         colors[ImGuiCol_Text]              = ImVec4(0.61f, 0.69f, 0.64f, 1.00f);
         colors[ImGuiCol_TextDisabled]      = ImVec4(0.34f, 0.42f, 0.38f, 1.00f);
         colors[ImGuiCol_WindowBg]          = ImVec4(0.02f, 0.05f, 0.04f, 0.96f);
@@ -170,6 +182,11 @@ void apply_game_theme()
     colors[ImGuiCol_Header]               = ImVec4(0.25f, 0.26f, 0.20f, 1.00f);
     colors[ImGuiCol_HeaderHovered]        = ImVec4(0.36f, 0.37f, 0.28f, 1.00f);
     colors[ImGuiCol_HeaderActive]         = ImVec4(0.44f, 0.45f, 0.33f, 1.00f);
+    colors[ImGuiCol_Tab]                  = ImVec4(0.20f, 0.21f, 0.17f, 1.00f);
+    colors[ImGuiCol_TabHovered]           = ImVec4(0.36f, 0.37f, 0.28f, 1.00f);
+    colors[ImGuiCol_TabActive]            = ImVec4(0.44f, 0.45f, 0.33f, 1.00f);
+    colors[ImGuiCol_TabUnfocused]         = ImVec4(0.15f, 0.16f, 0.12f, 1.00f);
+    colors[ImGuiCol_TabUnfocusedActive]   = ImVec4(0.31f, 0.33f, 0.25f, 1.00f);
     colors[ImGuiCol_Separator]            = ImVec4(0.38f, 0.39f, 0.31f, 0.65f);
     colors[ImGuiCol_TableRowBgAlt]        = ImVec4(0.22f, 0.23f, 0.19f, 0.55f);
     colors[ImGuiCol_ResizeGrip]           = ImVec4(0.55f, 0.57f, 0.41f, 0.30f);
@@ -196,7 +213,9 @@ bool init_imgui(IDXGISwapChain* swap_chain)
     }
 
     ImGui::CreateContext();
-    ImGui::GetIO().IniFilename = nullptr;
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
     apply_game_theme();
     ImGui_ImplWin32_Init(g.hwnd);
     ImGui_ImplDX11_Init(g.device, g.context);
@@ -351,9 +370,12 @@ void stat_row(const char* key, const char* value)
     ImGui::TextUnformatted(value);
 }
 
-void checklist(const char* id, const char* const* names, size_t count, uint64_t mask)
+void checklist(const char* id, const char* const* names, size_t count, uint64_t mask, int scroll)
 {
     if (ImGui::BeginChild(id, ImVec2(0, 360), true)) {
+        if (scroll != 0) {
+            ImGui::SetScrollY(ImGui::GetScrollY() + scroll * ImGui::GetTextLineHeightWithSpacing() * 8);
+        }
         for (size_t i = 0; i < count; ++i) {
             const bool done = (mask & (uint64_t{1} << i)) != 0;
             ImGui::TextColored(done ? ImVec4(0.42f, 0.90f, 0.45f, 1.0f)
@@ -436,10 +458,20 @@ void draw_panel()
         return;
     }
 
+    static int selected_tab = 0;
+    if (g_game == Game::MGS3 && key_pressed(kTabKey)) {
+        selected_tab = (selected_tab + 1) % 3;
+    }
+    const bool scroll_up = key_pressed(VK_UP);
+    const bool scroll_down = key_pressed(VK_DOWN);
+    const int scroll = scroll_up ? -1 : scroll_down ? 1 : 0;
     const bool tabs = g_game == Game::MGS3 && ImGui::BeginTabBar("mgs3_tabs");
-    const bool summary = !tabs || ImGui::BeginTabItem("Summary");
+    const bool summary = !tabs || ImGui::BeginTabItem(
+        "Summary", nullptr, selected_tab == 0 ? ImGuiTabItemFlags_SetSelected : 0);
     if (summary) {
-    auto match = g_game == Game::MGS1   ? codename::evaluate_mgs1(stats)
+    auto match = g_game == Game::MG1    ? codename::evaluate_mg1(stats)
+                 : g_game == Game::MG2  ? codename::evaluate_mg2(stats)
+                 : g_game == Game::MGS1 ? codename::evaluate_mgs1(stats)
                  : g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
                                         : codename::evaluate_mgs3(stats);
 
@@ -455,21 +487,28 @@ void draw_panel()
         ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
 
-        const bool known_difficulty =
-            g_game == Game::MGS1 || stats.difficulty_game_byte % 10 == 0;
+        const bool classic_mg = g_game == Game::MG1 || g_game == Game::MG2;
+        const bool known_difficulty = classic_mg
+            || g_game == Game::MGS1 || stats.difficulty_game_byte % 10 == 0;
         const bool valid_difficulty = known_difficulty
-            && (stats.difficulty == Difficulty::Extreme
+            && ((classic_mg && (stats.difficulty == Difficulty::Extreme
+                                || stats.difficulty == Difficulty::Easy))
+                || stats.difficulty == Difficulty::Extreme
                 || (g_game != Game::MGS1 && stats.difficulty == Difficulty::EuroExtreme));
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
         ImGui::TextUnformatted("difficulty");
         ImGui::TableNextColumn();
         ImGui::TextColored(valid_difficulty ? green : ImVec4(0.95f, 0.35f, 0.35f, 1.0f),
-                           "%s%s", difficulty_name(stats.difficulty),
+                           "%s%s", classic_mg
+                               ? (stats.difficulty == Difficulty::Extreme ? "Original" : "Easy")
+                               : difficulty_name(stats.difficulty),
                            known_difficulty ? "" : " (?)");
 
         std::vector<codename::ReqStatus> reqs =
-            g_game == Game::MGS1   ? codename::elite_requirements_mgs1(stats)
+            g_game == Game::MG1    ? codename::elite_requirements_mg1(stats)
+            : g_game == Game::MG2  ? codename::elite_requirements_mg2(stats)
+            : g_game == Game::MGS1 ? codename::elite_requirements_mgs1(stats)
             : g_game == Game::MGS2 ? codename::elite_requirements_mgs2(stats)
                                    : codename::elite_requirements_mgs3(stats);
         for (const codename::ReqStatus& r : reqs) {
@@ -599,18 +638,21 @@ void draw_panel()
     }
     }
 
-    if (tabs && ImGui::BeginTabItem("Capture")) {
+    if (tabs && ImGui::BeginTabItem(
+                    "Capture", nullptr, selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
         ImGui::Text("%d / 48", stats.plants_captured);
-        checklist("captures", kMgs3Captures, std::size(kMgs3Captures), stats.capture_mask);
+        checklist("captures", kMgs3Captures, std::size(kMgs3Captures), stats.capture_mask, scroll);
         ImGui::EndTabItem();
     }
-    if (tabs && ImGui::BeginTabItem("Kerotan")) {
+    if (tabs && ImGui::BeginTabItem(
+                    "Kerotan", nullptr, selected_tab == 2 ? ImGuiTabItemFlags_SetSelected : 0)) {
         ImGui::Text("%d / 64", stats.kerotans);
-        checklist("kerotans", kMgs3Kerotans, std::size(kMgs3Kerotans), stats.kerotan_mask);
+        checklist("kerotans", kMgs3Kerotans, std::size(kMgs3Kerotans), stats.kerotan_mask, scroll);
         ImGui::EndTabItem();
     }
     if (tabs) {
         ImGui::EndTabBar();
+        ImGui::TextDisabled("F4: tab  Up/Down: scroll");
     }
 
     ImGui::End();

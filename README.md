@@ -1,8 +1,9 @@
 # bbtracker
 
-Live codename tracker overlay for Metal Gear Solid 1, 2, and 3 in Metal Gear
+Live codename tracker overlay for Metal Gear 1/2 and Metal Gear Solid 1, 2, and 3 in Metal Gear
 Solid: Master Collection. Shows projected rank, requirements, and run stats.
 Press `F3` to toggle overlay.
+In MGS3, press `F4` to cycle tabs and `Up`/`Down` to scroll checklists.
 
 ## Install
 
@@ -15,6 +16,7 @@ Those fixes provide ASI-loading setup. Then download matching bbtracker release 
 copy ASI into game directory:
 
 - `bbtracker_mgs1.asi` into `MGS1`
+- `bbtracker_mg12.asi` into `MG and MG2`
 - `bbtracker_mgs2.asi` into `MGS2`
 - `bbtracker_mgs3.asi` into `MGS3`
 

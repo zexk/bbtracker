@@ -5,6 +5,8 @@
 namespace bb {
 
 enum class Game : int {
+    MG1,
+    MG2,
     MGS1,
     MGS2,
     MGS3,

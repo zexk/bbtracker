@@ -114,4 +114,12 @@ std::optional<Match> evaluate_mgs1(const GameStats& s);
 
 std::vector<ReqStatus> elite_requirements_mgs1(const GameStats& s);
 
+std::optional<Match> evaluate_mg1(const GameStats& s);
+
+std::vector<ReqStatus> elite_requirements_mg1(const GameStats& s);
+
+std::optional<Match> evaluate_mg2(const GameStats& s);
+
+std::vector<ReqStatus> elite_requirements_mg2(const GameStats& s);
+
 } // namespace bb::codename
