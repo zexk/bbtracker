@@ -43,6 +43,9 @@ void test_big_boss_exact()
     s.damage_taken_units = 479;
     s.saves = 8;
     CHECK(std::string_view(best(s)) == "BIG BOSS");
+
+    s.damage_taken_units = 500;
+    CHECK(std::string_view(best(s)) == "FOX");
 }
 
 void test_bb_blocked_by_radar_and_mission()

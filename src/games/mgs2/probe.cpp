@@ -203,6 +203,7 @@ bool poll_stats(GameStats& out)
     out.shots_fired = read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kShots);
     out.damage_taken_units =
         read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kDamage);
+    out.damage_taken_bars = out.damage_taken_units / 50.0;
     out.pull_ups = read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kPullUps);
     out.mechs_destroyed =
         read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kMechsDestroyed);
@@ -226,7 +227,7 @@ bool poll_stats(GameStats& out)
             : out.radar_type == 4;
     } else {
         g_game_state = 0;
-        out.radar_type = (out.special_items_mask & 0x0020) != 0 ? 0x20 : 4;
+        out.radar_type = (out.special_items_mask & 0x2000) != 0 ? 0x20 : 4;
         out.radar_off = config().radar_off_override >= 0
             ? config().radar_off_override == 1
             : out.radar_type == 4;

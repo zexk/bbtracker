@@ -219,10 +219,8 @@ void draw_panel()
                               : g_game == Game::MGS4 ? "BIG BOSS tracker"
                                                      : "BIG BOSS tracker";
     ImGui::SetNextWindowSize(ImVec2(380, 480), ImGuiCond_FirstUseEver);
-    ImGui::Begin(panel_title, &g.show, ImGuiWindowFlags_NoCollapse
-                                           | (g_game == Game::MGS1
-                                                  ? ImGuiWindowFlags_AlwaysAutoResize
-                                                  : ImGuiWindowFlags_None));
+    ImGui::Begin(panel_title, &g.show,
+                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 
     if (!have_stats) {
         ImGui::TextDisabled("stats unavailable");
@@ -257,6 +255,7 @@ void draw_panel()
         }
     }
 
+    ImGui::Separator();
     ImGui::Spacing();
 
     if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
@@ -323,6 +322,14 @@ void draw_panel()
             ImGui::TextDisabled("%s", val);
         };
 
+        auto colored_row = [&](const char* key, const char* val, const ImVec4& color) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextDisabled("%s", key);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(color, "%s", val);
+        };
+
         auto plain_count = [&](const char* key, int value) {
             char buf[24];
             snprintf(buf, sizeof(buf), "%d", value);
@@ -348,6 +355,17 @@ void draw_panel()
             plain_count("times seen", stats.times_seen);
             plain_count("mechs destroyed", stats.mechs_destroyed);
             plain_count("pull-ups", stats.pull_ups);
+            char items[96] = {};
+            const uint16_t used = stats.special_items_mask & 0x000F;
+            const char* names[] = {"Stealth Camo", "Infinity Bandana/Wig", "O2 Wig", "Grip Wig"};
+            for (int i = 0; i < 4; ++i) {
+                if ((used & (1u << i)) != 0) {
+                    snprintf(items + strlen(items), sizeof(items) - strlen(items), "%s%s",
+                             items[0] ? ", " : "", names[i]);
+                }
+            }
+            colored_row("special items", used ? items : "NONE",
+                        used ? ImVec4(0.95f, 0.35f, 0.35f, 1.0f) : green);
             plain_row("alert state", stats.alert_state_available
                                          ? alert_state_name(stats.alert_state)
                                          : "unavailable");

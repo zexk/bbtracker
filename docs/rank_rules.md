@@ -128,7 +128,7 @@ matching RMLSNK's table maintenance timeline).
     rank column (muni's "Very Hard") and folds to Extreme for display}
   - 0x12E stats chunk: +4 i16 continues, +8 i16 saves, +10 i32 playtime
     frames@60fps, +18 i16 shots, +20 i16 alerts, +22 i16 kills, +24 i16 damage
-    (raw units, approximate 48 units/bar conversion - unverified), +42 i16 mechs
+    (raw units, 50 units/bar), +42 i16 mechs
   - 0x1590 i16 rations used
   - 0x1594 u16 times seen by enemy (distinct from alerts)
   - 0x1596 i16 special items used (bitmask)
@@ -137,7 +137,7 @@ matching RMLSNK's table maintenance timeline).
 - Rank rules: muni MGS2 chart. Elite ladder = LADDER[min(3,s+t)] over
   strictness rows s0..s3 x tiers t (X,VH/EE,H,N,E); all require Tanker-Plant.
   BIG BOSS requires radar off. GameState discovery supplies live radar state; before
-  discovery, saved special/radar usage bit `0x20` supplies fallback state.
+  discovery, saved special/radar usage bit `0x2000` supplies fallback state.
 - Not probeable yet: Sea Louse flag, Gazelle clearing-escapes counter (omitted).
 
 ## Probe robustness + remaining gaps (post phase 3)

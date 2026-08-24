@@ -138,8 +138,8 @@ outputs:
   playtime and current/max health derived from bmn's autosplitter layout; difficulty byte
   mapping unverified (ini override available). In-game verification pending.
 - [ ] **Phase 6 - remaining gaps**: MGS3 story-flag bit hunting (kerotan/
-  tsuchinoko/leech via change-log correlation), MGS2 damage-scale calibration,
-  Sea Louse/Gazelle counters if surfaces are ever found.
+  tsuchinoko/leech via change-log correlation), MGS2 Sea Louse/Gazelle counters
+  if surfaces are ever found.
 
 ### Build notes learned in Phase 0
 
