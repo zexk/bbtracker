@@ -140,6 +140,19 @@ outputs:
 - [ ] **Phase 6 - remaining gaps**: MGS3 story-flag bit hunting (kerotan/
   tsuchinoko/leech via change-log correlation), MGS2 Sea Louse/Gazelle counters
   if surfaces are ever found.
+  - Kerotan research: complete physical 64-location lists exist at
+    [Neoseeker](https://www.neoseeker.com/metal-gear-solid-delta-snake-eater/All_Kerotan_Locations)
+    and [Tentenpro](https://www.tentenpro.com/muni_shinobu/mgs3/kerotan/index.html).
+    `kerotan_stages.h` currently has only 47 entries because chase/boss states are
+    collapsed; expand it to 64 when tracking works.
+  - No public Master Collection RAM/save bit mapping found. MajorZero69's
+    [trainer](https://github.com/MajorZero69/mgs3-trainer) exposes unfinished story
+    flags but no Kerotan bitset. LiquidPlazmid's
+    [save decrypter](https://github.com/mwoerner77/MGS-Master-Collection-Save-Decrypter)
+    decrypts MGS3 saves but documents no field offsets.
+  - Next probe: decrypt saves made immediately before/after one Kerotan and binary-diff
+    them; repeat for an adjacent Kerotan to identify bit order, then find matching bytes
+    near live `story_base`.
 
 ### Build notes learned in Phase 0
 
