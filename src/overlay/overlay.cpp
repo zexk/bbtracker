@@ -701,6 +701,8 @@ void draw_panel()
             }
         } else if (g_game == Game::MGS2) {
             plain_pair("health", stats.current_health, stats.max_health);
+            plain_row("sea louse", stats.sea_louse ? "YES" : "NO");
+            plain_count("clearing escapes", stats.clearing_escapes);
             plain_count("times seen", stats.times_seen);
             plain_count("mechs destroyed", stats.mechs_destroyed);
             plain_count("pull-ups", stats.pull_ups);
