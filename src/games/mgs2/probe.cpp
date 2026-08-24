@@ -206,8 +206,8 @@ bool poll_stats(GameStats& out)
 
     if (g_game_state && range_readable_at(g_game_state, 0x150)
         && game_state_matches_live(g_game_state, out)) {
-        out.radar_off = config().radar_off_override == 1
-            || read_gs<uint8_t>(g_game_state, GameStateOffsets::kRadarType) == 4;
+    out.radar_type = read_gs<uint8_t>(g_game_state, GameStateOffsets::kRadarType);
+    out.radar_off = config().radar_off_override == 1 || out.radar_type == 4;
     } else {
         g_game_state = 0;
         out.radar_off = config().radar_off_override == 1;

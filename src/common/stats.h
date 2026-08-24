@@ -34,6 +34,7 @@ struct GameStats {
 
     bool special_item_used = false;
     bool radar_off = false;
+    uint8_t radar_type = 0;
 
     int life_med_used = 0;
     int meals_eaten = 0;
