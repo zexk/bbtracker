@@ -245,31 +245,15 @@ void draw_panel()
             ImGui::TableNextColumn();
             ImGui::TextDisabled("%s", val);
         };
-        char buf[64];
 
-        if (g_game == Game::MGS2) {
-            const char* radar_str = stats.radar_type == 0x00 ? "TYPE A"
-                                    : stats.radar_type == 0x20 ? "TYPE B"
-                                    : stats.radar_type == 0x04 ? "OFF"
-                                                               : "?";
-            plain_row("radar", radar_str);
-            snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
-                     stats.damage_taken_units / 48.0);
-            plain_row("damage taken", buf);
-            format_time(stats.play_time_seconds, buf, sizeof(buf));
-            plain_row("play time", buf);
-        } else if (g_game == Game::MGS1) {
-            snprintf(buf, sizeof(buf), "%d", stats.saves);
-            plain_row("saves", buf);
-            plain_row("play time", "unprobed");
-        } else {
-            snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
-                     stats.damage_taken_units / 48.0);
-            plain_row("damage taken", buf);
-            format_time(stats.play_time_seconds, buf, sizeof(buf));
-            plain_row("play time", buf);
+        if (g_game == Game::MGS3) {
+            char buf[16];
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
             plain_row("captures", buf);
+        } else if (g_game == Game::MGS1) {
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%d", stats.saves);
+            plain_row("saves", buf);
         }
         ImGui::EndTable();
     }
