@@ -85,6 +85,98 @@ bool create_rtv(IDXGISwapChain* swap_chain)
     return SUCCEEDED(hr);
 }
 
+void apply_game_theme()
+{
+    ImGui::StyleColorsDark();
+    if (g_game != Game::MGS1 && g_game != Game::MGS2 && g_game != Game::MGS3) {
+        return;
+    }
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 0.0f;
+    style.FrameRounding = 0.0f;
+    style.GrabRounding = 0.0f;
+
+    ImVec4* colors = style.Colors;
+    if (g_game == Game::MGS1) {
+        colors[ImGuiCol_Text]              = ImVec4(0.55f, 0.76f, 0.69f, 1.00f);
+        colors[ImGuiCol_TextDisabled]      = ImVec4(0.32f, 0.47f, 0.43f, 1.00f);
+        colors[ImGuiCol_WindowBg]          = ImVec4(0.03f, 0.07f, 0.07f, 0.96f);
+        colors[ImGuiCol_Border]            = ImVec4(0.43f, 0.72f, 0.64f, 0.65f);
+        colors[ImGuiCol_FrameBg]           = ImVec4(0.08f, 0.17f, 0.16f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered]    = ImVec4(0.20f, 0.43f, 0.38f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]     = ImVec4(0.30f, 0.58f, 0.51f, 1.00f);
+        colors[ImGuiCol_TitleBg]           = ImVec4(0.05f, 0.13f, 0.13f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]     = ImVec4(0.12f, 0.27f, 0.25f, 1.00f);
+        colors[ImGuiCol_CheckMark]         = ImVec4(0.60f, 0.94f, 0.82f, 1.00f);
+        colors[ImGuiCol_SliderGrab]        = ImVec4(0.43f, 0.72f, 0.64f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive]  = ImVec4(0.60f, 0.94f, 0.82f, 1.00f);
+        colors[ImGuiCol_Button]            = ImVec4(0.10f, 0.23f, 0.21f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]     = ImVec4(0.20f, 0.43f, 0.38f, 1.00f);
+        colors[ImGuiCol_ButtonActive]      = ImVec4(0.30f, 0.58f, 0.51f, 1.00f);
+        colors[ImGuiCol_Header]            = ImVec4(0.10f, 0.23f, 0.21f, 1.00f);
+        colors[ImGuiCol_HeaderHovered]     = ImVec4(0.20f, 0.43f, 0.38f, 1.00f);
+        colors[ImGuiCol_HeaderActive]      = ImVec4(0.30f, 0.58f, 0.51f, 1.00f);
+        colors[ImGuiCol_Separator]         = ImVec4(0.43f, 0.72f, 0.64f, 0.65f);
+        colors[ImGuiCol_TableRowBgAlt]     = ImVec4(0.08f, 0.18f, 0.17f, 0.55f);
+        colors[ImGuiCol_ResizeGrip]        = ImVec4(0.43f, 0.72f, 0.64f, 0.30f);
+        colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.60f, 0.94f, 0.82f, 0.70f);
+        colors[ImGuiCol_ResizeGripActive]  = ImVec4(0.60f, 0.94f, 0.82f, 1.00f);
+        return;
+    }
+
+    if (g_game == Game::MGS2) {
+        colors[ImGuiCol_Text]              = ImVec4(0.61f, 0.69f, 0.64f, 1.00f);
+        colors[ImGuiCol_TextDisabled]      = ImVec4(0.34f, 0.42f, 0.38f, 1.00f);
+        colors[ImGuiCol_WindowBg]          = ImVec4(0.02f, 0.05f, 0.04f, 0.96f);
+        colors[ImGuiCol_Border]            = ImVec4(0.38f, 0.53f, 0.47f, 0.70f);
+        colors[ImGuiCol_FrameBg]           = ImVec4(0.07f, 0.13f, 0.11f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered]    = ImVec4(0.28f, 0.10f, 0.07f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]     = ImVec4(0.48f, 0.13f, 0.08f, 1.00f);
+        colors[ImGuiCol_TitleBg]           = ImVec4(0.04f, 0.09f, 0.07f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]     = ImVec4(0.20f, 0.08f, 0.06f, 1.00f);
+        colors[ImGuiCol_CheckMark]         = ImVec4(0.76f, 0.19f, 0.11f, 1.00f);
+        colors[ImGuiCol_SliderGrab]        = ImVec4(0.48f, 0.61f, 0.55f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive]  = ImVec4(0.76f, 0.19f, 0.11f, 1.00f);
+        colors[ImGuiCol_Button]            = ImVec4(0.10f, 0.18f, 0.15f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]     = ImVec4(0.28f, 0.10f, 0.07f, 1.00f);
+        colors[ImGuiCol_ButtonActive]      = ImVec4(0.48f, 0.13f, 0.08f, 1.00f);
+        colors[ImGuiCol_Header]            = ImVec4(0.10f, 0.18f, 0.15f, 1.00f);
+        colors[ImGuiCol_HeaderHovered]     = ImVec4(0.28f, 0.10f, 0.07f, 1.00f);
+        colors[ImGuiCol_HeaderActive]      = ImVec4(0.48f, 0.13f, 0.08f, 1.00f);
+        colors[ImGuiCol_Separator]         = ImVec4(0.38f, 0.53f, 0.47f, 0.70f);
+        colors[ImGuiCol_TableRowBgAlt]     = ImVec4(0.08f, 0.15f, 0.12f, 0.55f);
+        colors[ImGuiCol_ResizeGrip]        = ImVec4(0.48f, 0.61f, 0.55f, 0.30f);
+        colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.76f, 0.19f, 0.11f, 0.70f);
+        colors[ImGuiCol_ResizeGripActive]  = ImVec4(0.76f, 0.19f, 0.11f, 1.00f);
+        return;
+    }
+
+    colors[ImGuiCol_Text]                 = ImVec4(0.86f, 0.87f, 0.76f, 1.00f);
+    colors[ImGuiCol_TextDisabled]         = ImVec4(0.48f, 0.49f, 0.42f, 1.00f);
+    colors[ImGuiCol_WindowBg]             = ImVec4(0.09f, 0.10f, 0.08f, 0.96f);
+    colors[ImGuiCol_Border]               = ImVec4(0.38f, 0.39f, 0.31f, 0.65f);
+    colors[ImGuiCol_FrameBg]              = ImVec4(0.20f, 0.21f, 0.17f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.29f, 0.30f, 0.24f, 1.00f);
+    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.36f, 0.37f, 0.29f, 1.00f);
+    colors[ImGuiCol_TitleBg]              = ImVec4(0.15f, 0.16f, 0.12f, 1.00f);
+    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.31f, 0.33f, 0.25f, 1.00f);
+    colors[ImGuiCol_CheckMark]            = ImVec4(0.72f, 0.75f, 0.51f, 1.00f);
+    colors[ImGuiCol_SliderGrab]           = ImVec4(0.55f, 0.57f, 0.41f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.72f, 0.75f, 0.51f, 1.00f);
+    colors[ImGuiCol_Button]               = ImVec4(0.25f, 0.26f, 0.20f, 1.00f);
+    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.36f, 0.37f, 0.28f, 1.00f);
+    colors[ImGuiCol_ButtonActive]         = ImVec4(0.44f, 0.45f, 0.33f, 1.00f);
+    colors[ImGuiCol_Header]               = ImVec4(0.25f, 0.26f, 0.20f, 1.00f);
+    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.36f, 0.37f, 0.28f, 1.00f);
+    colors[ImGuiCol_HeaderActive]         = ImVec4(0.44f, 0.45f, 0.33f, 1.00f);
+    colors[ImGuiCol_Separator]            = ImVec4(0.38f, 0.39f, 0.31f, 0.65f);
+    colors[ImGuiCol_TableRowBgAlt]        = ImVec4(0.22f, 0.23f, 0.19f, 0.55f);
+    colors[ImGuiCol_ResizeGrip]           = ImVec4(0.55f, 0.57f, 0.41f, 0.30f);
+    colors[ImGuiCol_ResizeGripHovered]    = ImVec4(0.72f, 0.75f, 0.51f, 0.70f);
+    colors[ImGuiCol_ResizeGripActive]     = ImVec4(0.72f, 0.75f, 0.51f, 1.00f);
+}
+
 bool init_imgui(IDXGISwapChain* swap_chain)
 {
     if (FAILED(swap_chain->GetDevice(__uuidof(ID3D11Device), reinterpret_cast<void**>(&g.device)))
@@ -105,6 +197,7 @@ bool init_imgui(IDXGISwapChain* swap_chain)
 
     ImGui::CreateContext();
     ImGui::GetIO().IniFilename = nullptr;
+    apply_game_theme();
     ImGui_ImplWin32_Init(g.hwnd);
     ImGui_ImplDX11_Init(g.device, g.context);
     g.imgui_ready = true;
@@ -122,16 +215,6 @@ const char* difficulty_name(Difficulty d)
     case Difficulty::Hard: return "Hard";
     case Difficulty::Extreme: return "Extreme";
     case Difficulty::EuroExtreme: return "Euro Extreme";
-    default: return "?";
-    }
-}
-
-const char* mission_name(int mission)
-{
-    switch (mission) {
-    case 16: return "Tanker";
-    case 0: return "Plant";
-    case 32: return "Tanker-Plant";
     default: return "?";
     }
 }
@@ -317,9 +400,6 @@ void draw_panel()
                 g_game != Game::MGS1 && stats.difficulty_game_byte % 10 != 0
                     ? " (?)"
                     : "");
-    if (g_game == Game::MGS2) {
-        ImGui::Text("mission: %s", mission_name(stats.mission));
-    }
     if (stats.area_code[0]) {
         const char* area = area_name(g_game, stats.area_code);
         if (area) {
@@ -343,8 +423,22 @@ void draw_panel()
             : g_game == Game::MGS4 ? codename::elite_requirements_mgs4(stats)
                                    : codename::elite_requirements_mgs3(stats);
         for (const codename::ReqStatus& r : reqs) {
-            char ratio[48];
-            if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS1) {
+            char ratio[96];
+            if (std::strcmp(r.label, "special items") == 0 && g_game == Game::MGS2) {
+                ratio[0] = '\0';
+                const uint16_t used = stats.special_items_mask & 0x000F;
+                const char* names[] = {
+                    "Stealth Camo", "Infinity Bandana/Wig", "O2 Wig", "Grip Wig"};
+                for (int i = 0; i < 4; ++i) {
+                    if ((used & (1u << i)) != 0) {
+                        snprintf(ratio + strlen(ratio), sizeof(ratio) - strlen(ratio), "%s%s",
+                                 ratio[0] ? ", " : "", names[i]);
+                    }
+                }
+                if (!used) {
+                    snprintf(ratio, sizeof(ratio), "NONE");
+                }
+            } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS1) {
                 snprintf(ratio, sizeof(ratio), "%s", stats.radar_off ? "OFF" : "ON");
             } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS2) {
                 const char* type = stats.radar_type == 0    ? "TYPE-A"
@@ -397,14 +491,6 @@ void draw_panel()
             ImGui::TextDisabled("%s", val);
         };
 
-        auto colored_row = [&](const char* key, const char* val, const ImVec4& color) {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("%s", key);
-            ImGui::TableNextColumn();
-            ImGui::TextColored(color, "%s", val);
-        };
-
         auto plain_count = [&](const char* key, int value) {
             char buf[24];
             snprintf(buf, sizeof(buf), "%d", value);
@@ -430,17 +516,6 @@ void draw_panel()
             plain_count("times seen", stats.times_seen);
             plain_count("mechs destroyed", stats.mechs_destroyed);
             plain_count("pull-ups", stats.pull_ups);
-            char items[96] = {};
-            const uint16_t used = stats.special_items_mask & 0x000F;
-            const char* names[] = {"Stealth Camo", "Infinity Bandana/Wig", "O2 Wig", "Grip Wig"};
-            for (int i = 0; i < 4; ++i) {
-                if ((used & (1u << i)) != 0) {
-                    snprintf(items + strlen(items), sizeof(items) - strlen(items), "%s%s",
-                             items[0] ? ", " : "", names[i]);
-                }
-            }
-            colored_row("special items", used ? items : "NONE",
-                        used ? ImVec4(0.95f, 0.35f, 0.35f, 1.0f) : green);
             plain_row("alert state", stats.alert_state_available
                                          ? alert_state_name(stats.alert_state)
                                          : "unavailable");
