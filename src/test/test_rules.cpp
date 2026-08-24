@@ -278,14 +278,14 @@ void test_elite_requirements_statuses()
     s.kills = 0;
     s.alerts = 0;
     auto reqs = elite_requirements_mgs3(s);
-    CHECK(reqs.size() == 8);
+    CHECK(reqs.size() == 9);
     int passing = 0;
     for (const ReqStatus& r : reqs) {
         if (r.pass) {
             ++passing;
         }
     }
-    CHECK(passing < 8);
+    CHECK(passing < 9);
 
     s.continues = 0;
     s.severe_injuries = 0;
@@ -300,7 +300,7 @@ void test_elite_requirements_statuses()
             ++passing;
         }
     }
-    CHECK(passing == 8);
+    CHECK(passing == 9);
 }
 
 struct TestEntry {

@@ -581,6 +581,23 @@ void draw_panel()
                 if (!used) {
                     snprintf(ratio, sizeof(ratio), "NONE");
                 }
+            } else if (std::strcmp(r.label, "special items") == 0 && g_game == Game::MGS3) {
+                ratio[0] = '\0';
+                const uint16_t used = stats.special_items_mask & 0x07;
+                const char* names[] = {"EZ Gun", "Infinity Face Paint", "Stealth Camo"};
+                for (int i = 0; i < 3; ++i) {
+                    if ((used & (1u << i)) != 0) {
+                        snprintf(ratio + strlen(ratio), sizeof(ratio) - strlen(ratio), "%s%s",
+                                 ratio[0] ? ", " : "", names[i]);
+                    }
+                }
+                if (!used) {
+                    snprintf(ratio, sizeof(ratio), "NONE");
+                }
+            } else if (std::strcmp(r.label, "special items") == 0
+                       && (g_game == Game::MG1 || g_game == Game::MG2)) {
+                snprintf(ratio, sizeof(ratio), "%s",
+                         stats.special_item_used ? "Infinity Bandana" : "NONE");
             } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS1) {
                 snprintf(ratio, sizeof(ratio), "%s", stats.radar_off ? "OFF" : "ON");
             } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS2) {
@@ -671,8 +688,6 @@ void draw_panel()
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
             plain_row("captures", buf);
             plain_count("meals eaten", stats.meals_eaten);
-            snprintf(buf, sizeof(buf), "0x%02X", stats.special_items_mask);
-            plain_row("special items", buf);
         }
         if (stats.area_code[0]) {
             char buf[96];

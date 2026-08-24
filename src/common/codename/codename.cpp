@@ -137,7 +137,8 @@ struct ReqRow {
     ReqFmt fmt;
 };
 
-constexpr std::array<ReqRow, 8> kFoxhoundReqs{{
+constexpr std::array<ReqRow, 9> kFoxhoundReqs{{
+    {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
     {"alerts", StatId::Alerts, Op::Eq, 0, ReqFmt::Count},
     {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
     {"severe injuries", StatId::SevereInjuries, Op::Lt, 20, ReqFmt::Count},
