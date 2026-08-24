@@ -172,7 +172,7 @@ void draw_panel()
 
     auto match = g_game == Game::MGS1   ? codename::evaluate_mgs1(stats)
                  : g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
-                 : g_game == Game::MGS4 ? std::nullopt // all_matches shown below
+                 : g_game == Game::MGS4 ? std::nullopt
                                         : codename::evaluate_mgs3(stats);
 
     const ImVec4 green(0.42f, 0.90f, 0.45f, 1.0f);
@@ -189,117 +189,103 @@ void draw_panel()
     }
 
     ImGui::Spacing();
-    ImGui::TextDisabled("stats");
-    if (ImGui::BeginTable("stats", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("stat", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-        char buf[64];
 
-        snprintf(buf, sizeof(buf), "%d", stats.kills);
-        stat_row("kills", buf);
-        snprintf(buf, sizeof(buf), "%d", stats.alerts);
-        stat_row(g_game == Game::MGS1 ? "discovered" : "alerts", buf);
-        snprintf(buf, sizeof(buf), "%d", stats.continues);
-        stat_row("continues", buf);
-        snprintf(buf, sizeof(buf), "%d", stats.saves);
-        stat_row("saves", buf);
+    if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
 
-        if (g_game == Game::MGS2) {
-            const char* radar_str = stats.radar_type == 0x00 ? "TYPE A"
-                                    : stats.radar_type == 0x20 ? "TYPE B"
-                                    : stats.radar_type == 0x04 ? "OFF" : "?";
-            stat_row("radar", radar_str);
-            snprintf(buf, sizeof(buf), "%d", stats.shots_fired);
-            stat_row("shots fired", buf);
-            snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
-                     stats.damage_taken_units / 48.0);
-            stat_row("damage taken", buf);
-            format_time(stats.play_time_seconds, buf, sizeof(buf));
-            stat_row("play time", buf);
-            snprintf(buf, sizeof(buf), "%d", stats.rations_used);
-            stat_row("rations used", buf);
-            stat_row("special items", stats.special_item_used ? "USED" : "not used");
-        } else if (g_game == Game::MGS1) {
-            snprintf(buf, sizeof(buf), "%d", stats.rations_used);
-            stat_row("rations used", buf);
-            stat_row("radar", "unprobed");
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted("play time");
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("unprobed");
-        } else {
-            snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
-                     stats.damage_taken_units / 48.0);
-            stat_row("damage taken", buf);
-            format_time(stats.play_time_seconds, buf, sizeof(buf));
-            stat_row("play time", buf);
-            snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
-            stat_row("severe injuries", buf);
-            snprintf(buf, sizeof(buf), "%d", stats.life_med_used);
-            stat_row("life medicine", buf);
-            snprintf(buf, sizeof(buf), "%d", stats.meals_eaten);
-            stat_row("meals eaten", buf);
-            snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
-            stat_row("captures", buf);
-            stat_row("special items", stats.special_item_used ? "USED" : "not used");
-        }
-        ImGui::EndTable();
-    }
-
-    ImGui::Spacing();
-    const char* tracker_title = g_game == Game::MGS3   ? "FOXHOUND tracker"
-                                : g_game == Game::MGS4 ? "BIG BOSS tracker"
-                                                       : "BIG BOSS tracker";
-    if (ImGui::CollapsingHeader(tracker_title, ImGuiTreeNodeFlags_DefaultOpen)) {
         std::vector<codename::ReqStatus> reqs =
             g_game == Game::MGS1   ? codename::elite_requirements_mgs1(stats)
             : g_game == Game::MGS2 ? codename::elite_requirements_mgs2(stats)
             : g_game == Game::MGS4 ? codename::elite_requirements_mgs4(stats)
                                    : codename::elite_requirements_mgs3(stats);
-        if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-            ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-            for (const codename::ReqStatus& r : reqs) {
-                char ratio[48];
-                switch (static_cast<codename::ReqFmt>(r.fmt)) {
-                case codename::ReqFmt::Time: {
-                    char cur[16];
-                    format_time(r.current * 3600.0, cur, sizeof(cur));
-                    snprintf(ratio, sizeof(ratio), "%s / %.0fh", cur, r.limit);
-                    break;
-                }
-                case codename::ReqFmt::Bars:
-                    if (r.limit == 0) {
-                        snprintf(ratio, sizeof(ratio), "%.1f", static_cast<double>(r.current));
-                    } else {
-                        snprintf(ratio, sizeof(ratio), "%.1f / %.0f", static_cast<double>(r.current),
-                                 r.limit);
-                    }
-                    break;
-                default:
-                    if (r.limit == 0) {
-                        snprintf(ratio, sizeof(ratio), "%.0f", r.current);
-                    } else {
-                        snprintf(ratio, sizeof(ratio), "%.0f / %.0f", r.current, r.limit);
-                    }
-                    break;
-                }
-
-                const bool over = !r.pass;
-                const bool near_limit = !over && r.limit != 0 && r.current >= r.limit * 0.75;
-                const ImVec4 state_col = over ? ImVec4(0.95f, 0.35f, 0.35f, 1.0f)
-                                              : near_limit ? ImVec4(1.0f, 0.82f, 0.25f, 1.0f)
-                                                           : ImVec4(0.4f, 0.9f, 0.5f, 1.0f);
-
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted(r.label);
-                ImGui::TableNextColumn();
-                ImGui::TextColored(state_col, "%s", ratio);
+        for (const codename::ReqStatus& r : reqs) {
+            char ratio[48];
+            switch (static_cast<codename::ReqFmt>(r.fmt)) {
+            case codename::ReqFmt::Time: {
+                char cur[16];
+                format_time(r.current * 3600.0, cur, sizeof(cur));
+                snprintf(ratio, sizeof(ratio), "%s / %.0fh", cur, r.limit);
+                break;
             }
-            ImGui::EndTable();
+            case codename::ReqFmt::Bars:
+                if (r.limit == 0) {
+                    snprintf(ratio, sizeof(ratio), "%.1f", static_cast<double>(r.current));
+                } else {
+                    snprintf(ratio, sizeof(ratio), "%.1f / %.0f", static_cast<double>(r.current),
+                             r.limit);
+                }
+                break;
+            default:
+                if (r.limit == 0) {
+                    snprintf(ratio, sizeof(ratio), "%.0f", r.current);
+                } else {
+                    snprintf(ratio, sizeof(ratio), "%.0f / %.0f", r.current, r.limit);
+                }
+                break;
+            }
+
+            const bool over = !r.pass;
+            const bool near_limit = !over && r.limit != 0 && r.current >= r.limit * 0.75;
+            const ImVec4 state_col = over ? ImVec4(0.95f, 0.35f, 0.35f, 1.0f)
+                                          : near_limit ? ImVec4(1.0f, 0.82f, 0.25f, 1.0f)
+                                                       : ImVec4(0.4f, 0.9f, 0.5f, 1.0f);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(r.label);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(state_col, "%s", ratio);
         }
+
+        auto plain_row = [&](const char* key, const char* val) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextDisabled("%s", key);
+            ImGui::TableNextColumn();
+            ImGui::TextDisabled("%s", val);
+        };
+        char buf[64];
+
+        if (g_game == Game::MGS2) {
+            const char* radar_str = stats.radar_type == 0x00 ? "TYPE A"
+                                    : stats.radar_type == 0x20 ? "TYPE B"
+                                    : stats.radar_type == 0x04 ? "OFF" : "?";
+            plain_row("radar", radar_str);
+            snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
+                     stats.damage_taken_units / 48.0);
+            plain_row("damage taken", buf);
+            format_time(stats.play_time_seconds, buf, sizeof(buf));
+            plain_row("play time", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.shots_fired);
+            plain_row("shots fired", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.rations_used);
+            plain_row("rations used", buf);
+            plain_row("special items", stats.special_item_used ? "USED" : "not used");
+        } else if (g_game == Game::MGS1) {
+            snprintf(buf, sizeof(buf), "%d", stats.saves);
+            plain_row("saves", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.rations_used);
+            plain_row("rations used", buf);
+            plain_row("radar", "unprobed");
+            plain_row("play time", "unprobed");
+        } else {
+            snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
+                     stats.damage_taken_units / 48.0);
+            plain_row("damage taken", buf);
+            format_time(stats.play_time_seconds, buf, sizeof(buf));
+            plain_row("play time", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
+            plain_row("severe injuries", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.life_med_used);
+            plain_row("life medicine", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.meals_eaten);
+            plain_row("meals eaten", buf);
+            snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
+            plain_row("captures", buf);
+            plain_row("special items", stats.special_item_used ? "USED" : "not used");
+        }
+        ImGui::EndTable();
     }
 
     ImGui::End();
