@@ -39,10 +39,10 @@ severe injuries >250 (Tasmanian Devil/Jackal/Hyena/Mongoose),
 play time >50h (Giant Panda/Sloth/Capybara/Koala),
 saves >100 (Hippopotamus/Zebra/Deer/Cat).
 
-## Known conflicts with other community sources (needs in-game verification)
+## Known conflicts with other community sources
 
 1. Save cap on elite strict rows / FOX-Extreme: muni prints "Under 25" (and "Under 35");
-   mainstream guides say "25 or fewer". We encode inclusive caps (`<=25`, `<=35`).
+   mainstream guides say "25 or fewer". We follow muni literally (`<25`, `<35`).
 2. Meals threshold for Whale-family: muni says ">250"; older GameFAQs FAQ says "31+"
    (likely cross-contaminated from MGS2's 31-rations Elephant). We encode 250.
 3. Worst-family play time: muni says >50h; GameFAQs FAQ says >30h. We encode 50.
@@ -55,13 +55,14 @@ Second independent source; resolved several open questions:
 
 - RESOLVED damage units: stat is a u32 already denominated in life-bar equivalents
   (FOXHOUND cap compares against 5). No conversion needed. Conflict #2 from earlier list closed.
-- RESOLVED regular fallback grid: it is NOT difficulty-tiered ("Any"). Explicit matrix,
-  encoded verbatim: continues band {<=50, >=51} x kills band {1..100, >=101} x alerts
+- RESOLVED regular fallback grid: it is NOT difficulty-tiered ("Any"). Explicit matrix:
+  continues band {<=50, >=51} x kills band {1..100, >=101} x alerts
   band {<=20, 21..50, >=51} -> Scorpion/Jaguar/Iguana (k low), Tarantula/Panther/Crocodile
   (k high), Centipede/Leopard/Komodo Dragon (c high, k low), Spider/Puma/Alligator
-  (c+k high). Komodo Dragon has an odd extra cell (alerts 81..248 AND injuries >=21);
-  encoded as printed. Spider uses alerts <=19 per source.
-- Cow changed 250 -> >300 (GameFAQs FAQ + trainer agree on 300; muni says 250).
+  (c+k high). Trainer boundary holes were discarded in favor of muni's complete ranges:
+  Spider `<=20`, Puma `21..50`, Komodo Dragon `>=51`.
+- Cow follows muni's `>250`; trainer-derived `>300` conflicts with muni's special row
+  and regular-grid upper bound.
 - Markhor is count-based: plants/animals captured byte >= 48 (44 kinds + 4 cure plants),
   so no inventory-flag hook needed.
 - DISAGREEMENT kept: trainer merges elite-ladder tiers into single rules (e.g. one FOX
@@ -88,14 +89,10 @@ Source: ANTIBigBoss/MGS3-Cheat-Trainer-GUI at "Update for Game Version 3.0.0.0"
   - 0x40 u16 severe injuries (observed 4)
   - 0x46 u16 meals eaten (observed 33)
   - 0x4C u32 game time frames @60fps (observed 400500 = 1h51m)
-- CORRECTED vs trainer doc:
-  - 0x42 damage is u16 in raw engine units, NOT bars (grew 3->73 while taking hits).
-    Trainer's u32 read spans the unknown u16 field at 0x44 (observed constant 1).
-    Scale derived from the MGS2 trainer (sagefantasma): its datamined Big Boss cap is
-    DamageTaken <= 500 raw units against the community "<10.5 life bars" requirement
-    -> ~48 units/bar. We use kDamageUnitsPerBar = 48; recalibrate with a controlled
-    single-hit test if tracker ratios look wrong. NOTE: not yet verified empirically
-    against the game's own end-of-rank screen, but in-game values look plausible.
+- Damage fields, confirmed by MGS Master Collection Save Decrypter:
+  - 0x42 u16 is damage within current life bar and resets at bar boundaries.
+  - 0x44 u16 is accumulated life bars shown on end screen. Tracker uses this exact value;
+    no estimated conversion.
   - 0x06 difficulty byte uses enum {10=VeryEasy, 20=Easy, 30=Normal, 40=Hard,
     50=Extreme, 60=EuropeanExtreme} (trainer DifficultyMappings). EE maps to Extreme
     for rank purposes. The INI `[stats] difficulty=` override still wins if set.
@@ -131,13 +128,16 @@ matching RMLSNK's table maintenance timeline).
     rank column (muni's "Very Hard") and folds to Extreme for display}
   - 0x12E stats chunk: +4 i16 continues, +8 i16 saves, +10 i32 playtime
     frames@60fps, +18 i16 shots, +20 i16 alerts, +22 i16 kills, +24 i16 damage
-    (raw units, same ~48/bar assumption as MGS3 - unverified), +42 i16 mechs
+    (raw units, approximate 48 units/bar conversion - unverified), +42 i16 mechs
   - 0x1590 i16 rations used
+  - 0x1594 u16 times seen by enemy (distinct from alerts)
   - 0x1596 i16 special items used (bitmask)
+  - 0x12E stats chunk +14 u16 pull-ups, +42 u16 mechs destroyed
+  - 0xFA/+0xFC u16 current/max health
 - Rank rules: muni MGS2 chart. Elite ladder = LADDER[min(3,s+t)] over
   strictness rows s0..s3 x tiers t (X,VH/EE,H,N,E); all require Tanker-Plant.
-  BIG BOSS requires radar off which we cannot probe yet -> stays hidden until
-  a radar source is found (CE table lists Radar Type values 0/4/20).
+  BIG BOSS requires radar off. GameState discovery supplies live radar state; before
+  discovery, saved special/radar usage bit `0x20` supplies fallback state.
 - Not probeable yet: Sea Louse flag, Gazelle clearing-escapes counter (omitted).
 
 ## Probe robustness + remaining gaps (post phase 3)
@@ -177,15 +177,38 @@ radar-off runs; the [stats] radar_off ini override still wins if set.
 ## MGS1 variant split (1998 vs Integral) - important
 
 MC ships BOTH MGS1 versions (launcher picks the ISO). Two different rank systems:
-- Original 1998 US/JP: muni /mgs/codename.html. Simple flat list - BIG BOSS adds
-  radar-off over FOX ladder (disc<4/kills<25/rations<=1/cont=0/<3h); Falcon(<2.5h),
+- Original 1998: muni /mgs/codename.html. BIG BOSS adds radar-off over FOX ladder
+  (disc<4/kills<25/rations<=1/cont=0/<3h). US/EU gate FOX to Hard and BIG BOSS
+  to Extreme. Japanese original has no difficulty choice, runs Easy-equivalent,
+  and bypasses both elite difficulty gates. Falcon(<2.5h),
   Jaws(>250 kills), Pig(>120 rations), Hippo(>80 saves), Turtle(>18h),
   Chicken(all three); regular grid Leopard/Grizzly/Jackal/Tarantula/Gazelle via
-  discovered bands x Y=10*disc/(kills-25). NO difficulty dimension.
+  discovered bands x Y=10*disc/(kills-25).
 - Integral: muni /mgs/int_codename.html (the 64-rule system previously encoded).
 rules_mgs1.cpp currently implements the 1998 system since the user plays US
 original. If Integral support is ever needed, preserve both variants behind a
 config flag - the work-array probe is shared, only rules differ.
 
-Hunt mode ([stats] hunt_value=N) exists because work-array field offsets drift
-per language/iso; three narrowing rounds pin real addresses empirically.
+bmn/livesplit_asl_mgs1 confirms current/max life `+0x29/+0x2B`. Game-time frames sit
+at work-array `-0x939D` for US/Integral and `-0x9495` for Japanese original; probe
+selects whichever advances at game-clock rate. Original PSX tooling documents 30 fps,
+but empirical Master Collection
+timing advances this exposed counter at 60 fps; tracker uses 60. These make MGS1
+time-based projection and grey health display
+available across both tested editions.
+
+MGS1 probe finds live stage records and scores matching work arrays, then watches unknown
+bytes automatically. It does not depend on attaching during the `opening` stage.
+Launch game, play toward target event, and inspect `mgs1 event candidate` log lines;
+known rank fields are excluded and noisy offsets suppress themselves after five changes.
+Overlay maps stage IDs to room names using bmn/livesplit_asl_mgs1's complete Location
+dictionary and keeps raw ID beside name, for example `Dock (s00a)`.
+Hidden Diazepam duration uses universal work-array `+0xA5` signed-frame timer and appears
+only while active; source maximum is 1200 frames, converted at PSX logic rate of 30 fps.
+
+In-game MC US-original checks confirmed live kills `+0xB1`, rations used `+0xBF`,
+and continues `+0xC1`, including reset after loading an older save. Counter side of
+1998 rank formula is therefore empirically working. bmn's version maps place radar state
+nine bytes after Location in every supported PSX layout, giving work-array `+0x0C`:
+`0x00` visible, `0x20` hidden. Probe latches any visible state during gameplay so an
+alert or chaff cannot temporarily qualify radar-on runs. INI override still wins.

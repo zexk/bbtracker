@@ -27,15 +27,25 @@ struct GameStats {
     int saves = 0;
     int rations_used = 0;
     int shots_fired = 0;
+    int times_seen = 0;
+    int mechs_destroyed = 0;
+    int pull_ups = 0;
 
     int damage_taken_units = 0;
+    double damage_taken_bars = -1.0; // exact when game exposes end-screen bars
 
     double play_time_seconds = 0.0;
 
     bool special_item_used = false;
-    uint8_t special_items_mask = 0;
+    uint16_t special_items_mask = 0;
     bool radar_off = false;
     uint8_t radar_type = 0;
+    uint8_t alert_state = 0;
+    bool alert_state_available = false;
+
+    int current_health = 0;
+    int max_health = 0;
+    int diazepam_frames = 0;
 
     int life_med_used = 0;
     int meals_eaten = 0;
@@ -49,6 +59,7 @@ struct GameStats {
     bool leech_carried = false;
 
     uint8_t difficulty_game_byte = 0;
+    bool mgs1_japanese_original = false;
 
     int headshots = 0;
     int cqc_chokes = 0;

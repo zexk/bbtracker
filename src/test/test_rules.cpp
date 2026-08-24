@@ -50,7 +50,7 @@ void test_foxhound_perfect_extreme()
     s.damage_taken_units = 235;  // ~4.9 bars
     s.life_med_used = 0;
     s.play_time_seconds = 3600.0 * 4.99;
-    s.saves = 25;
+    s.saves = 24;
     CHECK(std::string_view(best(s)) == "FOXHOUND");
 
     auto all = all_matches_mgs3(s);
@@ -143,12 +143,52 @@ void test_chicken_worst_very_easy()
     CHECK(std::string_view(best(s)) == "Chicken");
 }
 
-void test_cow_alerts_over_300()
+void test_cow_alerts_over_250()
 {
     GameStats s = sloppy(Difficulty::VeryEasy);
-    s.alerts = 301;
+    s.alerts = 251;
     s.meals_eaten = 0;
     CHECK(std::string_view(best(s)) == "Cow");
+}
+
+void test_mgs3_boundaries()
+{
+    GameStats s = sloppy(Difficulty::Extreme);
+    s.alerts = 0;
+    s.kills = 0;
+    s.continues = 0;
+    s.severe_injuries = 0;
+    s.damage_taken_units = 0;
+    s.play_time_seconds = 1;
+    s.saves = 25;
+    CHECK(std::string_view(best(s)) != "FOXHOUND");
+
+    s = sloppy(Difficulty::Normal);
+    s.continues = 51;
+    s.kills = 150;
+    s.alerts = 20;
+    CHECK(std::string_view(best(s)) == "Spider");
+    s.alerts = 21;
+    CHECK(std::string_view(best(s)) == "Puma");
+
+    s.kills = 50;
+    s.alerts = 51;
+    CHECK(std::string_view(best(s)) == "Komodo Dragon");
+}
+
+void test_exact_damage_bars_override_estimate()
+{
+    GameStats s = sloppy(Difficulty::Extreme);
+    s.alerts = 0;
+    s.kills = 0;
+    s.continues = 0;
+    s.severe_injuries = 0;
+    s.life_med_used = 0;
+    s.play_time_seconds = 1;
+    s.saves = 0;
+    s.damage_taken_units = 9999;
+    s.damage_taken_bars = 4;
+    CHECK(std::string_view(best(s)) == "FOXHOUND");
 }
 
 void test_markhor_by_capture_count()
@@ -259,7 +299,9 @@ int main()
         {"chameleon_precedence_over_pigeon", test_chameleon_precedence_over_pigeon},
         {"pigeon_zero_kills_with_alerts", test_pigeon_zero_kills_with_alerts},
         {"chicken_worst_very_easy", test_chicken_worst_very_easy},
-        {"cow_alerts_over_300", test_cow_alerts_over_300},
+        {"cow_alerts_over_250", test_cow_alerts_over_250},
+        {"mgs3_boundaries", test_mgs3_boundaries},
+        {"exact_damage_bars_override_estimate", test_exact_damage_bars_override_estimate},
         {"markhor_by_capture_count", test_markhor_by_capture_count},
         {"swallow_fast_sloppy_ve", test_swallow_fast_sloppy_ve},
         {"kerotan_flag_wins_special_block", test_kerotan_flag_wins_special_block},

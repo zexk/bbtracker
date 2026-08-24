@@ -35,6 +35,7 @@ GameStats with(double hours)
 void test_big_boss_with_radar_off()
 {
     GameStats s = with(2.9);
+    s.difficulty = Difficulty::Extreme;
     s.alerts = 3;
     s.kills = 24;
     s.rations_used = 1;
@@ -45,10 +46,28 @@ void test_big_boss_with_radar_off()
 void test_fox_when_radar_on()
 {
     GameStats s = with(2.9);
+    s.difficulty = Difficulty::Hard;
     s.alerts = 3;
     s.kills = 24;
     s.rations_used = 1;
     CHECK(std::string_view(best(s)) == "FOX");
+}
+
+void test_elite_wrong_difficulty_rejected()
+{
+    GameStats s = with(2.9);
+    s.difficulty = Difficulty::Easy;
+    CHECK(std::string_view(best(s)) != "FOX");
+}
+
+void test_japanese_original_bypasses_difficulty()
+{
+    GameStats s = with(2.9);
+    s.difficulty = Difficulty::Easy;
+    s.mgs1_japanese_original = true;
+    CHECK(std::string_view(best(s)) == "FOX");
+    s.radar_off = true;
+    CHECK(std::string_view(best(s)) == "BIG BOSS");
 }
 
 void test_ladder_gated_on_unknown_time()
@@ -153,6 +172,8 @@ int main()
     constexpr TestEntry tests[] = {
         {"big_boss_with_radar_off", test_big_boss_with_radar_off},
         {"fox_when_radar_on", test_fox_when_radar_on},
+        {"elite_wrong_difficulty_rejected", test_elite_wrong_difficulty_rejected},
+        {"japanese_original_bypasses_difficulty", test_japanese_original_bypasses_difficulty},
         {"ladder_gated_on_unknown_time", test_ladder_gated_on_unknown_time},
         {"falcon_precedes_jaws", test_falcon_precedes_jaws},
         {"jaws", test_jaws},

@@ -16,6 +16,7 @@ constexpr uintptr_t kPlayerPointerOffset = 0x00949340;
 constexpr size_t kStatsBlockOffset = 0x12E;
 constexpr size_t kRationsOffset = 0x1590;
 constexpr size_t kSpecialItemsOffset = 0x1596;
+constexpr size_t kTimesSeenOffset = 0x1594;
 constexpr size_t kPlayerRegionSize = 0x1600;
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID2.exe";
 constexpr uint8_t kGametypeTanker = 16;
@@ -134,6 +135,10 @@ struct StatOffsets {
     constexpr static size_t kAlerts = 20;
     constexpr static size_t kKills = 22;
     constexpr static size_t kDamage = 24;
+    constexpr static size_t kPullUps = 14;
+    constexpr static size_t kMechsDestroyed = 42;
+    constexpr static size_t kCurrentHealth = 250;
+    constexpr static size_t kMaxHealth = 252;
 };
 
 uintptr_t g_last_scan_tick = 0;
@@ -198,19 +203,33 @@ bool poll_stats(GameStats& out)
     out.shots_fired = read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kShots);
     out.damage_taken_units =
         read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kDamage);
+    out.pull_ups = read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kPullUps);
+    out.mechs_destroyed =
+        read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kMechsDestroyed);
+    out.current_health = read_at<uint16_t>(player, StatOffsets::kCurrentHealth);
+    out.max_health = read_at<uint16_t>(player, StatOffsets::kMaxHealth);
     out.play_time_seconds =
         static_cast<double>(read_at<uint32_t>(player, kStatsBlockOffset + StatOffsets::kPlayTimeFrames))
         / 60.0;
     out.rations_used = read_at<uint16_t>(player, kRationsOffset);
-    out.special_item_used = read_at<uint16_t>(player, kSpecialItemsOffset) != 0;
+    out.times_seen = read_at<uint16_t>(player, kTimesSeenOffset);
+    out.special_items_mask = read_at<uint16_t>(player, kSpecialItemsOffset);
+    out.special_item_used = (out.special_items_mask & 0x000F) != 0;
 
     if (g_game_state && range_readable_at(g_game_state, 0x150)
         && game_state_matches_live(g_game_state, out)) {
-    out.radar_type = read_gs<uint8_t>(g_game_state, GameStateOffsets::kRadarType);
-    out.radar_off = config().radar_off_override == 1 || out.radar_type == 4;
+        out.radar_type = read_gs<uint8_t>(g_game_state, GameStateOffsets::kRadarType);
+        out.alert_state = read_gs<uint16_t>(g_game_state, GameStateOffsets::kAlertState);
+        out.alert_state_available = true;
+        out.radar_off = config().radar_off_override >= 0
+            ? config().radar_off_override == 1
+            : out.radar_type == 4;
     } else {
         g_game_state = 0;
-        out.radar_off = config().radar_off_override == 1;
+        out.radar_type = (out.special_items_mask & 0x0020) != 0 ? 0x20 : 4;
+        out.radar_off = config().radar_off_override >= 0
+            ? config().radar_off_override == 1
+            : out.radar_type == 4;
         const uint64_t now = GetTickCount64();
         if (now - g_last_scan_tick > 4000) {
             g_last_scan_tick = now;

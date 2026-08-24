@@ -39,11 +39,11 @@ requirement checklist. Read-only memory probing only.
   alerts, kills, continues, rations used, saves, shots fired, damage taken, playtime,
   radar setting, special items used.
   Big Boss (T-P): Extreme, <3h, <=3 alerts, 0 kills, 0 continues, 0 rations, <=8 saves,
-  <=700 shots fired, <10.5 lifebars damage, radar off, no special items.
+  <700 shots fired, <10 lifebars damage, radar off, no special items.
 - MGS3: per-difficulty rank grid (Hound->Doberman->Fox->FOXHOUND ladder etc.). Adds:
   meals eaten, LifeMed uses, damage bars, plants/animals captured; item-flag ranks
   (Markhor, Tsuchinoko, Kerotan, Leech). FOXHOUND = Extreme, <5h, 0 alerts, 0 kills,
-  0 continues, <=25 saves, <=10 bars damage, 0 LifeMed, no special items.
+  0 continues, <25 saves, <5 bars damage, 0 LifeMed, no special items.
 - MGS1 (phase 2): Integral chart at tentenpro.com/muni_shinobu/mgs/int_codename.html;
   factors: discovered/alerts, kills, rations, continues, playtime, saves, difficulty tier.
 - Sources: muni_shinobu codename charts (tentenpro.com), GameFAQs "Codename Ranking FAQ"
@@ -121,7 +121,7 @@ outputs:
 - [x] **Phase 2 - MGS3 probe + panel** (golden child): memory map extracted from
   ANTIBigBoss trainer ([module+0xACDE98]->stats struct); VirtualQuery-guarded reads;
   panel shows live projected codename + full stats + FOXHOUND tracker; rules updated
-  from trainer cross-check (damage=bar units resolved, regular grid matrix, Cow>300,
+  from trainer cross-check (damage scale estimated, regular grid matrix, Cow>250,
   Markhor via capture count >=48). In-game verification checklist pending user run:
   1) drop bbtracker_mgs3.asi into MGS3 folder with MGSHDFix, F3 toggles panel
   2) stats match CE table readings
@@ -132,14 +132,14 @@ outputs:
   sagefantasma trainer; transcribe MGS2 rank tables; same wiring.
 - [ ] **Phase 4 - polish**: config persistence, scale/position, version-detect warnings,
   README install guide, smoke-test checklist (both fixes installed simultaneously).
-- [x] **Phase 5 - MGS1**: emulator work-array located via heap scan for the
-  "opening" stage-string anchor (NeopolitanDreamz MGS1_master.CT); rank fields
-  alerts/kills/rations/continues/saves u16 probed; Integral chart transcribed
-  (64 rules) with needs_time gating since playtime is unprobed; difficulty byte
+- [x] **Phase 5 - MGS1**: emulator work-array located via scored live-stage scan
+  (NeopolitanDreamz MGS1_master.CT); kills/rations/continues confirmed in game,
+  alerts/saves u16 probed; original chart transcribed; radar state auto-probed;
+  playtime and current/max health derived from bmn's autosplitter layout; difficulty byte
   mapping unverified (ini override available). In-game verification pending.
 - [ ] **Phase 6 - remaining gaps**: MGS3 story-flag bit hunting (kerotan/
-  tsuchinoko/leech via change-log correlation), MGS1 playtime + damage-scale
-  calibration, Sea Louse/Gazelle counters if surfaces are ever found.
+  tsuchinoko/leech via change-log correlation), MGS2 damage-scale calibration,
+  Sea Louse/Gazelle counters if surfaces are ever found.
 
 ### Build notes learned in Phase 0
 

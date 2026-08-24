@@ -67,6 +67,7 @@ bool load_config(const char* ini_path, Config& out)
     if (!stream.is_open()) {
         return false;
     }
+    ini.parse(stream);
 
     std::string key;
     if (inipp::get_value(ini.sections["overlay"], "toggle_key", key)) {
@@ -100,12 +101,6 @@ bool load_config(const char* ini_path, Config& out)
                 break;
             }
         }
-    }
-
-    int hunt = -1;
-    if (inipp::get_value(ini.sections["stats"], "hunt_value", hunt) && hunt >= 0
-        && hunt <= 0xFFFF) {
-        out.hunt_value = hunt;
     }
 
     int radar_off = -1;

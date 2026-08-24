@@ -74,8 +74,8 @@ constexpr Cond kGridL3Y3[] = {{StatId::Alerts, Op::Ge, 55},
 constexpr Cond kGridL3Y4[] = {{StatId::Alerts, Op::Ge, 55}, {StatId::DiscoveryRatio, Op::Ge, 20}};
 
 const std::array<RankRule, 23> kMgs1Rules{{
-    RankRule{"BIG BOSS", kAny, Kind::Elite, kBigBoss},
-    RankRule{"FOX", kAny, Kind::Elite, kFox, true},
+    RankRule{"BIG BOSS", kX, Kind::Elite, kBigBoss},
+    RankRule{"FOX", kH, Kind::Elite, kFox, true},
 
     RankRule{"Falcon", kAny, Kind::Special, kFalcon, true},
     RankRule{"Jaws", kAny, Kind::Special, kJaws},

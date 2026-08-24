@@ -46,7 +46,7 @@ uintptr_t g_last_block = 0;
 uintptr_t g_slot_addr = 0;
 unsigned g_zero_polls = 0;
 uint16_t g_last_dmg_raw = 0;
-uint16_t g_last_unk44 = 0;
+uint16_t g_last_damage_bars = 0;
 uint8_t g_last_diff06 = 0xFF;
 uint8_t g_last_diff04 = 0xFF;
 uint16_t g_last_vm_flags = 0xFFFF;
@@ -110,8 +110,8 @@ bool find_slot_via_sig(HMODULE mod, uintptr_t& out_slot)
             }
             const int32_t disp = *reinterpret_cast<volatile const int32_t*>(p + 3);
             out_slot = disp + p + 7;
-            LOG_INFO("stats slot found via signature at module+%zX",
-                     static_cast<size_t>(out_slot - base));
+            LOG_INFO("stats slot found via signature at module+%llX",
+                     static_cast<unsigned long long>(out_slot - base));
             return true;
         }
         if (region_end > addr + 0x1000) {
@@ -204,7 +204,8 @@ bool poll_stats(GameStats& out)
     out.alerts = read_at<uint16_t>(StatOffsets::kAlerts);
     out.kills = read_at<uint16_t>(StatOffsets::kKills);
 
-    out.special_item_used = read_at<uint8_t>(StatOffsets::kSpecialItems) != 0;
+    out.special_items_mask = read_at<uint8_t>(StatOffsets::kSpecialItems);
+    out.special_item_used = out.special_items_mask != 0;
     out.plants_captured = read_at<uint8_t>(StatOffsets::kPlantsCaptured);
     out.severe_injuries = read_at<uint16_t>(StatOffsets::kSevereInjuries);
 
@@ -215,10 +216,11 @@ bool poll_stats(GameStats& out)
     }
     out.damage_taken_units = static_cast<int>(dmg_raw);
 
-    const uint16_t unk44 = read_at<uint16_t>(StatOffsets::kTotalDamage + 2);
-    if (unk44 != g_last_unk44) {
-        LOG_INFO("field@0x44 u16=%u", static_cast<unsigned>(unk44));
-        g_last_unk44 = unk44;
+    const uint16_t damage_bars = read_at<uint16_t>(StatOffsets::kTotalDamage + 2);
+    out.damage_taken_bars = damage_bars;
+    if (damage_bars != g_last_damage_bars) {
+        LOG_INFO("damage bars@0x44 u16=%u", static_cast<unsigned>(damage_bars));
+        g_last_damage_bars = damage_bars;
     }
 
     out.meals_eaten = read_at<uint16_t>(StatOffsets::kMealsEaten);

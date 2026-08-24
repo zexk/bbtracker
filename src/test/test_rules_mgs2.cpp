@@ -150,7 +150,28 @@ void test_regular_tanker_scorpion()
     CHECK(std::string_view(best(s)) == "Scorpion");
 
     s.alerts = 20;
+    CHECK(std::string_view(best(s)) == "Jackal");
+
+    s.alerts = 3;
+    s.kills = 16;
     CHECK(std::string_view(best(s)) == "Tarantula");
+
+    s.continues = 11;
+    CHECK(std::string_view(best(s)) == "Spider");
+}
+
+void test_regular_tp_grid_dimensions()
+{
+    GameStats s = base(Difficulty::Normal, 32);
+    s.alerts = 21;
+    s.kills = 71;
+    s.continues = 41;
+    s.play_time_seconds = 3600.0 * 4;
+    CHECK(std::string_view(best(s)) == "Puma");
+
+    s.alerts = 81;
+    s.kills = 1;
+    CHECK(std::string_view(best(s)) == "Comodo Dragon");
 }
 
 struct TestEntry {
@@ -173,6 +194,7 @@ int main()
         {"swallow_tanker_fast_ve", test_swallow_tanker_fast_ve},
         {"cow_alerts_by_mission", test_cow_alerts_by_mission},
         {"regular_tanker_scorpion", test_regular_tanker_scorpion},
+        {"regular_tp_grid_dimensions", test_regular_tp_grid_dimensions},
     };
 
     for (const TestEntry& t : tests) {

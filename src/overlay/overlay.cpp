@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 #include <filesystem>
 
@@ -135,6 +136,62 @@ const char* mission_name(int mission)
     }
 }
 
+const char* alert_state_name(uint8_t state)
+{
+    switch (state) {
+    case 0: return "clear";
+    case 1: return "alert";
+    case 2: return "evasion";
+    case 3: return "caution";
+    default: return "?";
+    }
+}
+
+struct AreaName {
+    const char* code;
+    const char* name;
+};
+
+const char* mgs1_area_name(const char* stage)
+{
+    static constexpr AreaName kAreas[] = {
+        {"03a", "Cell"},           {"03b", "Medi Room"},
+        {"03c", "Medi Room"},      {"03d", "Cell"},
+        {"04a", "Armory"},         {"04b", "Armory South"},
+        {"04c", "Armory South"},   {"07a", "Nuke Building B1"},
+        {"07b", "Commander's Room"}, {"07c", "Nuke Building B1"},
+        {"08a", "Nuke Building B2"}, {"08b", "Lab"},
+        {"08c", "Lab Hallway"},    {"11a", "Comms Tower A"},
+        {"11b", "Comms Tower A Roof"}, {"11c", "Comms Tower B"},
+        {"11d", "Comms Tower A Wall"}, {"11e", "Comms Tower B Elevator"},
+        {"11g", "Comms Tower A Roof"}, {"11h", "Comms Tower B Roof"},
+        {"11i", "Walkway"},        {"15a", "Warehouse"},
+        {"15b", "Warehouse North"}, {"15c", "Warehouse"},
+        {"16a", "Underground Base 1"}, {"16b", "Underground Base 2"},
+        {"16c", "Underground Base 3"}, {"16d", "Command Room"},
+        {"16e", "Underground Base 3"}, {"19a", "Escape Route 1"},
+        {"19b", "Escape Route 2"},
+        {"00", "Dock"},            {"01", "Heliport"},
+        {"02", "Tank Hangar"},     {"05", "Canyon"},
+        {"06", "Nuke Building 1F"}, {"09", "Cave"},
+        {"10", "Underground Passage"}, {"12", "Snowfield"},
+        {"13", "Blast Furnace"},   {"14", "Cargo Elevator"},
+        {"17", "Supply Route"},    {"18", "Supply Route"},
+    };
+    if (!stage || (stage[0] != 's' && stage[0] != 'd')) {
+        return nullptr;
+    }
+    const char* code = stage + 1;
+    for (const AreaName& area : kAreas) {
+        const size_t len = std::strlen(area.code);
+        if (std::strncmp(code, area.code, len) == 0
+            && (len == 2 || code[len] == '\0')) {
+            return area.name;
+        }
+    }
+    return nullptr;
+}
+
 void format_time(double seconds, char* buf, size_t len)
 {
     const int total = static_cast<int>(seconds);
@@ -162,7 +219,10 @@ void draw_panel()
                               : g_game == Game::MGS4 ? "BIG BOSS tracker"
                                                      : "BIG BOSS tracker";
     ImGui::SetNextWindowSize(ImVec2(380, 480), ImGuiCond_FirstUseEver);
-    ImGui::Begin(panel_title, &g.show, ImGuiWindowFlags_NoCollapse);
+    ImGui::Begin(panel_title, &g.show, ImGuiWindowFlags_NoCollapse
+                                           | (g_game == Game::MGS1
+                                                  ? ImGuiWindowFlags_AlwaysAutoResize
+                                                  : ImGuiWindowFlags_None));
 
     if (!have_stats) {
         ImGui::TextDisabled("stats unavailable");
@@ -182,11 +242,19 @@ void draw_panel()
     ImGui::SetWindowFontScale(1.0f);
 
     ImGui::Text("difficulty: %s%s", difficulty_name(stats.difficulty),
-                config().difficulty_override < 0 && stats.difficulty_game_byte % 10 != 0 ? " (?)" : "");
+                g_game != Game::MGS1 && config().difficulty_override < 0
+                        && stats.difficulty_game_byte % 10 != 0
+                    ? " (?)"
+                    : "");
     if (g_game == Game::MGS2) {
         ImGui::Text("mission: %s", mission_name(stats.mission));
     } else if (stats.area_code[0]) {
-        ImGui::Text(g_game == Game::MGS1 ? "stage: %s" : "area: %s", stats.area_code);
+        const char* area = g_game == Game::MGS1 ? mgs1_area_name(stats.area_code) : nullptr;
+        if (area) {
+            ImGui::Text("stage: %s (%s)", area, stats.area_code);
+        } else {
+            ImGui::Text(g_game == Game::MGS1 ? "stage: %s" : "area: %s", stats.area_code);
+        }
     }
 
     ImGui::Spacing();
@@ -202,7 +270,15 @@ void draw_panel()
                                    : codename::elite_requirements_mgs3(stats);
         for (const codename::ReqStatus& r : reqs) {
             char ratio[48];
-            switch (static_cast<codename::ReqFmt>(r.fmt)) {
+            if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS1) {
+                snprintf(ratio, sizeof(ratio), "%s", stats.radar_off ? "OFF" : "ON");
+            } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS2) {
+                const char* type = stats.radar_type == 0    ? "TYPE-A"
+                                   : stats.radar_type == 0x20 ? "TYPE-B"
+                                   : stats.radar_type == 4    ? "OFF"
+                                                              : "?";
+                snprintf(ratio, sizeof(ratio), "%s", type);
+            } else switch (static_cast<codename::ReqFmt>(r.fmt)) {
             case codename::ReqFmt::Time: {
                 char cur[16];
                 format_time(r.current * 3600.0, cur, sizeof(cur));
@@ -247,11 +323,44 @@ void draw_panel()
             ImGui::TextDisabled("%s", val);
         };
 
-        if (g_game == Game::MGS3) {
+        auto plain_count = [&](const char* key, int value) {
+            char buf[24];
+            snprintf(buf, sizeof(buf), "%d", value);
+            plain_row(key, buf);
+        };
+
+        auto plain_pair = [&](const char* key, int value, int maximum) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%d / %d", value, maximum);
+            plain_row(key, buf);
+        };
+
+        if (g_game == Game::MGS1) {
+            plain_count("saves", stats.saves);
+            plain_pair("health", stats.current_health, stats.max_health);
+            if (stats.diazepam_frames > 0) {
+                char buf[24];
+                snprintf(buf, sizeof(buf), "%.1fs", stats.diazepam_frames / 30.0);
+                plain_row("diazepam", buf);
+            }
+        } else if (g_game == Game::MGS2) {
+            plain_pair("health", stats.current_health, stats.max_health);
+            plain_count("times seen", stats.times_seen);
+            plain_count("mechs destroyed", stats.mechs_destroyed);
+            plain_count("pull-ups", stats.pull_ups);
+            plain_row("alert state", stats.alert_state_available
+                                         ? alert_state_name(stats.alert_state)
+                                         : "unavailable");
+        } else if (g_game == Game::MGS3) {
             char buf[16];
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
             plain_row("captures", buf);
-            plain_row("kerotans", stats.kerotan_all_shot ? "all shot" : "not all shot");
+            plain_count("meals eaten", stats.meals_eaten);
+            snprintf(buf, sizeof(buf), "0x%02X", stats.special_items_mask);
+            plain_row("special items", buf);
+            plain_row("kerotans", stats.kerotan_count > 0
+                                      ? (stats.kerotan_all_shot ? "all shot" : "incomplete")
+                                      : "unavailable");
         }
         ImGui::EndTable();
     }

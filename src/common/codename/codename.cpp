@@ -22,7 +22,9 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::Saves: return s.saves;
     case StatId::RationsUsed: return s.rations_used;
     case StatId::ShotsFired: return s.shots_fired;
-    case StatId::DamageBars: return s.damage_taken_units / kDamageUnitsPerBar;
+    case StatId::DamageBars:
+        return s.damage_taken_bars >= 0 ? s.damage_taken_bars
+                                       : s.damage_taken_units / kDamageUnitsPerBar;
     case StatId::PlayTimeHours: return s.play_time_seconds / 3600.0;
     case StatId::SevereInjuries: return s.severe_injuries;
     case StatId::LifeMedUsed: return s.life_med_used;
@@ -157,7 +159,7 @@ constexpr std::array<ReqRow, 8> kFoxhoundReqs{{
     {"life medicine", StatId::LifeMedUsed, Op::Eq, 0, ReqFmt::Count},
     {"play time", StatId::PlayTimeHours, Op::Lt, 5, ReqFmt::Time},
     {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
-    {"saves", StatId::Saves, Op::Le, 25, ReqFmt::Count},
+    {"saves", StatId::Saves, Op::Lt, 25, ReqFmt::Count},
 }};
 
 } // namespace
@@ -201,7 +203,7 @@ struct Mgs2ReqRow {
 constexpr std::array<Mgs2ReqRow, 10> kBigBossReqs{{
     {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
     {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
-    {"shots fired", StatId::ShotsFired, Op::Le, 700, ReqFmt::Count},
+    {"shots fired", StatId::ShotsFired, Op::Lt, 700, ReqFmt::Count},
     {"alerts", StatId::Alerts, Op::Le, 3, ReqFmt::Count},
     {"damage", StatId::DamageBars, Op::Lt, 10, ReqFmt::Bars},
     {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
@@ -232,7 +234,13 @@ std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s)
 std::optional<Match> evaluate_mgs1(const GameStats& s)
 {
     for (const RankRule& r : mgs1_rules()) {
-        if (rule_matches(s, r)) {
+        bool matches = rule_matches(s, r);
+        if (!matches && s.mgs1_japanese_original && r.kind == Kind::Elite) {
+            GameStats jp = s;
+            jp.difficulty = r.name[0] == 'B' ? Difficulty::Extreme : Difficulty::Hard;
+            matches = rule_matches(jp, r);
+        }
+        if (matches) {
             return Match{r.name, r.kind};
         }
     }

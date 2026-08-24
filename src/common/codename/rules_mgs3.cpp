@@ -13,7 +13,7 @@ constexpr Cond kFoxhound[] = {
     {StatId::Kills, Op::Eq, 0},           {StatId::SevereInjuries, Op::Lt, 20},
     {StatId::DamageBars, Op::Lt, 5},      {StatId::LifeMedUsed, Op::Eq, 0},
     {StatId::PlayTimeHours, Op::Lt, 5},   {StatId::Continues, Op::Eq, 0},
-    {StatId::Saves, Op::Le, 25},
+    {StatId::Saves, Op::Lt, 25},
 };
 
 constexpr Cond kStrictRow[] = {
@@ -21,21 +21,21 @@ constexpr Cond kStrictRow[] = {
     {StatId::Kills, Op::Eq, 0},           {StatId::SevereInjuries, Op::Lt, 20},
     {StatId::DamageBars, Op::Lt, 5},      {StatId::LifeMedUsed, Op::Eq, 0},
     {StatId::PlayTimeHours, Op::Lt, 5},   {StatId::Continues, Op::Eq, 0},
-    {StatId::Saves, Op::Le, 25},
+    {StatId::Saves, Op::Lt, 25},
 };
 
 constexpr Cond kFoxExtreme[] = {
     {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Le, 3},
     {StatId::Kills, Op::Eq, 0},           {StatId::LifeMedUsed, Op::Eq, 0},
     {StatId::PlayTimeHours, Op::Lt, 5},   {StatId::Continues, Op::Eq, 0},
-    {StatId::Saves, Op::Le, 35},
+    {StatId::Saves, Op::Lt, 35},
 };
 
 constexpr Cond kMidTier[] = {
     {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Le, 3},
     {StatId::Kills, Op::Eq, 0},           {StatId::LifeMedUsed, Op::Eq, 0},
     {StatId::PlayTimeHours, Op::Lt, 5},   {StatId::Continues, Op::Eq, 0},
-    {StatId::Saves, Op::Le, 35},
+    {StatId::Saves, Op::Lt, 35},
 };
 
 constexpr Cond kHighTier[] = {
@@ -67,7 +67,7 @@ constexpr Cond kPigeon[] = {{StatId::Kills, Op::Eq, 0}};
 constexpr Cond kLowInjury[] = {{StatId::SevereInjuries, Op::Lt, 20}};
 constexpr Cond kFast[] = {{StatId::PlayTimeHours, Op::Lt, 5}};
 constexpr Cond kManyMeals[] = {{StatId::MealsEaten, Op::Gt, 250}};
-constexpr Cond kCow[] = {{StatId::Alerts, Op::Gt, 300}};
+constexpr Cond kCow[] = {{StatId::Alerts, Op::Gt, 250}};
 constexpr Cond kManyKills[] = {{StatId::Kills, Op::Gt, 250}};
 constexpr Cond kManyInjury[] = {{StatId::SevereInjuries, Op::Gt, 250}};
 constexpr Cond kLongTime[] = {{StatId::PlayTimeHours, Op::Gt, 50}};
@@ -109,16 +109,15 @@ constexpr Cond kRegK1C51A2[] = {
 };
 constexpr Cond kRegKomodo[] = {
     {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
-    {StatId::Alerts, Op::Ge, 81},    {StatId::Alerts, Op::Le, 248},
-    {StatId::SevereInjuries, Op::Ge, 21},
+    {StatId::Alerts, Op::Ge, 51},
 };
 constexpr Cond kRegSpider[] = {
     {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 101},
-    {StatId::Alerts, Op::Le, 19},
+    {StatId::Alerts, Op::Le, 20},
 };
 constexpr Cond kRegPuma[] = {
-    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 101}, {StatId::Kills, Op::Le, 299},
-    {StatId::Alerts, Op::Ge, 22},    {StatId::Alerts, Op::Le, 50},
+    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 101},
+    {StatId::Alerts, Op::Ge, 21},    {StatId::Alerts, Op::Le, 50},
 };
 constexpr Cond kRegAlligator[] = {
     {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 101},
