@@ -292,8 +292,6 @@ void draw_panel()
             }
         }
     }
-        ImGui::EndTable();
-    }
 
     ImGui::End();
 }
