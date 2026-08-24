@@ -7,7 +7,6 @@
 #include <cstdio>
 #include <iterator>
 
-#include "../../common/config.h"
 #include "../../common/log.h"
 
 namespace bb::mgs3 {
@@ -244,11 +243,6 @@ bool poll_stats(GameStats& out)
     case 40: out.difficulty = Difficulty::Hard; break;
     default: out.difficulty = Difficulty::Extreme; break;
     }
-    if (config().difficulty_override >= 0) {
-        out.difficulty = static_cast<Difficulty>(config().difficulty_override);
-        out.difficulty_raw = static_cast<uint8_t>(config().difficulty_override);
-    }
-
     if (story_base && range_readable(story_base, 0x40)) {
         const uint16_t story_vm =
             *reinterpret_cast<volatile const uint16_t*>(story_base + 0x2);

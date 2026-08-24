@@ -151,9 +151,7 @@ matching RMLSNK's table maintenance timeline).
   inventory structures - correlate log lines while collecting to pin them down.
 - MGS3 area code string (stats+0x24, e.g. "s051a") shown in panel; also a good
   probe-health indicator ("title" in menus).
-- MGS2 radar on/off has no known address yet; BIG BOSS stays hidden unless
-  bbtracker.ini sets [stats] radar_off=1. Set it only when actually playing
-  radar-off. Sea Louse and Gazelle ranks remain omitted (no flag/counter found).
+- Sea Louse and Gazelle ranks remain omitted (no flag/counter found).
 
 ## MGS2 radar: solved via passive GameState discovery
 
@@ -172,7 +170,7 @@ already-proven player-block reads across five fields simultaneously
 (continues+saves+alerts+shots+gametime). Scan throttled to one pass per ~4s
 until found; cached hit is revalidated every poll. radar_off then reads
 directly from byte@+6, making BIG BOSS attainable in the tracker for genuine
-radar-off runs; the [stats] radar_off ini override still wins if set.
+radar-off runs.
 
 ## MGS1 variant split (1998 vs Integral) - important
 

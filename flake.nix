@@ -14,14 +14,10 @@
       flake = false;
     };
 
-    inipp = {
-      url = "github:mcmtroffaes/inipp/1.0.13";
-      flake = false;
-    };
   };
 
   outputs =
-    { self, nixpkgs, imgui, minhook, inipp }:
+    { self, nixpkgs, imgui, minhook }:
     let
       systems = [ "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
@@ -42,7 +38,7 @@
               mingw.buildPackages.ninja
             ];
 
-            inherit imgui minhook inipp;
+            inherit imgui minhook;
 
             meta = with pkgs.lib; {
               description = "Live codename tracker overlay for MGS2/MGS3 Master Collection";

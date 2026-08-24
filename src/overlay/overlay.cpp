@@ -17,7 +17,6 @@
 #include <filesystem>
 
 #include "../common/codename/codename.h"
-#include "../common/config.h"
 #include "../common/log.h"
 #include "../games/mgs3/kerotan_stages.h"
 
@@ -46,6 +45,7 @@ ResizeBuffersFn oResizeBuffers = nullptr;
 
 constexpr UINT kPresentIndex = 8;
 constexpr UINT kResizeBuffersIndex = 13;
+constexpr UINT kToggleKey = VK_F3;
 
 HMODULE own_module()
 {
@@ -58,7 +58,7 @@ HMODULE own_module()
 void poll_toggle_key()
 {
     static bool prev_down = false;
-    const bool down = (GetAsyncKeyState(config().toggle_key) & 0x8000) != 0;
+    const bool down = (GetAsyncKeyState(kToggleKey) & 0x8000) != 0;
     if (down && !prev_down) {
         g.show = !g.show;
     }
@@ -192,6 +192,77 @@ const char* mgs1_area_name(const char* stage)
     return nullptr;
 }
 
+const char* exact_area_name(const char* code, const AreaName* areas, size_t count)
+{
+    for (size_t i = 0; i < count; ++i) {
+        if (std::strcmp(code, areas[i].code) == 0) {
+            return areas[i].name;
+        }
+    }
+    return nullptr;
+}
+
+const char* mgs2_area_name(const char* code)
+{
+    static constexpr AreaName kAreas[] = {
+        {"w00a", "Aft Deck"}, {"w00b", "Aft Deck (Olga)"},
+        {"w00c", "Navigational Deck"}, {"w01a", "Deck-A, Crew's Quarters"},
+        {"w01b", "Deck-A, Crew's Quarters, Starboard"},
+        {"w01c", "Deck-C, Crew's Quarters"}, {"w01d", "Deck-D, Crew's Quarters"},
+        {"w01e", "Deck-E, Bridge"}, {"w01f", "Deck-A, Crew's Lounge"},
+        {"w02a", "Engine Room"}, {"w03a", "Deck 2, Port"},
+        {"w03b", "Deck 2, Starboard"}, {"w04a", "Hold No. 1"},
+        {"w04b", "Hold No. 2"}, {"w04c", "Hold No. 3"},
+        {"w11a", "Strut A, Deep Sea Dock"}, {"w11b", "Strut A, Deep Sea Dock"},
+        {"w11c", "Strut A, Deep Sea Dock"}, {"w12a", "Strut A, Roof"},
+        {"w12b", "Strut A, Pump Room"}, {"w12c", "Strut A, Roof"},
+        {"w13a", "AB Connecting Bridge"}, {"w13b", "AB Connecting Bridge"},
+        {"w14a", "Strut B, Transformer Room"}, {"w15a", "BC Connecting Bridge"},
+        {"w15b", "BC Connecting Bridge"}, {"w16a", "Strut C, Dining Hall"},
+        {"w16b", "Strut C, Dining Hall"}, {"w17a", "CD Connecting Bridge"},
+        {"w18a", "Strut D, Sediment Pool"}, {"w19a", "DE Connecting Bridge"},
+        {"w20a", "Strut E, Parcel Room"}, {"w20b", "Strut E, Heliport"},
+        {"w20c", "Strut E, Heliport"}, {"w20d", "Strut E, Heliport"},
+        {"w21a", "EF Connecting Bridge"}, {"w21b", "EF Connecting Bridge"},
+        {"w22a", "Strut F, Warehouse"}, {"w23a", "FA Connecting Bridge"},
+        {"w23b", "FA Connecting Bridge"}, {"w24a", "Shell 1 Core, 1F"},
+        {"w24b", "Shell 1 Core, B1"}, {"w24c", "Shell 1 Core, B1 Hall"},
+        {"w24d", "Shell 1 Core, B2"}, {"w24e", "Shell 1 Core"},
+        {"w25a", "Shell 1-2 Connecting Bridge"},
+        {"w25b", "Shell 1-2 Connecting Bridge"}, {"w25c", "Strut L Perimeter"},
+        {"w25d", "KL Connecting Bridge"}, {"w28a", "Sewage Treatment Facility"},
+        {"w31a", "Shell 2 Core, 1F"}, {"w31b", "Shell 2 Core, B1"},
+        {"w31c", "Shell 2 Core, B1 Filtration Chamber"},
+        {"w31d", "Shell 2 Core, 1F"}, {"w31f", "Shell 2 Core"},
+        {"w32a", "Oil Fence"}, {"w32b", "Oil Fence"},
+        {"w41a", "Arsenal Gear, Stomach"}, {"w42a", "Arsenal Gear, Jejunum"},
+        {"w43a", "Arsenal Gear, Ascending Colon"}, {"w44a", "Arsenal Gear, Ileum"},
+        {"w45a", "Arsenal Gear, Sigmoid Colon"}, {"w46a", "Arsenal Gear, Rectum"},
+        {"w51a", "Arsenal Gear"}, {"w61a", "Federal Hall"},
+    };
+    return exact_area_name(code, kAreas, std::size(kAreas));
+}
+
+const char* mgs3_area_name(const char* code)
+{
+    for (const mgs3::KerotanStage& area : mgs3::kKerotanStages) {
+        if (std::strcmp(code, area.code) == 0) {
+            return area.name;
+        }
+    }
+    return nullptr;
+}
+
+const char* area_name(Game game, const char* code)
+{
+    switch (game) {
+    case Game::MGS1: return mgs1_area_name(code);
+    case Game::MGS2: return mgs2_area_name(code);
+    case Game::MGS3: return mgs3_area_name(code);
+    default: return nullptr;
+    }
+}
+
 void format_time(double seconds, char* buf, size_t len)
 {
     const int total = static_cast<int>(seconds);
@@ -209,11 +280,14 @@ void stat_row(const char* key, const char* value)
 
 void draw_panel()
 {
-    ImGuiIO& io = ImGui::GetIO();
-    io.FontGlobalScale = config().scale;
-
-    GameStats stats{};
-    const bool have_stats = g_stats_fn && g_stats_fn(stats);
+    static GameStats stats{};
+    static bool have_stats = false;
+    static uint64_t next_poll = 0;
+    const uint64_t now = GetTickCount64();
+    if (g_stats_fn && now >= next_poll) {
+        have_stats = g_stats_fn(stats);
+        next_poll = now + 250;
+    }
 
     const char* panel_title = g_game == Game::MGS3   ? "FOXHOUND tracker"
                               : g_game == Game::MGS4 ? "BIG BOSS tracker"
@@ -240,16 +314,17 @@ void draw_panel()
     ImGui::SetWindowFontScale(1.0f);
 
     ImGui::Text("difficulty: %s%s", difficulty_name(stats.difficulty),
-                g_game != Game::MGS1 && config().difficulty_override < 0
-                        && stats.difficulty_game_byte % 10 != 0
+                g_game != Game::MGS1 && stats.difficulty_game_byte % 10 != 0
                     ? " (?)"
                     : "");
     if (g_game == Game::MGS2) {
         ImGui::Text("mission: %s", mission_name(stats.mission));
-    } else if (stats.area_code[0]) {
-        const char* area = g_game == Game::MGS1 ? mgs1_area_name(stats.area_code) : nullptr;
+    }
+    if (stats.area_code[0]) {
+        const char* area = area_name(g_game, stats.area_code);
         if (area) {
-            ImGui::Text("stage: %s (%s)", area, stats.area_code);
+            ImGui::Text(g_game == Game::MGS1 ? "stage: %s (%s)" : "area: %s (%s)",
+                        area, stats.area_code);
         } else {
             ImGui::Text(g_game == Game::MGS1 ? "stage: %s" : "area: %s", stats.area_code);
         }
@@ -549,19 +624,12 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
     g_game = game;
 
     std::filesystem::path dir = dll_dir();
-    std::string ini_path = (dir / L"bbtracker.ini").string();
     std::string log_path = (dir / L"bbtracker.log").string();
 
     if (!log_init(log_path.c_str())) {
         return;
     }
-    Config cfg{};
-    if (!load_config(ini_path.c_str(), cfg)) {
-        LOG_INFO("no %s found, using defaults", ini_path.c_str());
-    }
-    g.show = config().visible_default;
-
-    LOG_INFO("bbtracker starting (%s), toggle key vk=0x%02X", g_label, config().toggle_key);
+    LOG_INFO("bbtracker starting (%s), toggle key vk=0x%02X", g_label, kToggleKey);
 
     bool logged_wait_module = false;
     bool logged_wait_d3d11 = false;
@@ -583,6 +651,11 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
             continue;
         }
         break;
+    }
+
+    GameStats warmup{};
+    if (g_stats_fn) {
+        g_stats_fn(warmup);
     }
 
     while (!install_hooks()) {

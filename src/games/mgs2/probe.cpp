@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <cstdlib>
 
-#include "../../common/config.h"
 #include "../../common/log.h"
 
 namespace bb::mgs2 {
@@ -68,9 +67,6 @@ T read_gs(uintptr_t gs, size_t offset)
 
 bool plausible_game_state(uintptr_t p)
 {
-    if (!range_readable_at(p, 0x150)) {
-        return false;
-    }
     const uint8_t radar = read_gs<uint8_t>(p, GameStateOffsets::kRadarType);
     if (radar != 0 && radar != 4 && radar != 0x20) {
         return false;
@@ -99,33 +95,51 @@ void scan_for_game_state(const GameStats& live)
     if (live.play_time_seconds < 120.0) {
         return;
     }
+    static uintptr_t cursor = 0x10000;
+    LARGE_INTEGER frequency{};
+    LARGE_INTEGER started{};
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&started);
+    const int64_t deadline = started.QuadPart + frequency.QuadPart / 1000;
+    unsigned checks = 0;
     MEMORY_BASIC_INFORMATION mbi{};
-    uintptr_t addr = 0x10000;
-    int candidates = 0;
-    while (VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))) {
+    while (VirtualQuery(reinterpret_cast<LPCVOID>(cursor), &mbi, sizeof(mbi))) {
         const uintptr_t vbase = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
         const uintptr_t region_end = vbase + mbi.RegionSize;
         if (mbi.State == MEM_COMMIT && (mbi.Protect & (PAGE_READWRITE | PAGE_WRITECOPY)) != 0
+            && (mbi.Protect & PAGE_GUARD) == 0
             && mbi.RegionSize >= 0x150) {
-            for (uintptr_t p = vbase; p + 0x150 <= region_end; p += 8) {
+            uintptr_t p = cursor > vbase ? cursor : vbase;
+            for (; p + 0x150 <= region_end; p += 8) {
+                if ((checks++ & 0xFF) == 0) {
+                    LARGE_INTEGER now{};
+                    QueryPerformanceCounter(&now);
+                    if (now.QuadPart >= deadline) {
+                        cursor = p;
+                        return;
+                    }
+                }
                 if (!plausible_game_state(p)) {
                     continue;
                 }
                 if (game_state_matches_live(p, live)) {
                     g_game_state = p;
+                    cursor = 0x10000;
                     LOG_INFO("mgs2 game state found at %p", reinterpret_cast<const void*>(p));
                     return;
                 }
             }
         }
-        if (region_end <= addr) {
+        if (region_end <= cursor) {
             break;
         }
-        addr = region_end;
+        cursor = region_end;
     }
+    cursor = 0x10000;
 }
 
 struct StatOffsets {
+    constexpr static size_t kAreaCode = 0x2C;
     constexpr static size_t kGametype = 0x07;
     constexpr static size_t kDifficulty = 0x10;
     constexpr static size_t kContinues = 4;
@@ -222,17 +236,13 @@ bool poll_stats(GameStats& out)
         out.radar_type = read_gs<uint8_t>(g_game_state, GameStateOffsets::kRadarType);
         out.alert_state = read_gs<uint16_t>(g_game_state, GameStateOffsets::kAlertState);
         out.alert_state_available = true;
-        out.radar_off = config().radar_off_override >= 0
-            ? config().radar_off_override == 1
-            : out.radar_type == 4;
+        out.radar_off = out.radar_type == 4;
     } else {
         g_game_state = 0;
         out.radar_type = (out.special_items_mask & 0x2000) != 0 ? 0x20 : 4;
-        out.radar_off = config().radar_off_override >= 0
-            ? config().radar_off_override == 1
-            : out.radar_type == 4;
+        out.radar_off = out.radar_type == 4;
         const uint64_t now = GetTickCount64();
-        if (now - g_last_scan_tick > 4000) {
+        if (now - g_last_scan_tick >= 250) {
             g_last_scan_tick = now;
             scan_for_game_state(out);
         }
@@ -254,9 +264,18 @@ bool poll_stats(GameStats& out)
     default: out.mission = 0; break;
     }
 
-    if (config().difficulty_override >= 0) {
-        out.difficulty = static_cast<Difficulty>(config().difficulty_override);
-        out.difficulty_raw = static_cast<uint8_t>(config().difficulty_override);
+    char area[8]{};
+    std::memcpy(area, reinterpret_cast<const uint8_t*>(player) + StatOffsets::kAreaCode, 4);
+    for (int i = 0; i < 4; ++i) {
+        const char c = area[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) {
+            area[i] = '\0';
+            break;
+        }
+    }
+    if (std::strcmp(area, out.area_code) != 0) {
+        LOG_INFO("area: %s", area);
+        std::memcpy(out.area_code, area, sizeof(out.area_code));
     }
 
     return true;

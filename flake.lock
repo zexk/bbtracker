@@ -17,23 +17,6 @@
         "type": "github"
       }
     },
-    "inipp": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1727171111,
-        "narHash": "sha256-fKJt/PIy9GgCreu3Q5JjHPrHLEfL440GDeSWaqf65B8=",
-        "owner": "mcmtroffaes",
-        "repo": "inipp",
-        "rev": "3c1668812026f1a94471b85ac5ab11ab87c43607",
-        "type": "github"
-      },
-      "original": {
-        "owner": "mcmtroffaes",
-        "ref": "1.0.13",
-        "repo": "inipp",
-        "type": "github"
-      }
-    },
     "minhook": {
       "flake": false,
       "locked": {
@@ -70,7 +53,6 @@
     "root": {
       "inputs": {
         "imgui": "imgui",
-        "inipp": "inipp",
         "minhook": "minhook",
         "nixpkgs": "nixpkgs"
       }

@@ -10,7 +10,7 @@ requirement checklist. Read-only memory probing only.
 
 - **MGS3 is the golden child** (only MGS1+3 currently installed; MGS1 needs emu RE).
   Phase order: codename engine -> MGS3 probe -> MGS2 probe -> MGS1 later.
-- Toggle key default **F3** (was INSERT), configurable via bbtracker.ini.
+- Toggle key **F3**.
 - Phase 1 targets MGS2 + MGS3 rules; MGS1 deferred (needs emulated-PSX RAM RE).
 - Deliverable shape: **per-game builds** (`bbtracker_mgs2.asi`, `bbtracker_mgs3.asi`),
   shared static core lib.
@@ -31,7 +31,6 @@ requirement checklist. Read-only memory probing only.
 - Our `.asi` is just another UAL plugin dropped in the same game folder. Multi-ASI
   coexistence is already proven by the ecosystem.
 - Steam Deck/Proton: fixes require `WINEDLLOVERRIDES="dinput8=n,b;d3d11=n,b"`; we need no extra overrides.
-- Use our own ini filename `bbtracker.ini` (no collision with MGSHDFix.ini / MGSM2Fix.ini).
 
 ### Codename rules (community-documented sources of truth)
 
@@ -68,7 +67,6 @@ flake.nix                 cross-build outputs + devshell + native test checks
 README.md                 install/config instructions
 src/
   common/
-    config.{h,cpp}        INI via inipp: toggle key, panel pos/scale, log level
     log.h                 minimal file logger next to dll
     stats.h               GameStats struct shared across games
     codename/
@@ -84,7 +82,7 @@ src/
     overlay.cpp           kiero D3D11 Present hook + ImGui panel
   mgs3/
     dllmain.cpp, offsets.{h,cpp}, overlay.cpp   same shape
-vendor/                   flake-fetched pinned: imgui (docking), kiero, inipp
+vendor/                   flake-fetched pinned: imgui, MinHook
 ```
 
 Shared core compiled once as static lib; two thin per-game DLL outputs.
@@ -96,7 +94,7 @@ top-rank requirement checklist with live pass/fail per requirement.
 ## flake.nix design
 
 ```nix
-inputs: nixpkgs, flake-utils, imgui (pinned rev), kiero (pinned rev), inipp (pinned rev)
+inputs: nixpkgs, imgui (pinned rev), MinHook (pinned rev)
 outputs:
   packages.bbtracker-mgs2   # .asi cross-built with pkgsCross.mingwW64
   packages.bbtracker-mgs3
@@ -111,8 +109,8 @@ outputs:
 
 - [x] **Phase 0 - scaffolding**: flake.nix (devshell + cross build), both .asi targets
   build as fully static PE32+ DLLs (system DLL imports only). kiero D3D11 Present +
-  ResizeBuffers hooks, ImGui panel with placeholder rows, F3 toggle (bbtracker.ini,
-  inipp), file logger. In-game smoke test under Proton still pending user run.
+  ResizeBuffers hooks, ImGui panel with placeholder rows, F3 toggle, file logger.
+  In-game smoke test under Proton still pending user run.
 - [x] **Phase 1 - codename engine (MGS3)**: GameStats struct; muni_shinobu MGS3 chart
   transcribed into data-driven rules (61 entries: elite ladder, worst, specials, regular
   fallback) with precedence order; eval() + FOXHOUND requirement tracker; 14 native unit
@@ -160,8 +158,6 @@ outputs:
 - kiero.cpp `#include <Windows.h>` breaks on case-sensitive FS: generate a shim header
   dir in CMake (`Windows.h -> windows.h`).
 - MinHook layout at v1.3.4: sources under `src/`, HDE under `src/hde/hde64.c`.
-- inipp 1.0.13: API is `ini.parse(is)` + free fn `inipp::get_value(ini.sections[...], key, val)`;
-  header at `inipp/inipp.h`.
 - nixpkgs GCC15 mingw uses mcfgthread; `-static` on link options resolves it into the
   DLL statically (GNU ld synthesizes __imp_ thunks) — same trick pragmatrainer uses;
   do NOT ship libmcfgthread-2.dll alongside.
@@ -174,7 +170,7 @@ outputs:
 2. Hook only D3D11 Present via kiero vtable swap; call original through chain
    (MGSHDFix may be first in chain).
 3. No dinput8 usage, no game code byte patches.
-4. Own filenames only: bbtracker_*.asi, bbtracker.ini, bbtracker.log.
+4. Own filenames only: bbtracker_*.asi, bbtracker.log.
 5. Degrade gracefully: if scans fail, show warning in panel, never crash.
 
 ## Testing & verification

@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(WIN32)
-  foreach(dep imgui minhook inipp)
+  foreach(dep imgui minhook)
     if(NOT DEFINED ENV{${dep}})
       message(FATAL_ERROR "source for '${dep}' not provided as env var (set by flake.nix)")
     endif()
@@ -14,7 +14,6 @@ if(WIN32)
 
   set(IMGUI_DIR "$ENV{imgui}")
   set(MINHOOK_DIR "$ENV{minhook}")
-  set(INIPP_DIR "$ENV{inipp}")
 
   add_link_options(-static -static-libgcc -static-libstdc++)
 
@@ -37,14 +36,13 @@ if(WIN32)
 
   add_library(core STATIC
     src/common/log.cpp
-    src/common/config.cpp
     src/common/codename/codename.cpp
     src/common/codename/rules_mgs3.cpp
     src/common/codename/rules_mgs2.cpp
     src/common/codename/rules_mgs1.cpp
     src/common/codename/rules_mgs4.cpp
     src/overlay/overlay.cpp)
-  target_include_directories(core PUBLIC src ${INIPP_DIR}/inipp)
+  target_include_directories(core PUBLIC src)
   target_link_libraries(core PUBLIC imgui minhook d3d11 dxgi d3dcompiler dwmapi)
 
   function(bb_asi name label sources)

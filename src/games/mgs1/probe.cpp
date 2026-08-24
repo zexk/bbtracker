@@ -7,11 +7,8 @@
 #include <cstring>
 #include <cstdint>
 #include <cstdio>
-#include <filesystem>
 #include <string_view>
-#include <vector>
 
-#include "../../common/config.h"
 #include "../../common/log.h"
 
 namespace bb::mgs1 {
@@ -25,10 +22,6 @@ constexpr double kGameTimeFramesPerSecond = 60.0;
 uintptr_t g_array_start = 0;
 unsigned g_zero_polls = 0;
 int g_last_diff = 999;
-std::array<uint8_t, kWorkRegionSize> g_observed{};
-std::array<uint8_t, kWorkRegionSize> g_change_counts{};
-uint64_t g_last_observe = 0;
-bool g_observe_ready = false;
 bool g_radar_seen_on = false;
 uint8_t g_last_radar_state = 0xFF;
 uint32_t g_last_game_frames = 0;
@@ -52,20 +45,7 @@ struct FieldOffsets {
     constexpr static size_t kSaves = 0xC3;
 };
 
-constexpr bool is_known_field(size_t offset)
-{
-    return (offset >= FieldOffsets::kStage && offset < FieldOffsets::kStage + 7)
-        || offset == FieldOffsets::kRadarState
-        || (offset >= FieldOffsets::kDifficulty && offset < FieldOffsets::kDifficulty + 2)
-        || (offset >= FieldOffsets::kCurrentHealth && offset < FieldOffsets::kMaxHealth + 2)
-        || (offset >= FieldOffsets::kDiazepamTimer && offset < FieldOffsets::kDiazepamTimer + 2)
-        || (offset >= FieldOffsets::kAlerts && offset < FieldOffsets::kKills + 2)
-        || (offset >= FieldOffsets::kRationsUsed && offset < FieldOffsets::kSaves + 2);
-}
-
-static_assert(is_known_field(FieldOffsets::kAlerts));
 static_assert(FieldOffsets::kRadarState == FieldOffsets::kStage + 9);
-static_assert(!is_known_field(0x80));
 
 bool range_readable(uintptr_t addr, size_t len)
 {
@@ -226,45 +206,6 @@ static_assert(valid_stage_name("s00a"));
 static_assert(valid_stage_name("s19br"));
 static_assert(!valid_stage_name("FindFir"));
 
-void reset_observer()
-{
-    std::memcpy(g_observed.data(), reinterpret_cast<const void*>(g_array_start),
-                g_observed.size());
-    g_change_counts.fill(0);
-    g_last_observe = GetTickCount64();
-    g_observe_ready = true;
-    g_time_sample_tick = 0;
-    g_game_time_index = -1;
-}
-
-void observe_unknown_fields()
-{
-    const uint64_t now = GetTickCount64();
-    if (!g_observe_ready || now - g_last_observe < 250) {
-        return;
-    }
-    g_last_observe = now;
-    const auto* current = reinterpret_cast<const uint8_t*>(g_array_start);
-    for (size_t offset = 0; offset < kWorkRegionSize; ++offset) {
-        if (current[offset] == g_observed[offset] || is_known_field(offset)) {
-            continue;
-        }
-        uint8_t& count = g_change_counts[offset];
-        if (count < 4) {
-            LOG_INFO("mgs1 event candidate +0x%03X: 0x%02X -> 0x%02X",
-                     static_cast<unsigned>(offset), static_cast<unsigned>(g_observed[offset]),
-                     static_cast<unsigned>(current[offset]));
-        } else if (count == 4) {
-            LOG_INFO("mgs1 event candidate +0x%03X noisy; suppressing",
-                     static_cast<unsigned>(offset));
-        }
-        if (count < 0xFF) {
-            ++count;
-        }
-    }
-    std::memcpy(g_observed.data(), current, g_observed.size());
-}
-
 bool is_logger_table(uintptr_t p)
 {
     static constexpr char kLoggerTail[] = " session";
@@ -286,14 +227,21 @@ void log_hex_dump(const uint8_t* data, size_t len)
     }
 }
 
-std::vector<uintptr_t> find_candidates()
+bool find_candidate(uintptr_t& out)
 {
-    std::vector<uintptr_t> out;
+    static uintptr_t cursor = 0x10000;
+    static uintptr_t best = 0;
+    static int best_score = -1;
+    LARGE_INTEGER frequency{};
+    LARGE_INTEGER started{};
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&started);
+    const int64_t deadline = started.QuadPart + frequency.QuadPart / 1000;
+    unsigned checks = 0;
     MEMORY_BASIC_INFORMATION mbi{};
-    uintptr_t addr = 0x10000;
     constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
         | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-    while (VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))) {
+    while (VirtualQuery(reinterpret_cast<LPCVOID>(cursor), &mbi, sizeof(mbi))) {
         const uintptr_t vbase = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
         const uintptr_t region_end = vbase + mbi.RegionSize;
 
@@ -304,20 +252,36 @@ std::vector<uintptr_t> find_candidates()
         if (readable) {
             const uint8_t* begin = reinterpret_cast<const uint8_t*>(vbase);
             const size_t len = mbi.RegionSize;
-            for (size_t i = 0; i + kWorkRegionSize <= len; ++i) {
-                if (looks_like_stage_anchor(begin + i) && !is_logger_table(vbase + i)
-                    && candidate_score(vbase + i) >= 8) {
-                    out.push_back(vbase + i);
+            size_t i = cursor > vbase ? cursor - vbase : 0;
+            for (; i + kWorkRegionSize <= len; ++i) {
+                if ((checks++ & 0xFFF) == 0) {
+                    LARGE_INTEGER now{};
+                    QueryPerformanceCounter(&now);
+                    if (now.QuadPart >= deadline) {
+                        cursor = vbase + i;
+                        return false;
+                    }
+                }
+                if (looks_like_stage_anchor(begin + i) && !is_logger_table(vbase + i)) {
+                    const int score = candidate_score(vbase + i);
+                    if (score >= 8 && score > best_score) {
+                        best = vbase + i;
+                        best_score = score;
+                    }
                 }
             }
         }
 
-        if (region_end <= addr) {
+        if (region_end <= cursor) {
             break;
         }
-        addr = region_end;
+        cursor = region_end;
     }
-    return out;
+    out = best;
+    cursor = 0x10000;
+    best = 0;
+    best_score = -1;
+    return true;
 }
 
 const uint8_t* g_stats_stage()
@@ -329,53 +293,25 @@ const uint8_t* g_stats_stage()
 
 bool poll_stats(GameStats& out)
 {
-    static uint64_t last_cfg_reload = 0;
-    const uint64_t now_ms = GetTickCount64();
-    if (now_ms - last_cfg_reload > 5000) {
-        last_cfg_reload = now_ms;
-        Config tmp{};
-        std::filesystem::path dir = [] {
-            wchar_t path[MAX_PATH]{};
-            HMODULE mod = nullptr;
-            GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
-                                   | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                               reinterpret_cast<LPCWSTR>(&poll_stats), &mod);
-            GetModuleFileNameW(mod, path, MAX_PATH);
-            return std::filesystem::path(path).parent_path();
-        }();
-        load_config((dir / L"bbtracker.ini").string().c_str(), tmp);
-    }
-
     if (!g_array_start || !range_readable(g_array_start, kWorkRegionSize)) {
         g_array_start = 0;
-        g_observe_ready = false;
-        static uint64_t last_scan = 0;
-        const uint64_t now = GetTickCount64();
-        if (now - last_scan < 4000) {
+        uintptr_t candidate = 0;
+        if (!find_candidate(candidate)) {
             return false;
         }
-        last_scan = now;
-        auto candidates = find_candidates();
-        LOG_INFO("mgs1 work-array scan: %llu candidate(s)",
-                 static_cast<unsigned long long>(candidates.size()));
-        int best_score = -1;
-        for (uintptr_t p : candidates) {
-            const int score = candidate_score(p);
-            if (score > best_score) {
-                g_array_start = p;
-                best_score = score;
-            }
-        }
+        g_array_start = candidate;
         if (!g_array_start) {
             return false;
         }
+        const int best_score = candidate_score(g_array_start);
         char stage[8]{};
         std::memcpy(stage,
                     reinterpret_cast<const uint8_t*>(g_array_start) + FieldOffsets::kStage, 7);
         LOG_INFO("mgs1 work array at %p stage=%s score=%d",
                  reinterpret_cast<const void*>(g_array_start), stage, best_score);
         log_hex_dump(reinterpret_cast<const uint8_t*>(g_array_start), 0xD0);
-        reset_observer();
+        g_time_sample_tick = 0;
+        g_game_time_index = -1;
     }
 
     out.alerts = read_at<uint16_t>(g_array_start, FieldOffsets::kAlerts);
@@ -403,9 +339,6 @@ bool poll_stats(GameStats& out)
         g_radar_seen_on = true;
     }
     out.radar_off = gameplay && radar_state == 0x20 && !g_radar_seen_on;
-    if (config().radar_off_override >= 0) {
-        out.radar_off = config().radar_off_override == 1;
-    }
     if (radar_state != g_last_radar_state) {
         LOG_INFO("mgs1 radar state=0x%02X (%s)", static_cast<unsigned>(radar_state),
                  out.radar_off ? "off" : "on/unknown");
@@ -429,12 +362,7 @@ bool poll_stats(GameStats& out)
     case 2: out.difficulty = Difficulty::Hard; break;
     default: out.difficulty = Difficulty::Extreme; break;
     }
-    if (config().difficulty_override >= 0) {
-        out.difficulty = static_cast<Difficulty>(config().difficulty_override);
-        out.difficulty_raw = static_cast<uint8_t>(config().difficulty_override);
-    } else {
-        out.difficulty_raw = static_cast<uint8_t>(diff);
-    }
+    out.difficulty_raw = static_cast<uint8_t>(diff);
 
     if (out.alerts == 0 && out.kills == 0 && out.saves == 0 && out.continues == 0) {
         if (++g_zero_polls == 600) {
@@ -461,8 +389,6 @@ bool poll_stats(GameStats& out)
         std::memcpy(last_stage, stage, sizeof(last_stage));
     }
     std::memcpy(out.area_code, stage, sizeof(out.area_code));
-
-    observe_unknown_fields();
 
     return true;
 }
