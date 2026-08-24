@@ -186,57 +186,6 @@ void draw_panel()
     }
 
     ImGui::Spacing();
-    ImGui::TextDisabled("stats");
-    if (ImGui::BeginTable("stats", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("stat", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-        char buf[64];
-
-        snprintf(buf, sizeof(buf), "%d", stats.kills);
-        stat_row("kills", buf);
-        snprintf(buf, sizeof(buf), "%d", stats.alerts);
-        stat_row(g_game == Game::MGS1 ? "discovered" : "alerts", buf);
-        if (g_game != Game::MGS1) {
-            snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
-                     stats.damage_taken_units / 48.0);
-            stat_row("damage taken", buf);
-            format_time(stats.play_time_seconds, buf, sizeof(buf));
-            stat_row("play time", buf);
-        }
-        snprintf(buf, sizeof(buf), "%d", stats.continues);
-        stat_row("continues", buf);
-        snprintf(buf, sizeof(buf), "%d", stats.saves);
-        stat_row("saves", buf);
-
-        if (g_game == Game::MGS2) {
-            snprintf(buf, sizeof(buf), "%d", stats.shots_fired);
-            stat_row("shots fired", buf);
-            snprintf(buf, sizeof(buf), "%d", stats.rations_used);
-            stat_row("rations used", buf);
-            stat_row("special items", stats.special_item_used ? "USED" : "not used");
-        } else if (g_game == Game::MGS1) {
-            snprintf(buf, sizeof(buf), "%d", stats.rations_used);
-            stat_row("rations used", buf);
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted("play time");
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("unprobed");
-        } else {
-            snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
-            stat_row("severe injuries", buf);
-            snprintf(buf, sizeof(buf), "%d", stats.life_med_used);
-            stat_row("life medicine", buf);
-            snprintf(buf, sizeof(buf), "%d", stats.meals_eaten);
-            stat_row("meals eaten", buf);
-            snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
-            stat_row("captures", buf);
-            stat_row("special items", stats.special_item_used ? "USED" : "not used");
-        }
-        ImGui::EndTable();
-    }
-
-    ImGui::Spacing();
     const char* tracker_title = g_game == Game::MGS3   ? "FOXHOUND tracker"
                                 : g_game == Game::MGS4 ? "BIG BOSS tracker"
                                                        : "BIG BOSS tracker";
@@ -289,6 +238,49 @@ void draw_panel()
             }
             ImGui::EndTable();
         }
+    }
+
+    ImGui::Spacing();
+    ImGui::TextDisabled("stats");
+    if (ImGui::BeginTable("stats", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("stat", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+        char buf[64];
+
+        if (g_game != Game::MGS1) {
+            snprintf(buf, sizeof(buf), "%d pts (~%.1f bars)", stats.damage_taken_units,
+                     stats.damage_taken_units / 48.0);
+            stat_row("damage taken", buf);
+            format_time(stats.play_time_seconds, buf, sizeof(buf));
+            stat_row("play time", buf);
+        }
+
+        if (g_game == Game::MGS2) {
+            snprintf(buf, sizeof(buf), "%d", stats.shots_fired);
+            stat_row("shots fired", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.rations_used);
+            stat_row("rations used", buf);
+            stat_row("special items", stats.special_item_used ? "USED" : "not used");
+        } else if (g_game == Game::MGS1) {
+            snprintf(buf, sizeof(buf), "%d", stats.rations_used);
+            stat_row("rations used", buf);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("play time");
+            ImGui::TableNextColumn();
+            ImGui::TextDisabled("unprobed");
+        } else {
+            snprintf(buf, sizeof(buf), "%d", stats.severe_injuries);
+            stat_row("severe injuries", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.life_med_used);
+            stat_row("life medicine", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.meals_eaten);
+            stat_row("meals eaten", buf);
+            snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
+            stat_row("captures", buf);
+            stat_row("special items", stats.special_item_used ? "USED" : "not used");
+        }
+        ImGui::EndTable();
     }
 
     ImGui::End();
