@@ -32,6 +32,27 @@ struct GameStats {
     int mechs_destroyed = 0;
     int pull_ups = 0;
 
+    int cqc_chokes = 0;
+    int headshots = 0;
+    int knife_defeats = 0;
+    int cqc_holds = 0;
+    int items_given = 0;
+    int praises = 0;
+    int weapons_acquired = 0;
+    int body_searches = 0;
+    int hold_ups = 0;
+    int magazine_pages = 0;
+    int syringe_uses = 0;
+    int side_rolls = 0;
+    int forward_rolls = 0;
+    int pickups = 0;
+    int combat_highs = 0;
+
+    double box_time_seconds = 0.0;
+    double wall_time_seconds = 0.0;
+    double crawl_time_seconds = 0.0;
+    double crouch_time_seconds = 0.0;
+
     int damage_taken_units = 0;
     double damage_taken_bars = -1.0; // exact when game exposes end-screen bars
 

@@ -40,6 +40,25 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::MissionCode: return s.mission;
     case StatId::ClearingEscapes: return s.clearing_escapes;
     case StatId::SeaLouse: return s.sea_louse ? 1.0 : 0.0;
+    case StatId::CqcChokes: return s.cqc_chokes;
+    case StatId::Headshots: return s.headshots;
+    case StatId::KnifeDefeats: return s.knife_defeats;
+    case StatId::CqcHolds: return s.cqc_holds;
+    case StatId::ItemsGiven: return s.items_given;
+    case StatId::Praises: return s.praises;
+    case StatId::WeaponsAcquired: return s.weapons_acquired;
+    case StatId::BodySearches: return s.body_searches;
+    case StatId::HoldUps: return s.hold_ups;
+    case StatId::BoxTimeMinutes: return s.box_time_seconds / 60.0;
+    case StatId::MagazinePages: return s.magazine_pages;
+    case StatId::SyringeUses: return s.syringe_uses;
+    case StatId::WallTimeMinutes: return s.wall_time_seconds / 60.0;
+    case StatId::SideRolls: return s.side_rolls;
+    case StatId::ForwardRolls: return s.forward_rolls;
+    case StatId::CrawlTimeMinutes: return s.crawl_time_seconds / 60.0;
+    case StatId::CrouchTimeMinutes: return s.crouch_time_seconds / 60.0;
+    case StatId::Pickups: return s.pickups;
+    case StatId::CombatHighs: return s.combat_highs;
     case StatId::DiscoveryRatio: {
         if (s.kills < 25) {
             return 100.0;

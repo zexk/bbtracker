@@ -32,6 +32,25 @@ enum class StatId : uint8_t {
     ClearingEscapes,
     SeaLouse,
     DiscoveryRatio,
+    CqcChokes,
+    Headshots,
+    KnifeDefeats,
+    CqcHolds,
+    ItemsGiven,
+    Praises,
+    WeaponsAcquired,
+    BodySearches,
+    HoldUps,
+    BoxTimeMinutes,
+    MagazinePages,
+    SyringeUses,
+    WallTimeMinutes,
+    SideRolls,
+    ForwardRolls,
+    CrawlTimeMinutes,
+    CrouchTimeMinutes,
+    Pickups,
+    CombatHighs,
 };
 
 enum class Op : uint8_t {
@@ -109,6 +128,12 @@ std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);
 std::optional<Match> evaluate_mgs2(const GameStats& s);
 
 std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s);
+
+std::optional<Match> evaluate_mgs4(const GameStats& s);
+
+std::vector<Match> all_matches_mgs4(const GameStats& s);
+
+std::vector<ReqStatus> elite_requirements_mgs4(const GameStats& s);
 
 std::optional<Match> evaluate_mgs1(const GameStats& s);
 
