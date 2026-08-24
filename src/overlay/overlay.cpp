@@ -99,7 +99,8 @@ void apply_game_theme()
 {
     ImGui::StyleColorsDark();
     if (g_game != Game::MG1 && g_game != Game::MG2
-        && g_game != Game::MGS1 && g_game != Game::MGS2 && g_game != Game::MGS3) {
+        && g_game != Game::MGS1 && g_game != Game::MGS2
+        && g_game != Game::MGS3 && g_game != Game::MGS4) {
         return;
     }
 
@@ -281,6 +282,16 @@ bool init_imgui(IDXGISwapChain* swap_chain)
 
 const char* difficulty_name(Difficulty d)
 {
+    if (g_game == Game::MGS4) {
+        switch (d) {
+        case Difficulty::VeryEasy: return "Liquid Easy";
+        case Difficulty::Easy: return "Naked Normal";
+        case Difficulty::Normal: return "Solid Normal";
+        case Difficulty::Hard: return "Big Boss Hard";
+        case Difficulty::Extreme: return "The Boss Extreme";
+        default: return "?";
+        }
+    }
     switch (d) {
     case Difficulty::VeryEasy: return "Very Easy";
     case Difficulty::Easy: return "Easy";
@@ -405,6 +416,7 @@ const char* area_name(Game game, const char* code)
     case Game::MGS1: return mgs1_area_name(code);
     case Game::MGS2: return mgs2_area_name(code);
     case Game::MGS3: return nullptr;
+    case Game::MGS4: return nullptr;
     default: return nullptr;
     }
 }
@@ -423,6 +435,7 @@ IdColors id_colors(Game game)
     case Game::MGS1: return {{0.42f, 0.88f, 0.66f, 1}, {0.88f, 0.72f, 0.28f, 1}, {0.90f, 0.32f, 0.30f, 1}};
     case Game::MGS2: return {{0.42f, 0.82f, 0.52f, 1}, {0.92f, 0.70f, 0.24f, 1}, {0.76f, 0.19f, 0.11f, 1}};
     case Game::MGS3: return {{0.66f, 0.78f, 0.42f, 1}, {0.88f, 0.72f, 0.28f, 1}, {0.82f, 0.32f, 0.24f, 1}};
+    case Game::MGS4: return {{0.55f, 0.78f, 0.82f, 1}, {0.90f, 0.72f, 0.28f, 1}, {0.88f, 0.30f, 0.24f, 1}};
     }
     return {{0.42f, 0.90f, 0.45f, 1}, {1.0f, 0.82f, 0.25f, 1}, {0.95f, 0.35f, 0.35f, 1}};
 }
@@ -525,7 +538,19 @@ void draw_panel()
 
     if (!have_stats) {
         ImGui::TextDisabled("stats unavailable");
-        ImGui::TextDisabled("memory probe not resolved yet; see bbtracker.log");
+        ImGui::TextDisabled(g_game == Game::MGS4
+                                ? "MGS4 memory probe pending"
+                                : "memory probe not resolved yet; see bbtracker.log");
+        if (g_game == Game::MGS4
+            && ImGui::BeginTable("mgs4_pending", 2,
+                                 ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+            constexpr const char* rows[] = {
+                "emblem", "difficulty", "alerts", "kills", "continues",
+                "recovery items", "play time", "special items",
+            };
+            for (const char* row : rows) stat_row(row, "--");
+            ImGui::EndTable();
+        }
         ImGui::End();
         return;
     }
@@ -545,7 +570,8 @@ void draw_panel()
                  : g_game == Game::MG2  ? codename::evaluate_mg2(stats)
                  : g_game == Game::MGS1 ? codename::evaluate_mgs1(stats)
                  : g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
-                                        : codename::evaluate_mgs3(stats);
+                 : g_game == Game::MGS3 ? codename::evaluate_mgs3(stats)
+                                        : codename::evaluate_mgs4(stats);
 
     const auto [id_green, id_yellow, id_red] = id_colors(g_game);
     const ImVec4 codename_color = !match ? ImVec4(1, 1, 1, 0.35f)
@@ -588,7 +614,8 @@ void draw_panel()
             : g_game == Game::MG2  ? codename::elite_requirements_mg2(stats)
             : g_game == Game::MGS1 ? codename::elite_requirements_mgs1(stats)
             : g_game == Game::MGS2 ? codename::elite_requirements_mgs2(stats)
-                                   : codename::elite_requirements_mgs3(stats);
+            : g_game == Game::MGS3 ? codename::elite_requirements_mgs3(stats)
+                                   : codename::elite_requirements_mgs4(stats);
         for (const codename::ReqStatus& r : reqs) {
             char ratio[96];
             if (std::strcmp(r.label, "special items") == 0 && g_game == Game::MGS2) {
