@@ -33,6 +33,7 @@ struct GameStats {
     double play_time_seconds = 0.0;
 
     bool special_item_used = false;
+    uint8_t special_items_mask = 0;
     bool radar_off = false;
     uint8_t radar_type = 0;
 
