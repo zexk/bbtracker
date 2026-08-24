@@ -38,13 +38,14 @@ void test_big_boss_exact()
 {
     GameStats s = base(Difficulty::Extreme, 32);
     s.radar_off = true;
-    s.shots_fired = 699;
+    s.shots_fired = 700;
     s.alerts = 3;
-    s.damage_taken_units = 479;
+    s.damage_taken_bars = 10;
+    s.play_time_seconds = 180 * 60;
     s.saves = 8;
     CHECK(std::string_view(best(s)) == "BIG BOSS");
 
-    s.damage_taken_units = 500;
+    s.damage_taken_bars = 11;
     CHECK(std::string_view(best(s)) == "FOX");
 }
 
@@ -69,31 +70,41 @@ void test_fox_extreme_loose()
     CHECK(std::string_view(best(s)) == "FOX");
 }
 
-void test_doberman_euro_extreme_mid_row()
+void test_euro_extreme_matches_extreme()
 {
     GameStats s = base(Difficulty::EuroExtreme, 32);
+    s.radar_off = true;
+    s.shots_fired = 700;
     s.alerts = 3;
-    s.saves = 16;
-    CHECK(std::string_view(best(s)) == "DOBERMAN");
+    s.damage_taken_bars = 10;
+    s.play_time_seconds = 180 * 60;
+    s.saves = 8;
+    CHECK(std::string_view(best(s)) == "BIG BOSS");
 
     GameStats t = base(Difficulty::EuroExtreme, 32);
-    t.radar_off = true;
-    t.shots_fired = 100;
-    t.damage_taken_units = 100;
-    t.play_time_seconds = 3600.0 * 2;
-    t.saves = 8;
+    t.alerts = 3;
+    t.saves = 16;
     CHECK(std::string_view(best(t)) == "FOX");
 }
 
-void test_hound_normal_strict_row()
+void test_elite_ladder_by_difficulty()
 {
-    GameStats s = base(Difficulty::Normal, 32);
+    GameStats s = base(Difficulty::Hard, 32);
     s.radar_off = true;
     s.shots_fired = 100;
-    s.damage_taken_units = 100;
+    s.damage_taken_bars = 1;
     s.play_time_seconds = 3600.0 * 2;
     s.saves = 8;
+    CHECK(std::string_view(best(s)) == "FOX");
+
+    s.difficulty = Difficulty::Normal;
+    CHECK(std::string_view(best(s)) == "DOBERMAN");
+
+    s.difficulty = Difficulty::Easy;
     CHECK(std::string_view(best(s)) == "HOUND");
+
+    s.difficulty = Difficulty::VeryEasy;
+    CHECK(std::string_view(best(s)) != "HOUND");
 }
 
 void test_pigeon_zero_kills()
@@ -106,13 +117,16 @@ void test_pigeon_zero_kills()
 void test_worst_chicken_normal()
 {
     GameStats s = base(Difficulty::Normal, 32);
-    s.alerts = 251;
-    s.kills = 251;
-    s.rations_used = 32;
-    s.continues = 61;
-    s.saves = 101;
-    s.play_time_seconds = 3600.0 * 31;
-    CHECK(std::string_view(best(s)) == "Chicken");
+    s.alerts = 250;
+    s.kills = 250;
+    s.rations_used = 31;
+    s.continues = 60;
+    s.saves = 100;
+    s.play_time_seconds = 1799 * 60 + 1;
+    CHECK(std::string_view(best(s)) == "Mouse");
+
+    s.mission = 0;
+    CHECK(std::string_view(best(s)) != "Mouse");
 }
 
 void test_swallow_tanker_fast_ve()
@@ -132,7 +146,7 @@ void test_cow_alerts_by_mission()
 {
     GameStats s = base(Difficulty::VeryEasy, 16);
     s.kills = 5;
-    s.alerts = 51;
+    s.alerts = 50;
     s.play_time_seconds = 3600.0 * 6;
     CHECK(std::string_view(best(s)) == "Cow");
 
@@ -141,6 +155,65 @@ void test_cow_alerts_by_mission()
     t.alerts = 51;
     t.play_time_seconds = 3600.0 * 6;
     CHECK(std::string_view(best(t)) != "Cow");
+}
+
+void test_source_threshold_boundaries()
+{
+    GameStats s = base(Difficulty::Normal, 16);
+    s.kills = 50;
+    s.alerts = 10;
+    s.play_time_seconds = 19 * 60;
+    CHECK(std::string_view(best(s)) == "Shark");
+
+    s.kills = 1;
+    s.rations_used = 31;
+    CHECK(std::string_view(best(s)) == "Elephant");
+
+    s.rations_used = 0;
+    s.play_time_seconds = 299 * 60 + 1;
+    CHECK(std::string_view(best(s)) == "Capybara");
+
+    s.play_time_seconds = 19 * 60;
+    s.saves = 25;
+    CHECK(std::string_view(best(s)) == "Deer");
+}
+
+void test_sea_louse_non_tanker_only()
+{
+    GameStats s = base(Difficulty::Normal, 0);
+    s.kills = 1;
+    s.alerts = 10;
+    s.play_time_seconds = 3600.0 * 4;
+    s.sea_louse = true;
+    CHECK(std::string_view(best(s)) == "SEA LOUSE");
+
+    s.mission = 32;
+    CHECK(std::string_view(best(s)) == "SEA LOUSE");
+
+    s.mission = 16;
+    CHECK(std::string_view(best(s)) != "SEA LOUSE");
+}
+
+void test_gazelle_thresholds()
+{
+    GameStats s = base(Difficulty::Normal, 16);
+    s.kills = 1;
+    s.alerts = 10;
+    s.play_time_seconds = 3600.0 * 4;
+    s.clearing_escapes = 49;
+    CHECK(std::string_view(best(s)) != "GAZELLE");
+    s.clearing_escapes = 50;
+    CHECK(std::string_view(best(s)) == "GAZELLE");
+
+    s.mission = 0;
+    s.clearing_escapes = 100;
+    CHECK(std::string_view(best(s)) == "GAZELLE");
+
+    s.mission = 32;
+    s.clearing_escapes = 149;
+    CHECK(std::string_view(best(s)) != "GAZELLE");
+    s.clearing_escapes = 150;
+    CHECK(std::string_view(best(s)) == "GAZELLE");
 }
 
 void test_regular_tanker_scorpion()
@@ -174,7 +247,7 @@ void test_regular_tp_grid_dimensions()
 
     s.alerts = 81;
     s.kills = 1;
-    CHECK(std::string_view(best(s)) == "Comodo Dragon");
+    CHECK(std::string_view(best(s)) == "KOMODO DRAGON");
 }
 
 struct TestEntry {
@@ -190,12 +263,15 @@ int main()
         {"big_boss_exact", test_big_boss_exact},
         {"bb_blocked_by_radar_and_mission", test_bb_blocked_by_radar_and_mission},
         {"fox_extreme_loose", test_fox_extreme_loose},
-        {"doberman_euro_extreme_mid_row", test_doberman_euro_extreme_mid_row},
-        {"hound_normal_strict_row", test_hound_normal_strict_row},
+        {"euro_extreme_matches_extreme", test_euro_extreme_matches_extreme},
+        {"elite_ladder_by_difficulty", test_elite_ladder_by_difficulty},
         {"pigeon_zero_kills", test_pigeon_zero_kills},
         {"worst_chicken_normal", test_worst_chicken_normal},
         {"swallow_tanker_fast_ve", test_swallow_tanker_fast_ve},
         {"cow_alerts_by_mission", test_cow_alerts_by_mission},
+        {"source_threshold_boundaries", test_source_threshold_boundaries},
+        {"sea_louse_non_tanker_only", test_sea_louse_non_tanker_only},
+        {"gazelle_thresholds", test_gazelle_thresholds},
         {"regular_tanker_scorpion", test_regular_tanker_scorpion},
         {"regular_tp_grid_dimensions", test_regular_tp_grid_dimensions},
     };

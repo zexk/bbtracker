@@ -18,6 +18,7 @@ enum class StatId : uint8_t {
     ShotsFired,
     DamageBars,
     PlayTimeHours,
+    PlayTimeMinutes,
     SevereInjuries,
     LifeMedUsed,
     MealsEaten,
@@ -25,6 +26,8 @@ enum class StatId : uint8_t {
     SpecialItemUsed,
     RadarOff,
     MissionCode,
+    ClearingEscapes,
+    SeaLouse,
     DiscoveryRatio,
 };
 

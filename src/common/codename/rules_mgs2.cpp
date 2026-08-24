@@ -8,7 +8,7 @@ namespace bb::codename {
 namespace {
 
 constexpr TierMask kEE = 1u << 5;
-constexpr TierMask kNEV = kN | kE | kVe;
+constexpr TierMask kEV = kE | kVe;
 constexpr TierMask kAllM2 = kVe | kE | kN | kH | kX | kEE;
 
 constexpr int kMissionPlant = 0;
@@ -32,10 +32,10 @@ struct Mgs2Tier {
 };
 
 constexpr Mgs2Tier kTiers[4] = {
-    {kX, "Ostrich", "Night Owl", "Eagle", "Orca", "Whale", "Giant Panda", "Hippopotamus"},
-    {kEE, "Rabbit", "Flying Fox", "Hawk", "Jaws", "Mammoth", "Sloth", "Zebra"},
-    {kH, "Mouse", "Bat", "Falcon", "Shark", "Elephant", "Capybara", "Deer"},
-    {kNEV, "Chicken", "Flying Squirrel", "Swallow", "Piranha", "Pig", "Koala", "Cat"},
+    {kX | kEE, "Ostrich", "Night Owl", "Eagle", "Orca", "Whale", "Giant Panda", "Hippopotamus"},
+    {kH, "Rabbit", "Flying Fox", "Hawk", "Jaws", "Mammoth", "Sloth", "Zebra"},
+    {kN, "Mouse", "Bat", "Falcon", "Shark", "Elephant", "Capybara", "Deer"},
+    {kEV, "Chicken", "Flying Squirrel", "Swallow", "Piranha", "Pig", "Koala", "Cat"},
 };
 
 std::vector<Cond> elite_conds(int strictness)
@@ -45,9 +45,9 @@ std::vector<Cond> elite_conds(int strictness)
     c.push_back({StatId::SpecialItemUsed, Op::Eq, 0});
     if (strictness == 0) {
         c.push_back({StatId::RadarOff, Op::Eq, 1});
-        c.push_back({StatId::ShotsFired, Op::Lt, 700});
-        c.push_back({StatId::DamageBars, Op::Lt, 10});
-        c.push_back({StatId::PlayTimeHours, Op::Lt, 3});
+        c.push_back({StatId::ShotsFired, Op::Le, 700});
+        c.push_back({StatId::DamageBars, Op::Le, 10});
+        c.push_back({StatId::PlayTimeMinutes, Op::Le, 180});
         c.push_back({StatId::Alerts, Op::Le, 3});
         c.push_back({StatId::Kills, Op::Eq, 0});
         c.push_back({StatId::RationsUsed, Op::Eq, 0});
@@ -57,19 +57,19 @@ std::vector<Cond> elite_conds(int strictness)
         c.push_back({StatId::Alerts, Op::Le, 3});
         c.push_back({StatId::Kills, Op::Eq, 0});
         c.push_back({StatId::RationsUsed, Op::Eq, 0});
-        c.push_back({StatId::PlayTimeHours, Op::Lt, 3});
+        c.push_back({StatId::PlayTimeMinutes, Op::Le, 180});
         c.push_back({StatId::Continues, Op::Eq, 0});
         c.push_back({StatId::Saves, Op::Le, 16});
     } else if (strictness == 2) {
         c.push_back({StatId::Alerts, Op::Le, 4});
         c.push_back({StatId::Kills, Op::Eq, 0});
-        c.push_back({StatId::RationsUsed, Op::Lt, 3});
-        c.push_back({StatId::PlayTimeHours, Op::Lt, 3.25});
+        c.push_back({StatId::RationsUsed, Op::Le, 3});
+        c.push_back({StatId::PlayTimeMinutes, Op::Le, 195});
         c.push_back({StatId::Continues, Op::Eq, 0});
     } else {
         c.push_back({StatId::Alerts, Op::Le, 5});
         c.push_back({StatId::Kills, Op::Eq, 0});
-        c.push_back({StatId::PlayTimeHours, Op::Lt, 3.5});
+        c.push_back({StatId::PlayTimeMinutes, Op::Le, 210});
         c.push_back({StatId::Continues, Op::Eq, 0});
     }
     return c;
@@ -100,7 +100,7 @@ constexpr GridRow kGridTanker[] = {
     {"Hyena", 16, 30, 11, -1, 16, 49},
     {"Iguana", 31, 49, 0, 10, 1, 15},
     {"Crocodile", 31, 49, 0, 10, 16, 49},
-    {"Comodo Dragon", 31, 49, 11, -1, 1, 15},
+    {"KOMODO DRAGON", 31, 49, 11, -1, 1, 15},
     {"Alligator", 31, 49, 11, -1, 16, 49},
 };
 constexpr GridRow kGridPlant[] = {
@@ -118,7 +118,7 @@ constexpr GridRow kGridPlant[] = {
     {"Hyena", 41, 70, 31, -1, 61, 199},
     {"Iguana", 71, 199, 0, 30, 1, 60},
     {"Crocodile", 71, 199, 0, 30, 61, 199},
-    {"Comodo Dragon", 71, 199, 31, -1, 1, 60},
+    {"KOMODO DRAGON", 71, 199, 31, -1, 1, 60},
     {"Alligator", 71, 199, 31, -1, 61, 199},
 };
 constexpr GridRow kGridTP[] = {
@@ -136,7 +136,7 @@ constexpr GridRow kGridTP[] = {
     {"Hyena", 51, 80, 41, -1, 71, 249},
     {"Iguana", 81, 249, 0, 40, 1, 70},
     {"Crocodile", 81, 249, 0, 40, 71, 249},
-    {"Comodo Dragon", 81, 249, 41, -1, 1, 70},
+    {"KOMODO DRAGON", 81, 249, 41, -1, 1, 70},
     {"Alligator", 81, 249, 41, -1, 71, 249},
 };
 
@@ -150,26 +150,33 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& cond_pool)
         rules.push_back(RankRule{name, tiers, kind, cond_pool.back()});
     };
 
-    static constexpr const char* kLadder[4] = {"BIG BOSS", "FOX", "DOBERMAN", "HOUND"};
-    static constexpr TierMask kEliteMasks[5] = {kX, kEE, kH, kN, kE};
-    for (int t = 0; t < 5; ++t) {
-        for (int s = 0; s <= 3; ++s) {
-            add(kLadder[std::min(3, s + t)], kEliteMasks[t], Kind::Elite, elite_conds(s));
+    static constexpr const char* kLadder[] = {"BIG BOSS", "FOX", "DOBERMAN", "HOUND"};
+    static constexpr std::pair<TierMask, int> kEliteTiers[] = {
+        {kX | kEE, 0}, {kH, 1}, {kN, 2}, {kE, 3}};
+    for (const auto& [tier, offset] : kEliteTiers) {
+        for (int strictness = 0; strictness + offset < 4; ++strictness) {
+            add(kLadder[strictness + offset], tier, Kind::Elite, elite_conds(strictness));
         }
     }
 
     auto add_worst = [&](const Mgs2Tier& tier) {
         add(tier.worst_name, tier.mask, Kind::Worst,
-            {{StatId::Alerts, Op::Gt, 250},
-             {StatId::Kills, Op::Gt, 250},
-             {StatId::RationsUsed, Op::Gt, 31},
-             {StatId::PlayTimeHours, Op::Gt, 30},
-             {StatId::Continues, Op::Gt, 60},
-             {StatId::Saves, Op::Gt, 100}});
+            {mission_cond(kMissionTP),
+             {StatId::Alerts, Op::Ge, 250},
+             {StatId::Kills, Op::Ge, 250},
+             {StatId::RationsUsed, Op::Ge, 31},
+             {StatId::PlayTimeMinutes, Op::Ge, 1800},
+             {StatId::Continues, Op::Ge, 60},
+             {StatId::Saves, Op::Ge, 100}});
     };
     for (const Mgs2Tier& tier : kTiers) {
         add_worst(tier);
     }
+
+    add("SEA LOUSE", kAllM2, Kind::Special,
+        {{StatId::SeaLouse, Op::Eq, 1}, mission_cond(kMissionPlant)});
+    add("SEA LOUSE", kAllM2, Kind::Special,
+        {{StatId::SeaLouse, Op::Eq, 1}, mission_cond(kMissionTP)});
 
     struct MissionThresholds {
         double tanker;
@@ -200,44 +207,47 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& cond_pool)
 
     for (const Mgs2Tier& tier : kTiers) {
         add(tier.special_fast, tier.mask, Kind::Special,
-            {{StatId::PlayTimeHours, Op::Lt, 0.3}, mission_cond(kMissionTanker)});
+            {{StatId::PlayTimeMinutes, Op::Le, 18}, mission_cond(kMissionTanker)});
         add(tier.special_fast, tier.mask, Kind::Special,
-            {{StatId::PlayTimeHours, Op::Lt, 2.75}, mission_cond(kMissionPlant)});
+            {{StatId::PlayTimeMinutes, Op::Le, 165}, mission_cond(kMissionPlant)});
         add(tier.special_fast, tier.mask, Kind::Special,
-            {{StatId::PlayTimeHours, Op::Lt, 3.0}, mission_cond(kMissionTP)});
+            {{StatId::PlayTimeMinutes, Op::Le, 180}, mission_cond(kMissionTP)});
     }
 
-    per_mission("Cow", Kind::Special, StatId::Alerts, Op::Gt, {50, 200, 250});
+    per_mission("GAZELLE", Kind::Special, StatId::ClearingEscapes, Op::Ge,
+                {50, 100, 150});
+
+    per_mission("Cow", Kind::Special, StatId::Alerts, Op::Ge, {50, 200, 250});
 
     for (const Mgs2Tier& tier : kTiers) {
         add(tier.special_kills, tier.mask, Kind::Special,
-            {{StatId::Kills, Op::Gt, 50}, mission_cond(kMissionTanker)});
+            {{StatId::Kills, Op::Ge, 50}, mission_cond(kMissionTanker)});
         add(tier.special_kills, tier.mask, Kind::Special,
-            {{StatId::Kills, Op::Gt, 200}, mission_cond(kMissionPlant)});
+            {{StatId::Kills, Op::Ge, 200}, mission_cond(kMissionPlant)});
         add(tier.special_kills, tier.mask, Kind::Special,
-            {{StatId::Kills, Op::Gt, 250}, mission_cond(kMissionTP)});
+            {{StatId::Kills, Op::Ge, 250}, mission_cond(kMissionTP)});
     }
 
     for (const Mgs2Tier& tier : kTiers) {
-        add(tier.special_meals, tier.mask, Kind::Special, {{StatId::RationsUsed, Op::Gt, 31}});
+        add(tier.special_meals, tier.mask, Kind::Special, {{StatId::RationsUsed, Op::Ge, 31}});
     }
 
     for (const Mgs2Tier& tier : kTiers) {
         add(tier.special_time, tier.mask, Kind::Special,
-            {{StatId::PlayTimeHours, Op::Gt, 5}, mission_cond(kMissionTanker)});
+            {{StatId::PlayTimeMinutes, Op::Ge, 300}, mission_cond(kMissionTanker)});
         add(tier.special_time, tier.mask, Kind::Special,
-            {{StatId::PlayTimeHours, Op::Gt, 25}, mission_cond(kMissionPlant)});
+            {{StatId::PlayTimeMinutes, Op::Ge, 1500}, mission_cond(kMissionPlant)});
         add(tier.special_time, tier.mask, Kind::Special,
-            {{StatId::PlayTimeHours, Op::Gt, 30}, mission_cond(kMissionTP)});
+            {{StatId::PlayTimeMinutes, Op::Ge, 1800}, mission_cond(kMissionTP)});
     }
 
     for (const Mgs2Tier& tier : kTiers) {
         add(tier.special_saves, tier.mask, Kind::Special,
-            {{StatId::Saves, Op::Gt, 25}, mission_cond(kMissionTanker)});
+            {{StatId::Saves, Op::Ge, 25}, mission_cond(kMissionTanker)});
         add(tier.special_saves, tier.mask, Kind::Special,
-            {{StatId::Saves, Op::Gt, 75}, mission_cond(kMissionPlant)});
+            {{StatId::Saves, Op::Ge, 75}, mission_cond(kMissionPlant)});
         add(tier.special_saves, tier.mask, Kind::Special,
-            {{StatId::Saves, Op::Gt, 100}, mission_cond(kMissionTP)});
+            {{StatId::Saves, Op::Ge, 100}, mission_cond(kMissionTP)});
     }
 
     auto push_grid = [&](const GridRow* rows, size_t n, int mission) {

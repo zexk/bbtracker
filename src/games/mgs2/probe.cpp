@@ -14,6 +14,8 @@ namespace {
 constexpr uintptr_t kPlayerPointerOffset = 0x00949340;
 constexpr size_t kStatsBlockOffset = 0x12E;
 constexpr size_t kRationsOffset = 0x1590;
+constexpr size_t kShipwormOffset = 0x158C;
+constexpr size_t kClearingEscapesOffset = 0x1592;
 constexpr size_t kSpecialItemsOffset = 0x1596;
 constexpr size_t kTimesSeenOffset = 0x1594;
 constexpr size_t kPlayerRegionSize = 0x1600;
@@ -217,16 +219,20 @@ bool poll_stats(GameStats& out)
     out.shots_fired = read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kShots);
     out.damage_taken_units =
         read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kDamage);
-    out.damage_taken_bars = out.damage_taken_units / 50.0;
     out.pull_ups = read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kPullUps);
     out.mechs_destroyed =
         read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kMechsDestroyed);
     out.current_health = read_at<uint16_t>(player, StatOffsets::kCurrentHealth);
     out.max_health = read_at<uint16_t>(player, StatOffsets::kMaxHealth);
+    out.damage_taken_bars = out.max_health > 0
+        ? (out.damage_taken_units + 50) / out.max_health
+        : -1.0;
     out.play_time_seconds =
         static_cast<double>(read_at<uint32_t>(player, kStatsBlockOffset + StatOffsets::kPlayTimeFrames))
         / 60.0;
     out.rations_used = read_at<uint16_t>(player, kRationsOffset);
+    out.sea_louse = read_at<uint16_t>(player, kShipwormOffset) != 0;
+    out.clearing_escapes = read_at<uint16_t>(player, kClearingEscapesOffset);
     out.times_seen = read_at<uint16_t>(player, kTimesSeenOffset);
     out.special_items_mask = read_at<uint16_t>(player, kSpecialItemsOffset);
     out.special_item_used = (out.special_items_mask & 0x000F) != 0;

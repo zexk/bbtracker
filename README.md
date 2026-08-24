@@ -6,7 +6,6 @@ Press `F3` to toggle overlay.
 
 ## Status
 
-- MGS2 Sea Louse and Gazelle ranks need unknown game fields.
 - MGS3 Kerotan, Tsuchinoko, and Leech ranks need unknown game fields.
 - Game updates may require new memory layouts.
 

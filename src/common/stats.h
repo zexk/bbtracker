@@ -28,6 +28,7 @@ struct GameStats {
     int rations_used = 0;
     int shots_fired = 0;
     int times_seen = 0;
+    int clearing_escapes = 0;
     int mechs_destroyed = 0;
     int pull_ups = 0;
 
@@ -37,6 +38,7 @@ struct GameStats {
     double play_time_seconds = 0.0;
 
     bool special_item_used = false;
+    bool sea_louse = false;
     uint16_t special_items_mask = 0;
     bool radar_off = false;
     uint8_t radar_type = 0;

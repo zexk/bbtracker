@@ -23,13 +23,16 @@ and Diazepam duration.
 Sources: [muni_shinobu's MGS2 codename chart](https://www.tentenpro.com/muni_shinobu/mgs2/codename.html),
 RMLSNK's Master Collection Cheat Engine table, and sagefantasma's MGS2 trainer.
 
+Rank priority, difficulty tiers, minute rounding, and inclusive boundaries follow the
+HD source `show_codename.c`. European Extreme is normalized to Extreme before judging.
+
 Probe reads player statistics from Master Collection player block. Radar state
 comes from a passively discovered GameState record whose mirrored counters must match
 player block. Discovery scans writable memory periodically until a valid record
 is found, then revalidates cached address.
 
-Known gaps: Sea Louse flag and Gazelle clearing-escapes counter remain unavailable,
-so those ranks are omitted.
+Sea Louse and Gazelle use `GM_ShipwormFlag` and `GM_ClearingCount`, identified from
+the HD source layout and confirmed by their position beside already-known player fields.
 
 ## MGS3
 

@@ -1,6 +1,7 @@
 #include "codename.h"
 
 #include <array>
+#include <cmath>
 
 #include "rules_mgs1.h"
 #include "rules_mgs2.h"
@@ -26,6 +27,7 @@ double stat_value(const GameStats& s, StatId id)
         return s.damage_taken_bars >= 0 ? s.damage_taken_bars
                                        : s.damage_taken_units / kDamageUnitsPerBar;
     case StatId::PlayTimeHours: return s.play_time_seconds / 3600.0;
+    case StatId::PlayTimeMinutes: return std::ceil(s.play_time_seconds / 60.0);
     case StatId::SevereInjuries: return s.severe_injuries;
     case StatId::LifeMedUsed: return s.life_med_used;
     case StatId::MealsEaten: return s.meals_eaten;
@@ -33,6 +35,8 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::SpecialItemUsed: return s.special_item_used ? 1.0 : 0.0;
     case StatId::RadarOff: return s.radar_off ? 1.0 : 0.0;
     case StatId::MissionCode: return s.mission;
+    case StatId::ClearingEscapes: return s.clearing_escapes;
+    case StatId::SeaLouse: return s.sea_louse ? 1.0 : 0.0;
     case StatId::DiscoveryRatio: {
         if (s.kills < 25) {
             return 100.0;
@@ -182,12 +186,12 @@ struct Mgs2ReqRow {
 constexpr std::array<Mgs2ReqRow, 10> kBigBossReqs{{
     {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
     {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
-    {"shots fired", StatId::ShotsFired, Op::Lt, 700, ReqFmt::Count},
+    {"shots fired", StatId::ShotsFired, Op::Le, 700, ReqFmt::Count},
     {"alerts", StatId::Alerts, Op::Le, 3, ReqFmt::Count},
-    {"damage", StatId::DamageBars, Op::Lt, 10, ReqFmt::Bars},
+    {"damage", StatId::DamageBars, Op::Le, 10, ReqFmt::Bars},
     {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
     {"rations used", StatId::RationsUsed, Op::Eq, 0, ReqFmt::Count},
-    {"play time", StatId::PlayTimeHours, Op::Lt, 3, ReqFmt::Time},
+    {"play time", StatId::PlayTimeHours, Op::Le, 3, ReqFmt::Time},
     {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
     {"saves", StatId::Saves, Op::Le, 8, ReqFmt::Count},
 }};
