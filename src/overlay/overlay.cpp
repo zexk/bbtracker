@@ -448,26 +448,25 @@ void draw_panel()
     ImGui::TextColored(match ? green : ImVec4(1, 1, 1, 0.35f), "%s", match ? match->name : "---");
     ImGui::SetWindowFontScale(1.0f);
 
-    ImGui::Text("difficulty: %s%s", difficulty_name(stats.difficulty),
-                g_game != Game::MGS1 && stats.difficulty_game_byte % 10 != 0
-                    ? " (?)"
-                    : "");
-    if (stats.area_code[0]) {
-        const char* area = area_name(g_game, stats.area_code);
-        if (area) {
-            ImGui::Text(g_game == Game::MGS1 ? "stage: %s (%s)" : "area: %s (%s)",
-                        area, stats.area_code);
-        } else {
-            ImGui::Text(g_game == Game::MGS1 ? "stage: %s" : "area: %s", stats.area_code);
-        }
-    }
-
     ImGui::Separator();
     ImGui::Spacing();
 
     if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+
+        const bool known_difficulty =
+            g_game == Game::MGS1 || stats.difficulty_game_byte % 10 == 0;
+        const bool valid_difficulty = known_difficulty
+            && (stats.difficulty == Difficulty::Extreme
+                || (g_game != Game::MGS1 && stats.difficulty == Difficulty::EuroExtreme));
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted("difficulty");
+        ImGui::TableNextColumn();
+        ImGui::TextColored(valid_difficulty ? green : ImVec4(0.95f, 0.35f, 0.35f, 1.0f),
+                           "%s%s", difficulty_name(stats.difficulty),
+                           known_difficulty ? "" : " (?)");
 
         std::vector<codename::ReqStatus> reqs =
             g_game == Game::MGS1   ? codename::elite_requirements_mgs1(stats)
@@ -521,8 +520,12 @@ void draw_panel()
                 break;
             }
 
-            const bool over = !r.pass;
-            const bool near_limit = !over && r.limit != 0 && r.current >= r.limit * 0.75;
+            const bool radar_invalid = std::strcmp(r.label, "radar") == 0
+                && g_game == Game::MGS2 && stats.radar_type != 4;
+            const bool over = !r.pass || radar_invalid;
+            const auto op = static_cast<codename::Op>(r.op);
+            const bool near_limit = !over && (op == codename::Op::Le || op == codename::Op::Lt)
+                && r.limit != 0 && r.current >= r.limit * 0.75;
             const ImVec4 state_col = over ? ImVec4(0.95f, 0.35f, 0.35f, 1.0f)
                                           : near_limit ? ImVec4(1.0f, 0.82f, 0.25f, 1.0f)
                                                        : ImVec4(0.4f, 0.9f, 0.5f, 1.0f);
@@ -577,6 +580,16 @@ void draw_panel()
             plain_count("meals eaten", stats.meals_eaten);
             snprintf(buf, sizeof(buf), "0x%02X", stats.special_items_mask);
             plain_row("special items", buf);
+        }
+        if (stats.area_code[0]) {
+            char buf[96];
+            const char* area = area_name(g_game, stats.area_code);
+            if (area) {
+                snprintf(buf, sizeof(buf), "%s (%s)", area, stats.area_code);
+            } else {
+                snprintf(buf, sizeof(buf), "%s", stats.area_code);
+            }
+            plain_row(g_game == Game::MGS1 ? "stage" : "area", buf);
         }
         ImGui::EndTable();
     }

@@ -52,6 +52,8 @@ void test_foxhound_perfect_extreme()
     s.play_time_seconds = 3600.0 * 4.99;
     s.saves = 24;
     CHECK(std::string_view(best(s)) == "FOXHOUND");
+    s.difficulty = Difficulty::EuroExtreme;
+    CHECK(std::string_view(best(s)) == "FOXHOUND");
 
     auto all = all_matches_mgs3(s);
     bool has_chameleon = false;
@@ -263,7 +265,7 @@ void test_tier_gating()
     }
     const RankRule* fox_x = nullptr;
     for (const RankRule& r : mgs3_rules()) {
-        if (r.tiers == kX && std::string_view(r.name) == "FOX") {
+        if ((r.tiers & kX) != 0 && std::string_view(r.name) == "FOX") {
             fox_x = &r;
         }
     }

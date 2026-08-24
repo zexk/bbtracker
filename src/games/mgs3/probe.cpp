@@ -306,6 +306,7 @@ bool poll_stats(GameStats& out)
     case 20: out.difficulty = Difficulty::Easy; break;
     case 30: out.difficulty = Difficulty::Normal; break;
     case 40: out.difficulty = Difficulty::Hard; break;
+    case 60: out.difficulty = Difficulty::EuroExtreme; break;
     default: out.difficulty = Difficulty::Extreme; break;
     }
     if (story_base && range_readable(story_base, 0x40)) {

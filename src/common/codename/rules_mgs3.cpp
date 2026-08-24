@@ -7,6 +7,8 @@ namespace {
 
 constexpr TierMask kVEE = kVe | kE;
 constexpr TierMask kH_ = kH;
+constexpr TierMask kExtreme = kX | (1u << 5);
+constexpr TierMask kAllMgs3 = kAllTiers | (1u << 5);
 
 constexpr Cond kFoxhound[] = {
     {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Eq, 0},
@@ -73,7 +75,7 @@ constexpr Cond kManyInjury[] = {{StatId::SevereInjuries, Op::Gt, 250}};
 constexpr Cond kLongTime[] = {{StatId::PlayTimeHours, Op::Gt, 50}};
 constexpr Cond kManySaves[] = {{StatId::Saves, Op::Gt, 100}};
 
-constexpr TierMask kAnyTier = kAllTiers;
+constexpr TierMask kAnyTier = kAllMgs3;
 
 constexpr Cond kRegK1C50A1[] = {
     {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
@@ -125,65 +127,65 @@ constexpr Cond kRegAlligator[] = {
 };
 
 const std::array<RankRule, 61> kMgs3Rules{{
-    RankRule{"FOXHOUND", kX, Kind::Elite, kFoxhound},
+    RankRule{"FOXHOUND", kExtreme, Kind::Elite, kFoxhound},
 
     RankRule{"FOX", kH_, Kind::Elite, kStrictRow},
-    RankRule{"FOX", kX, Kind::Elite, kFoxExtreme},
+    RankRule{"FOX", kExtreme, Kind::Elite, kFoxExtreme},
 
     RankRule{"DOBERMAN", kN, Kind::Elite, kStrictRow},
     RankRule{"DOBERMAN", kH_, Kind::Elite, kMidTier},
-    RankRule{"DOBERMAN", kX, Kind::Elite, kHighTier},
+    RankRule{"DOBERMAN", kExtreme, Kind::Elite, kHighTier},
 
     RankRule{"HOUND", kE, Kind::Elite, kStrictRow},
     RankRule{"HOUND", kN, Kind::Elite, kMidTier},
     RankRule{"HOUND", kH_, Kind::Elite, kHighTier},
-    RankRule{"HOUND", kX, Kind::Elite, kTopExtreme},
+    RankRule{"HOUND", kExtreme, Kind::Elite, kTopExtreme},
 
     RankRule{"Chicken", kVEE, Kind::Worst, kWorst},
     RankRule{"Mouse", kN, Kind::Worst, kWorst},
     RankRule{"Rabbit", kH_, Kind::Worst, kWorst},
-    RankRule{"Ostrich", kX, Kind::Worst, kWorst},
+    RankRule{"Ostrich", kExtreme, Kind::Worst, kWorst},
 
-    RankRule{"Kerotan", kAllTiers, Kind::Special, kKerotan},
-    RankRule{"Markhor", kAllTiers, Kind::Special, kMarkhor},
-    RankRule{"Tsuchinoko", kAllTiers, Kind::Special, kTsuchinoko},
-    RankRule{"Chameleon", kAllTiers, Kind::Special, kChameleon},
-    RankRule{"Leech", kAllTiers, Kind::Special, kLeech},
-    RankRule{"Pigeon", kAllTiers, Kind::Special, kPigeon},
+    RankRule{"Kerotan", kAllMgs3, Kind::Special, kKerotan},
+    RankRule{"Markhor", kAllMgs3, Kind::Special, kMarkhor},
+    RankRule{"Tsuchinoko", kAllMgs3, Kind::Special, kTsuchinoko},
+    RankRule{"Chameleon", kAllMgs3, Kind::Special, kChameleon},
+    RankRule{"Leech", kAllMgs3, Kind::Special, kLeech},
+    RankRule{"Pigeon", kAllMgs3, Kind::Special, kPigeon},
 
-    RankRule{"Night Owl", kX, Kind::Special, kLowInjury},
+    RankRule{"Night Owl", kExtreme, Kind::Special, kLowInjury},
     RankRule{"Flying Fox", kH_, Kind::Special, kLowInjury},
     RankRule{"Bat", kN, Kind::Special, kLowInjury},
     RankRule{"Flying Squirrel", kVEE, Kind::Special, kLowInjury},
 
-    RankRule{"Eagle", kX, Kind::Special, kFast},
+    RankRule{"Eagle", kExtreme, Kind::Special, kFast},
     RankRule{"Hawk", kH_, Kind::Special, kFast},
     RankRule{"Falcon", kN, Kind::Special, kFast},
     RankRule{"Swallow", kVEE, Kind::Special, kFast},
 
-    RankRule{"Whale", kX, Kind::Special, kManyMeals},
+    RankRule{"Whale", kExtreme, Kind::Special, kManyMeals},
     RankRule{"Mammoth", kH_, Kind::Special, kManyMeals},
     RankRule{"Elephant", kN, Kind::Special, kManyMeals},
     RankRule{"Pig", kVEE, Kind::Special, kManyMeals},
 
-    RankRule{"Cow", kAllTiers, Kind::Special, kCow},
+    RankRule{"Cow", kAllMgs3, Kind::Special, kCow},
 
-    RankRule{"Orca", kX, Kind::Special, kManyKills},
+    RankRule{"Orca", kExtreme, Kind::Special, kManyKills},
     RankRule{"Jaws", kH_, Kind::Special, kManyKills},
     RankRule{"Shark", kN, Kind::Special, kManyKills},
     RankRule{"Piranha", kVEE, Kind::Special, kManyKills},
 
-    RankRule{"Tasmanian Devil", kX, Kind::Special, kManyInjury},
+    RankRule{"Tasmanian Devil", kExtreme, Kind::Special, kManyInjury},
     RankRule{"Jackal", kH_, Kind::Special, kManyInjury},
     RankRule{"Hyena", kN, Kind::Special, kManyInjury},
     RankRule{"Mongoose", kVEE, Kind::Special, kManyInjury},
 
-    RankRule{"Giant Panda", kX, Kind::Special, kLongTime},
+    RankRule{"Giant Panda", kExtreme, Kind::Special, kLongTime},
     RankRule{"Sloth", kH_, Kind::Special, kLongTime},
     RankRule{"Capybara", kN, Kind::Special, kLongTime},
     RankRule{"Koala", kVEE, Kind::Special, kLongTime},
 
-    RankRule{"Hippopotamus", kX, Kind::Special, kManySaves},
+    RankRule{"Hippopotamus", kExtreme, Kind::Special, kManySaves},
     RankRule{"Zebra", kH_, Kind::Special, kManySaves},
     RankRule{"Deer", kN, Kind::Special, kManySaves},
     RankRule{"Cat", kVEE, Kind::Special, kManySaves},
