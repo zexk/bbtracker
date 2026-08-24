@@ -1,4 +1,4 @@
-# bbtracker — Metal Gear rank tracker
+# bbtracker: Metal Gear rank tracker
 
 Live rank and codename tracker overlay for Metal Gear Solid: Master Collection.
 Tracks Metal Gear, Metal Gear 2, MGS1, MGS2, and MGS3 runs in real time,
