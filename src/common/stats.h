@@ -43,6 +43,8 @@ struct GameStats {
     int plants_captured = 0;
 
     bool kerotan_all_shot = false;
+    uint64_t kerotan_mask = 0; // bit i = kerotan i shot
+    uint8_t kerotan_count = 0;
     bool tsuchinoko_carried = false;
     bool leech_carried = false;
 

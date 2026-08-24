@@ -18,6 +18,7 @@
 #include "../common/codename/codename.h"
 #include "../common/config.h"
 #include "../common/log.h"
+#include "../games/mgs3/kerotan_stages.h"
 
 namespace bb {
 namespace {
@@ -250,11 +251,47 @@ void draw_panel()
             char buf[16];
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
             plain_row("captures", buf);
-        } else if (g_game == Game::MGS1) {
-            char buf[16];
-            snprintf(buf, sizeof(buf), "%d", stats.saves);
-            plain_row("saves", buf);
+            plain_row("kerotans", stats.kerotan_all_shot ? "all shot" : "not all shot");
         }
+        ImGui::EndTable();
+    }
+
+    if (g_game == Game::MGS3 && stats.kerotan_count > 0) {
+        ImGui::Spacing();
+        if (ImGui::CollapsingHeader("Kerotan frogs", ImGuiTreeNodeFlags_DefaultOpen)) {
+            const int total = mgs3::kKerotanCount;
+            int shot = 0;
+            for (int i = 0; i < total; ++i) {
+                if (stats.kerotan_mask & (1ULL << i)) {
+                    ++shot;
+                }
+            }
+            ImGui::Text("%d / %d", shot, total);
+            ImGui::SameLine();
+
+            const float cell = ImGui::GetFrameHeight() * 0.55f;
+            const float spacing = 2.0f;
+            int cols = static_cast<int>(ImGui::GetContentRegionAvail().x / (cell + spacing));
+            if (cols < 1) cols = 8;
+            for (int i = 0; i < total; ++i) {
+                const bool shot_i = (stats.kerotan_mask >> i) & 1;
+                if (i % cols != 0) {
+                    ImGui::SameLine();
+                }
+                const ImVec4 col = shot_i ? ImVec4(0.3f, 0.85f, 0.35f, 1.0f)
+                                          : ImVec4(0.25f, 0.25f, 0.28f, 1.0f);
+                ImGui::PushID(i);
+                ImGui::ColorButton("##kerotan", col,
+                                   ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoPicker,
+                                   ImVec2(cell, cell));
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("%s\n%s", mgs3::kKerotanStages[i].code,
+                                      mgs3::kKerotanStages[i].name);
+                }
+                ImGui::PopID();
+            }
+        }
+    }
         ImGui::EndTable();
     }
 
