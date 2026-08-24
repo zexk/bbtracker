@@ -11,7 +11,11 @@ enum class LogLevel : int {
 
 bool log_init(const char* path);
 void log_shutdown();
-void log_write(LogLevel lvl, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
+void log_write(LogLevel lvl, const char* fmt, ...)
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((format(printf, 2, 3)))
+#endif
+    ;
 
 } // namespace bb
 
