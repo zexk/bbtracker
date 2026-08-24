@@ -409,6 +409,24 @@ const char* area_name(Game game, const char* code)
     }
 }
 
+struct IdColors {
+    ImVec4 green;
+    ImVec4 yellow;
+    ImVec4 red;
+};
+
+IdColors id_colors(Game game)
+{
+    switch (game) {
+    case Game::MG1:  return {{0.48f, 0.72f, 0.38f, 1}, {0.80f, 0.48f, 0.04f, 1}, {0.82f, 0.20f, 0.10f, 1}};
+    case Game::MG2:  return {{0.38f, 0.72f, 0.52f, 1}, {0.82f, 0.66f, 0.20f, 1}, {0.85f, 0.28f, 0.28f, 1}};
+    case Game::MGS1: return {{0.42f, 0.88f, 0.66f, 1}, {0.88f, 0.72f, 0.28f, 1}, {0.90f, 0.32f, 0.30f, 1}};
+    case Game::MGS2: return {{0.42f, 0.82f, 0.52f, 1}, {0.92f, 0.70f, 0.24f, 1}, {0.76f, 0.19f, 0.11f, 1}};
+    case Game::MGS3: return {{0.66f, 0.78f, 0.42f, 1}, {0.88f, 0.72f, 0.28f, 1}, {0.82f, 0.32f, 0.24f, 1}};
+    }
+    return {{0.42f, 0.90f, 0.45f, 1}, {1.0f, 0.82f, 0.25f, 1}, {0.95f, 0.35f, 0.35f, 1}};
+}
+
 void format_time(double seconds, char* buf, size_t len)
 {
     const int total = static_cast<int>(seconds);
@@ -529,14 +547,20 @@ void draw_panel()
                  : g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
                                         : codename::evaluate_mgs3(stats);
 
-    const ImVec4 green(0.42f, 0.90f, 0.45f, 1.0f);
+    const auto [id_green, id_yellow, id_red] = id_colors(g_game);
+    const ImVec4 codename_color = !match ? ImVec4(1, 1, 1, 0.35f)
+        : std::strcmp(match->name, "FOX") == 0 ? id_yellow
+        : std::strcmp(match->name, "BIG BOSS") == 0 || std::strcmp(match->name, "FOXHOUND") == 0
+            ? id_green : match->kind == codename::Kind::Worst ? id_red
+            : ImGui::GetStyleColorVec4(ImGuiCol_Text);
     ImGui::SetWindowFontScale(2.0f);
-    ImGui::TextColored(match ? green : ImVec4(1, 1, 1, 0.35f), "%s", match ? match->name : "---");
+    ImGui::TextColored(codename_color, "%s", match ? match->name : "---");
     ImGui::SetWindowFontScale(1.0f);
 
     ImGui::Separator();
     ImGui::Spacing();
 
+    const ImVec4 green(0.42f, 0.90f, 0.45f, 1.0f);
     if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
