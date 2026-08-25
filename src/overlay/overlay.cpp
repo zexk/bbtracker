@@ -792,17 +792,19 @@ void draw_panel()
             plain_row("kerotans", buf);
             plain_count("meals eaten", stats.meals_eaten);
         }
-        if (stats.area_code[0]) {
-            char buf[96];
-            const char* area = area_name(g_game, stats.area_code);
-            if (area) {
-                snprintf(buf, sizeof(buf), "%s (%s)", area, stats.area_code);
-            } else {
-                snprintf(buf, sizeof(buf), "%s", stats.area_code);
-            }
-            plain_row(g_game == Game::MGS1 ? "stage" : "area", buf);
-        }
         ImGui::EndTable();
+    }
+
+    if (stats.area_code[0]) {
+        char buf[96];
+        const char* area = area_name(g_game, stats.area_code);
+        snprintf(buf, sizeof(buf), area ? "%s (%s)" : "%s", area ? area : stats.area_code,
+                 stats.area_code);
+        ImGui::Spacing();
+        ImGui::TextDisabled("%s", g_game == Game::MGS1 ? "stage" : "area");
+        ImGui::PushTextWrapPos(0.0f);
+        ImGui::TextDisabled("%s", buf);
+        ImGui::PopTextWrapPos();
     }
 
     if (tabs) {
@@ -824,7 +826,6 @@ void draw_panel()
     }
     if (tabs) {
         ImGui::EndTabBar();
-        ImGui::TextDisabled("F4: tab  Up/Down: scroll");
     }
 
     ImGui::End();
