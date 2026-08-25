@@ -17,7 +17,7 @@ namespace {
 
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID.exe";
 constexpr size_t kWorkRegionSize = 0x200;
-constexpr std::array<size_t, 2> kGameTimeOffsets{0x939D, 0x9495};
+constexpr std::array<size_t, 3> kGameTimeOffsets{0x939D, 0x9495, 0x9B11};
 constexpr double kGameTimeFramesPerSecond = 60.0;
 
 uintptr_t g_array_start = 0;
@@ -308,8 +308,9 @@ bool find_candidate(uintptr_t& out)
             const uint32_t delta = current >= candidate.clocks[i]
                 ? current - candidate.clocks[i]
                 : UINT32_MAX;
-            if (clock_reset(candidate.clocks[i], current)
-                || (elapsed >= 1000 && clock_score(delta, expected) != UINT32_MAX)) {
+            if ((clock_reset(candidate.clocks[i], current)
+                 || (elapsed >= 1000 && clock_score(delta, expected) != UINT32_MAX))
+                && candidate_score(candidate.address) >= 8) {
                 out = candidate.address;
                 g_game_time_index = static_cast<int>(i);
                 candidates.clear();
@@ -401,7 +402,7 @@ bool poll_stats(GameStats& out)
         LOG_INFO("mgs1 work array at %p stage=%s score=%d",
                  reinterpret_cast<const void*>(g_array_start), stage, best_score);
         log_hex_dump(reinterpret_cast<const uint8_t*>(g_array_start), 0xD0);
-        g_integral = detect_integral();
+        g_integral = g_game_time_index == 0 && detect_integral();
         LOG_INFO("mgs1 variant=%s", g_integral ? "Integral" : "original");
         g_time_sample_tick = 0;
     }
@@ -438,7 +439,7 @@ bool poll_stats(GameStats& out)
     }
 
     out.mgs1_integral = g_integral;
-    out.mgs1_japanese_original = !g_integral && g_game_time_index == 1;
+    out.mgs1_japanese_original = !g_integral && g_game_time_index > 0;
     const int8_t diff = out.mgs1_japanese_original
         ? 0
         : read_at<int8_t>(g_array_start, FieldOffsets::kDifficulty);
