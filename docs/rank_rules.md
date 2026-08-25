@@ -54,25 +54,14 @@ conversion. Difficulty byte values are 10 through 60; European Extreme uses Extr
 rank rules.
 
 Kerotan count comes from a 64-bit hit mask at live stats-block offset `0x6532`.
-Controlled new-game captures isolated this field: three accepted hits produced
-`0x02`, `0x06`, then `0x0E`, increasing popcount from zero to three. Earlier
-save-file offset `0x31D6` and live offset `0x634E` candidates were unrelated data.
+Checklist order is raw bits 1 through 63 followed by raw bit 0, so overlay rotates
+mask right one bit before display. Current-area state maps live area code to that
+rotated checklist bit.
 
-Raw bits are rotated one place from checklist order: raw bits 1, 2, and 3 were
-confirmed as Kerotans 1, 2, and 3, so overlay rotates mask right one bit before
-display. Current-area state maps live area code to its rotated checklist bit. Offset
-`0x5DC` was rejected for this purpose: an unshot first Kerotan read `0x08`, then
-changed to `0x07` after shooting, proving it is unrelated countdown/state data.
-
-Game commits a hit to global mask during area transition: controlled first hit left
-mask at zero after croak, then changed it to `0x02` on entering next area. Transition
-can briefly expose fill pattern `01 00 FF FF FF FF FF FF`; probe rejects it and keeps
-last valid mask, preventing transient count of 49. Newly allocated stats blocks can
-also report zero before initialization completes.
-
-Area transitions can select stale stats copies with older masks. One captured switch
-moved from `0x02` back to zero even though hit remained valid. Probe therefore unions
-masks monotonically across runtime copies and clears cache on title screen.
+Game commits new hits to global mask during area transition. Transitions can expose
+temporary zero, fill pattern `01 00 FF FF FF FF FF FF`, or stale stats copies with
+older masks. Probe ignores fill pattern, unions valid masks monotonically across
+runtime copies, and clears cached mask on title screen.
 
 Leech scans 50 injury records from stats-block offset `0x688`. Records are `0x0E`
 bytes; type `7` with positive injury health means a leech remains attached.
