@@ -834,7 +834,6 @@ void draw_panel()
         snprintf(buf, sizeof(buf), area ? "%s (%s)" : "%s", area ? area : stats.area_code,
                  stats.area_code);
         ImGui::Spacing();
-        ImGui::TextDisabled("%s", g_game == Game::MGS1 ? "stage" : "area");
         ImGui::PushTextWrapPos(0.0f);
         ImGui::TextDisabled("%s", buf);
         ImGui::PopTextWrapPos();
