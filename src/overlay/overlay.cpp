@@ -713,9 +713,9 @@ void draw_panel()
             char buf[16];
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
             plain_row("captures", buf);
-            snprintf(buf, sizeof(buf), "%d / 64", stats.kerotans);
+            snprintf(buf, sizeof(buf), "%d / 64  %s", stats.kerotans,
+                     stats.current_area_kerotan ? "x" : "-");
             plain_row("kerotans", buf);
-            plain_row("area kerotan", stats.current_area_kerotan ? "x" : "-");
             plain_count("meals eaten", stats.meals_eaten);
         }
         if (stats.area_code[0]) {
