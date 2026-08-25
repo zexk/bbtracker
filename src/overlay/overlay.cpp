@@ -399,12 +399,86 @@ const char* mgs2_area_name(const char* code)
     return exact_area_name(code, kAreas, std::size(kAreas));
 }
 
+const char* mgs3_area_name(const char* code)
+{
+    static constexpr AreaName kAreas[] = {
+        {"v000a", "Dremuchij South (before backpack)"},
+        {"v001a", "Dremuchij South (VM)"}, {"v003a", "Dremuchij Swampland (VM)"},
+        {"v004a", "Dremuchij North (VM)"}, {"v005a", "Dolinovodno (VM)"},
+        {"v006a", "Rassvet (before Ocelot)"}, {"v006b", "Rassvet (after Ocelot)"},
+        {"v007a", "Dolinovodno Riverbank"},
+        {"s001a", "Dremuchij South"}, {"s002a", "Dremuchij East"},
+        {"s003a", "Dremuchij Swampland"}, {"s004a", "Dremuchij North"},
+        {"s005a", "Dolinovodno"}, {"s006a", "Rassvet (before EVA)"},
+        {"s006b", "Rassvet"}, {"s012a", "Chyornyj Prud"},
+        {"s021a", "Bolshaya Past South"}, {"s022a", "Bolshaya Past Base"},
+        {"s023a", "Bolshaya Past Crevice"},
+        {"s031a", "Chyornaya Peschera Cave Branch"},
+        {"s032a", "Chyornaya Peschera Cave"},
+        {"s032b", "Chyornaya Peschera Cave (The Pain)"},
+        {"s033a", "Chyornaya Peschera Cave Entrance"},
+        {"s041a", "Ponizovje South"}, {"s042a", "Ponizovje West"},
+        {"s043a", "Ponizovje Warehouse Exterior"},
+        {"s044a", "Ponizovje Warehouse"}, {"s045a", "Svyatogornyj South"},
+        {"s051a", "Graniny Gorki South"}, {"s051b", "Graniny Gorki South (The Fear)"},
+        {"s052a", "Graniny Gorki Lab Exterior: Outside Walls"},
+        {"s052b", "Graniny Gorki Lab Exterior: Inside Walls"},
+        {"s053a", "Graniny Gorki Lab 1F/2F"},
+        {"s055a", "Graniny Gorki Lab B1 East"},
+        {"s056a", "Graniny Gorki Lab B1 West"},
+        {"s061a", "Svyatogornyj West"}, {"s062a", "Svyatogornyj East"},
+        {"s063a", "Sokrovenno South (The End)"},
+        {"s063b", "Sokrovenno South (Ocelot Unit)"},
+        {"s064a", "Sokrovenno West (The End)"},
+        {"s064b", "Sokrovenno West (Ocelot Unit)"},
+        {"s065a", "Sokrovenno North (The End)"},
+        {"s065b", "Sokrovenno North (Ocelot Unit)"},
+        {"s066a", "Krasnogorje Tunnel"}, {"s071a", "Krasnogorje Mountain Base"},
+        {"s072a", "Krasnogorje Mountainside"}, {"s072b", "Krasnogorje Mountainside"},
+        {"s073a", "Krasnogorje Mountaintop (before EVA)"},
+        {"s073b", "Krasnogorje Mountaintop"},
+        {"s074a", "Krasnogorje Mountaintop Ruins"},
+        {"s075a", "Krasnogorje Mountaintop: Behind Ruins"},
+        {"s081a", "Groznyj Grad Underground Tunnel"},
+        {"s091a", "Groznyj Grad Southwest (before torture)"},
+        {"s091b", "Groznyj Grad Southwest (prison escape)"},
+        {"s091c", "Groznyj Grad Southwest"},
+        {"s092a", "Groznyj Grad Northwest (before torture)"},
+        {"s092b", "Groznyj Grad Northwest (prison escape)"},
+        {"s092c", "Groznyj Grad Northwest"},
+        {"s093a", "Groznyj Grad Northeast (before torture)"},
+        {"s093b", "Groznyj Grad Northeast (prison escape)"},
+        {"s093c", "Groznyj Grad Northeast"},
+        {"s094a", "Groznyj Grad Southeast (before torture)"},
+        {"s094b", "Groznyj Grad Southeast (prison escape)"},
+        {"s094c", "Groznyj Grad Southeast"},
+        {"s101a", "Weapons Lab East Wing (with Raikov)"},
+        {"s101b", "Weapons Lab East Wing"},
+        {"s111a", "Weapons Lab West Wing Corridor"},
+        {"s112a", "Groznyj Grad Torture Room"}, {"s113a", "Groznyj Grad Sewers"},
+        {"s121a", "Weapons Lab Main Wing"},
+        {"s122a", "Weapons Lab Main Wing B1 (Volgin)"},
+        {"s141a", "The Sorrow's River"}, {"s151a", "Tikhogornyj"},
+        {"s152a", "Tikhogornyj: Behind Waterfall"}, {"s161a", "Groznyj Grad"},
+        {"s162a", "Groznyj Grad Runway South"}, {"s163a", "Groznyj Grad Runway"},
+        {"s163b", "Groznyj Grad Runway (Shagohod)"},
+        {"s171a", "Groznyj Grad Rail Bridge"},
+        {"s171b", "Groznyj Grad Rail Bridge (Shagohod)"},
+        {"s181a", "Groznyj Grad Rail Bridge North"},
+        {"s182a", "Lazorevo South"}, {"s183a", "Lazorevo North"},
+        {"s191a", "Zaozyorje West (before patrol)"}, {"s191b", "Zaozyorje West"},
+        {"s192a", "Zaozyorje East"}, {"s201a", "Rokovoj Bereg"},
+        {"s211a", "WIG Interior"},
+    };
+    return exact_area_name(code, kAreas, std::size(kAreas));
+}
+
 const char* area_name(Game game, const char* code)
 {
     switch (game) {
     case Game::MGS1: return mgs1_area_name(code);
     case Game::MGS2: return mgs2_area_name(code);
-    case Game::MGS3: return nullptr;
+    case Game::MGS3: return mgs3_area_name(code);
     default: return nullptr;
     }
 }
