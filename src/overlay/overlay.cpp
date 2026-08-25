@@ -674,23 +674,25 @@ void draw_panel()
         ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
 
-        const bool classic_mg = g_game == Game::MG1 || g_game == Game::MG2;
-        const bool known_difficulty = classic_mg
-            || g_game == Game::MGS1 || stats.difficulty_game_byte % 10 == 0;
-        const bool valid_difficulty = known_difficulty
-            && ((classic_mg && (stats.difficulty == Difficulty::Extreme
-                                || stats.difficulty == Difficulty::Easy))
-                || stats.difficulty == Difficulty::Extreme
-                || (g_game != Game::MGS1 && stats.difficulty == Difficulty::EuroExtreme));
-        ImGui::TableNextRow();
-        ImGui::TableNextColumn();
-        ImGui::TextUnformatted("difficulty");
-        ImGui::TableNextColumn();
-        ImGui::TextColored(valid_difficulty ? green : ImVec4(0.95f, 0.35f, 0.35f, 1.0f),
-                           "%s%s", classic_mg
-                               ? (stats.difficulty == Difficulty::Extreme ? "Original" : "Easy")
-                               : difficulty_name(stats.difficulty),
-                           known_difficulty ? "" : " (?)");
+        if (!stats.mgs1_japanese_original) {
+            const bool classic_mg = g_game == Game::MG1 || g_game == Game::MG2;
+            const bool known_difficulty = classic_mg
+                || g_game == Game::MGS1 || stats.difficulty_game_byte % 10 == 0;
+            const bool valid_difficulty = known_difficulty
+                && ((classic_mg && (stats.difficulty == Difficulty::Extreme
+                                    || stats.difficulty == Difficulty::Easy))
+                    || stats.difficulty == Difficulty::Extreme
+                    || (g_game != Game::MGS1 && stats.difficulty == Difficulty::EuroExtreme));
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("difficulty");
+            ImGui::TableNextColumn();
+            ImGui::TextColored(valid_difficulty ? green : ImVec4(0.95f, 0.35f, 0.35f, 1.0f),
+                               "%s%s", classic_mg
+                                   ? (stats.difficulty == Difficulty::Extreme ? "Original" : "Easy")
+                                   : difficulty_name(stats.difficulty),
+                               known_difficulty ? "" : " (?)");
+        }
 
         std::vector<codename::ReqStatus> reqs =
             g_game == Game::MG1    ? codename::elite_requirements_mg1(stats)
