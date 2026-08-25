@@ -59,6 +59,8 @@ uint8_t g_last_diff04 = 0xFF;
 uint16_t g_last_vm_flags = 0xFFFF;
 uint16_t g_last_se_flags = 0xFFFF;
 uint64_t g_last_kerotan_mask = 0;
+uintptr_t g_kerotan_title_block = 0;
+bool g_kerotan_load_pending = false;
 
 bool range_readable(uintptr_t addr, size_t len)
 {
@@ -243,8 +245,17 @@ bool poll_stats(GameStats& out)
             kerotan_mask |= static_cast<uint64_t>(bits) << (i * 8);
         }
     }
-    if (std::memcmp(g_stats + StatOffsets::kAreaCode, "title", 6) == 0) {
+    const bool at_title = std::memcmp(g_stats + StatOffsets::kAreaCode, "title", 6) == 0;
+    if (at_title) {
         g_last_kerotan_mask = 0;
+        g_kerotan_title_block = block;
+        g_kerotan_load_pending = true;
+        kerotan_mask = 0;
+    } else if (g_kerotan_load_pending && block == g_kerotan_title_block) {
+        kerotan_mask = 0;
+    } else if (g_kerotan_load_pending) {
+        g_last_kerotan_mask = 0;
+        g_kerotan_load_pending = false;
     }
     // Wrapped layout briefly exposes this fill pattern during area transitions.
     if ((kerotan_mask >> 16) == 0xFFFFFFFFFFFFULL) {

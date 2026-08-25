@@ -30,7 +30,7 @@
 
           bbtracker = mingw.stdenv.mkDerivation {
             pname = "bbtracker";
-            version = "0.1.1";
+            version = "0.1.2";
             src = self;
 
             nativeBuildInputs = [
@@ -70,7 +70,7 @@
         {
           rules-tests = pkgs.stdenv.mkDerivation {
             pname = "bbtracker-rules-tests";
-            version = "0.1.1";
+            version = "0.1.2";
             src = self;
 
             nativeBuildInputs = [

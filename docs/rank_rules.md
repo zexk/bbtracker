@@ -58,10 +58,13 @@ Checklist order is raw bits 1 through 63 followed by raw bit 0, so overlay rotat
 mask right one bit before display. Current-area state maps live area code to that
 rotated checklist bit.
 
-Game commits new hits to global mask during area transition. Transitions can expose
-temporary zero, fill pattern `01 00 FF FF FF FF FF FF`, or stale stats copies with
-older masks. Probe ignores fill pattern, unions valid masks monotonically across
-runtime copies, and clears cached mask on title screen.
+Game commits new hits to global mask during area transition. After loading a save,
+probe waits for title stats block to be replaced before accepting Kerotan data; this
+normally requires at least one screen transition, and count remains empty until then.
+Transitions can expose temporary zero, fill pattern `01 00 FF FF FF FF FF FF`, or
+stale stats copies with older masks. Probe ignores fill pattern and unions valid masks
+monotonically across runtime copies. Returning to title arms a fresh cache, seeded only
+after loaded save receives its own stats block.
 
 Leech scans 50 injury records from stats-block offset `0x688`. Records are `0x0E`
 bytes; type `7` with positive injury health means a leech remains attached.
