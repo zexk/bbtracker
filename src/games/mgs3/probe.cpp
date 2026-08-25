@@ -1,7 +1,6 @@
 #include "probe.h"
 
 #include <windows.h>
-
 #include <bit>
 #include <cstring>
 #include <cstdint>
@@ -40,7 +39,7 @@ struct StatOffsets {
     constexpr static size_t kGameTimeFrames = 0x4C;
     constexpr static size_t kAreaCode = 0x24;
     constexpr static size_t kLifeMeds = 0x5A8;
-    constexpr static size_t kKerotans = 0x31D6;
+    constexpr static size_t kKerotans = 0x6532;
     constexpr static size_t kCaptureMask = 0x18A0;
     constexpr static size_t kInjuries = 0x688;
     constexpr static size_t kInjurySize = 0x0E;
@@ -59,6 +58,7 @@ uint8_t g_last_diff06 = 0xFF;
 uint8_t g_last_diff04 = 0xFF;
 uint16_t g_last_vm_flags = 0xFFFF;
 uint16_t g_last_se_flags = 0xFFFF;
+uint64_t g_last_kerotan_mask = 0;
 
 bool range_readable(uintptr_t addr, size_t len)
 {
@@ -236,15 +236,21 @@ bool poll_stats(GameStats& out)
         static_cast<double>(read_at<uint32_t>(StatOffsets::kGameTimeFrames)) / 60.0;
     out.life_med_used = read_at<uint16_t>(StatOffsets::kLifeMeds);
 
-    out.kerotans = 0;
-    out.kerotan_mask = 0;
+    uint64_t kerotan_mask = 0;
     if (range_readable(reinterpret_cast<uintptr_t>(g_stats + StatOffsets::kKerotans), 8)) {
         for (size_t i = 0; i < 8; ++i) {
             const uint8_t bits = read_at<uint8_t>(StatOffsets::kKerotans + i);
-            out.kerotan_mask |= static_cast<uint64_t>(bits) << (i * 8);
-            out.kerotans += std::popcount(bits);
+            kerotan_mask |= static_cast<uint64_t>(bits) << (i * 8);
         }
     }
+    // Wrapped layout briefly exposes this fill pattern during area transitions.
+    if ((kerotan_mask >> 16) == 0xFFFFFFFFFFFFULL) {
+        kerotan_mask = g_last_kerotan_mask;
+    } else {
+        g_last_kerotan_mask = kerotan_mask;
+    }
+    out.kerotan_mask = kerotan_mask;
+    out.kerotans = std::popcount(kerotan_mask);
 
     out.capture_mask = 0;
     if (range_readable(reinterpret_cast<uintptr_t>(g_stats + StatOffsets::kCaptureMask), 6)) {

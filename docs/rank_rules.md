@@ -53,8 +53,17 @@ fallback. Damage bars use accumulated end-screen field, not an estimated unit
 conversion. Difficulty byte values are 10 through 60; European Extreme uses Extreme
 rank rules.
 
-Kerotan uses the 64-bit hit mask at stats-block offset `0x31D6`, verified by
-decrypting controlled 63/64 and 64/64 saves.
+Kerotan count comes from a 64-bit hit mask at live stats-block offset `0x6532`.
+Controlled new-game captures isolated this field: three accepted hits produced
+`0x02`, `0x06`, then `0x0E`, increasing popcount from zero to three. Earlier
+save-file offset `0x31D6` and live offset `0x634E` candidates were unrelated data.
+
+Game commits a newly hit Kerotan to this mask during next area transition, not when
+frog first croaks and spins. Overlay therefore keeps previous count until transition.
+During transition game can briefly expose fill pattern `01 00 FF FF FF FF FF FF`;
+probe rejects it and retains last valid mask, preventing transient count of 49.
+Count behavior is verified. Mapping individual mask bits to named checklist areas
+still needs independent verification.
 
 Leech scans 50 injury records from stats-block offset `0x688`. Records are `0x0E`
 bytes; type `7` with positive injury health means a leech remains attached.
