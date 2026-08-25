@@ -717,7 +717,7 @@ void draw_panel()
             } else if (std::strcmp(r.label, "special items") == 0 && g_game == Game::MGS3) {
                 ratio[0] = '\0';
                 const uint16_t used = stats.special_items_mask & 0x07;
-                const char* names[] = {"EZ Gun", "Infinity Face Paint", "Stealth Camo"};
+                const char* names[] = {"Stealth Camo", "Infinity Face Paint", "EZ Gun"};
                 for (int i = 0; i < 3; ++i) {
                     if ((used & (1u << i)) != 0) {
                         snprintf(ratio + strlen(ratio), sizeof(ratio) - strlen(ratio), "%s%s",
