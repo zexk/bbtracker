@@ -65,6 +65,8 @@ area transition game can briefly expose fill pattern `01 00 FF FF FF FF FF FF`;
 probe rejects it and retains last valid mask, preventing transient count of 49. A newly allocated stats
 block can also report a temporary zero mask before game finishes populating it; real
 count appears after initialization completes, sometimes after next area transition.
+Area transitions can select stale stats copies with an older mask. Probe unions masks
+monotonically across runtime copies and clears that cache on title screen.
 
 Leech scans 50 injury records from stats-block offset `0x688`. Records are `0x0E`
 bytes; type `7` with positive injury health means a leech remains attached.

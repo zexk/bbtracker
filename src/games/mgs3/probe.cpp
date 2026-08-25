@@ -243,11 +243,15 @@ bool poll_stats(GameStats& out)
             kerotan_mask |= static_cast<uint64_t>(bits) << (i * 8);
         }
     }
+    if (std::memcmp(g_stats + StatOffsets::kAreaCode, "title", 6) == 0) {
+        g_last_kerotan_mask = 0;
+    }
     // Wrapped layout briefly exposes this fill pattern during area transitions.
     if ((kerotan_mask >> 16) == 0xFFFFFFFFFFFFULL) {
         kerotan_mask = g_last_kerotan_mask;
     } else {
-        g_last_kerotan_mask = kerotan_mask;
+        g_last_kerotan_mask |= kerotan_mask;
+        kerotan_mask = g_last_kerotan_mask;
     }
     out.kerotan_mask = std::rotr(kerotan_mask, 1);
     out.kerotans = std::popcount(kerotan_mask);
