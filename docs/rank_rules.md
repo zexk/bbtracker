@@ -62,7 +62,9 @@ Raw bits are rotated one place from checklist order: raw bits 1, 2, and 3 were
 confirmed as Kerotans 1, 2, and 3, so overlay rotates mask right one bit before
 display. Current-area state uses stats-block offset `0x5DC`. During area transition
 game can briefly expose fill pattern `01 00 FF FF FF FF FF FF`; probe rejects it and
-retains last valid mask, preventing transient count of 49.
+retains last valid mask, preventing transient count of 49. A newly allocated stats
+block can also report a temporary zero mask before game finishes populating it; real
+count appears after initialization completes, sometimes after next area transition.
 
 Leech scans 50 injury records from stats-block offset `0x688`. Records are `0x0E`
 bytes; type `7` with positive injury health means a leech remains attached.
@@ -70,6 +72,19 @@ bytes; type `7` with positive injury health means a leech remains attached.
 Tsuchinoko checks all three live-animal cages for food type `130` with an active
 occupancy record. Cage memory was verified by changing a live rabbit (`114`) into
 a Tsuchinoko and carrying it across an area transition.
+
+## Snake's Revenge
+
+Snake's Revenge is a possible future target, deferred until after Master Collection
+Vol. 2 support. Its one-to-six-star rank is character progression, not an
+end-of-playthrough performance grade: rescuing hostages and interrogating officers
+raises maximum life and item capacity. Documented cumulative thresholds are 0, 4,
+9, 14, 19, and 22 rescues/interrogations. Rank is retained by password, and no
+ending rank based on time, kills, alerts, continues, saves, or damage is documented.
+
+Sources: [Konami's Master Collection manual](https://metalgear.konami.net/manual/mc1/snakes_revenge/ps4/en/page09.html),
+[original NES manual transcript](https://www.world-of-nintendo.com/manuals/nes/snakes_revenge.shtml),
+and [Dammit9x's rank and memory guide](https://gamefaqs.gamespot.com/nes/587630-snakes-revenge/faqs/53499).
 
 ## Verification
 
