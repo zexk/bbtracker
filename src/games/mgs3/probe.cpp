@@ -249,7 +249,7 @@ bool poll_stats(GameStats& out)
     } else {
         g_last_kerotan_mask = kerotan_mask;
     }
-    out.kerotan_mask = kerotan_mask;
+    out.kerotan_mask = std::rotr(kerotan_mask, 1);
     out.kerotans = std::popcount(kerotan_mask);
 
     out.capture_mask = 0;
