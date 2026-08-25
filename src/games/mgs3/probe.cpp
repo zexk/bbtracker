@@ -39,7 +39,6 @@ struct StatOffsets {
     constexpr static size_t kGameTimeFrames = 0x4C;
     constexpr static size_t kAreaCode = 0x24;
     constexpr static size_t kLifeMeds = 0x5A8;
-    constexpr static size_t kCurrentAreaKerotan = 0x5DC;
     constexpr static size_t kKerotans = 0x6532;
     constexpr static size_t kCaptureMask = 0x18A0;
     constexpr static size_t kInjuries = 0x688;
@@ -252,7 +251,6 @@ bool poll_stats(GameStats& out)
     }
     out.kerotan_mask = std::rotr(kerotan_mask, 1);
     out.kerotans = std::popcount(kerotan_mask);
-    out.current_area_kerotan = read_at<uint8_t>(StatOffsets::kCurrentAreaKerotan) != 0;
 
     out.capture_mask = 0;
     if (range_readable(reinterpret_cast<uintptr_t>(g_stats + StatOffsets::kCaptureMask), 6)) {

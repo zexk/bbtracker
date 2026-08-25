@@ -10,6 +10,7 @@
 
 #include <MinHook.h>
 
+#include <cstdlib>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -581,6 +582,35 @@ constexpr const char* kMgs3Kerotans[] = {
 static_assert(std::size(kMgs3Captures) == 48);
 static_assert(std::size(kMgs3Kerotans) == 64);
 
+int mgs3_area_kerotan(const char* code)
+{
+    static constexpr AreaName kAreas[] = {
+        {"v001a", "0"}, {"v003a", "1"}, {"v004a", "2"}, {"v005a", "3"},
+        {"v006a", "4"}, {"v006b", "4"}, {"s002a", "5"}, {"s006a", "6"},
+        {"s006b", "6"}, {"s005a", "7"}, {"s004a", "8"}, {"s003a", "9"},
+        {"s001a", "10"}, {"s012a", "11"}, {"s021a", "12"}, {"s022a", "13"},
+        {"s023a", "14"}, {"s031a", "15"}, {"s032a", "16"}, {"s032b", "16"},
+        {"s033a", "17"}, {"s041a", "18"}, {"s042a", "19"}, {"s043a", "20"},
+        {"s044a", "21"}, {"s051a", "22"}, {"s052a", "23"}, {"s052b", "24"},
+        {"s053a", "25"}, {"s055a", "26"}, {"s056a", "27"}, {"s045a", "28"},
+        {"s061a", "29"}, {"s062a", "30"}, {"s063a", "31"}, {"s063b", "31"},
+        {"s064a", "32"}, {"s064b", "32"}, {"s065a", "33"}, {"s065b", "33"},
+        {"s066a", "34"}, {"s071a", "35"}, {"s072a", "36"}, {"s072b", "36"},
+        {"s073a", "37"}, {"s073b", "37"}, {"s075a", "38"}, {"s074a", "39"},
+        {"s081a", "40"}, {"s091a", "41"}, {"s091b", "41"}, {"s091c", "41"},
+        {"s092a", "42"}, {"s092b", "42"}, {"s092c", "42"}, {"s093a", "43"},
+        {"s093b", "43"}, {"s093c", "43"}, {"s094a", "44"}, {"s094b", "44"},
+        {"s094c", "44"}, {"s112a", "45"}, {"s101a", "46"}, {"s101b", "46"},
+        {"s111a", "47"}, {"s151a", "48"}, {"s152a", "49"}, {"s121a", "50"},
+        {"s122a", "51"}, {"s161a", "52"}, {"s162a", "53"}, {"s163a", "54"},
+        {"s163b", "55"}, {"s171a", "56"}, {"s171b", "57"}, {"s181a", "58"},
+        {"s182a", "59"}, {"s183a", "60"}, {"s191a", "61"}, {"s191b", "61"},
+        {"s192a", "62"}, {"s201a", "63"},
+    };
+    const char* index = exact_area_name(code, kAreas, std::size(kAreas));
+    return index ? std::atoi(index) : -1;
+}
+
 void draw_panel()
 {
     static GameStats stats{};
@@ -787,8 +817,11 @@ void draw_panel()
             char buf[16];
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
             plain_row("captures", buf);
+            const int current_kerotan = mgs3_area_kerotan(stats.area_code);
             snprintf(buf, sizeof(buf), "%d / 64  %s", stats.kerotans,
-                     stats.current_area_kerotan ? "x" : "-");
+                     current_kerotan >= 0
+                             && (stats.kerotan_mask & (uint64_t{1} << current_kerotan)) != 0
+                         ? "x" : "-");
             plain_row("kerotans", buf);
             plain_count("meals eaten", stats.meals_eaten);
         }

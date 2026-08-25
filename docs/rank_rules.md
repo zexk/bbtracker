@@ -60,9 +60,9 @@ save-file offset `0x31D6` and live offset `0x634E` candidates were unrelated dat
 
 Raw bits are rotated one place from checklist order: raw bits 1, 2, and 3 were
 confirmed as Kerotans 1, 2, and 3, so overlay rotates mask right one bit before
-display. Current-area state uses stats-block offset `0x5DC`. During area transition
-game can briefly expose fill pattern `01 00 FF FF FF FF FF FF`; probe rejects it and
-retains last valid mask, preventing transient count of 49. A newly allocated stats
+display. Current-area state maps live area code to its rotated checklist bit. During
+area transition game can briefly expose fill pattern `01 00 FF FF FF FF FF FF`;
+probe rejects it and retains last valid mask, preventing transient count of 49. A newly allocated stats
 block can also report a temporary zero mask before game finishes populating it; real
 count appears after initialization completes, sometimes after next area transition.
 
