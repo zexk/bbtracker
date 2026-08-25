@@ -56,6 +56,7 @@ struct GameStats {
     int kerotans = 0;
     uint64_t capture_mask = 0;
     uint64_t kerotan_mask = 0;
+    bool current_area_kerotan = false;
     bool leech_attached = false;
     bool tsuchinoko_alive = false;
 

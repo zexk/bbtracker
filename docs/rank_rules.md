@@ -58,11 +58,11 @@ Controlled new-game captures isolated this field: three accepted hits produced
 `0x02`, `0x06`, then `0x0E`, increasing popcount from zero to three. Earlier
 save-file offset `0x31D6` and live offset `0x634E` candidates were unrelated data.
 
-Accepted hits update this mask immediately. Raw bits are rotated one place from
-checklist order: raw bits 1, 2, and 3 were confirmed as Kerotans 1, 2, and 3, so
-overlay rotates mask right one bit before display. During area transition game can
-briefly expose fill pattern `01 00 FF FF FF FF FF FF`; probe rejects it and retains
-last valid mask, preventing transient count of 49.
+Raw bits are rotated one place from checklist order: raw bits 1, 2, and 3 were
+confirmed as Kerotans 1, 2, and 3, so overlay rotates mask right one bit before
+display. Current-area state uses stats-block offset `0x5DC`. During area transition
+game can briefly expose fill pattern `01 00 FF FF FF FF FF FF`; probe rejects it and
+retains last valid mask, preventing transient count of 49.
 
 Leech scans 50 injury records from stats-block offset `0x688`. Records are `0x0E`
 bytes; type `7` with positive injury health means a leech remains attached.
