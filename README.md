@@ -42,19 +42,15 @@ Follow fix project's Proton/Steam Deck DLL-override instructions when applicable
 
 ## Build
 
-Requires Git, CMake, and Visual Studio with Desktop development with C++ workload.
-Run from Developer PowerShell:
+Requires Git, CMake, Ninja, and Visual Studio with Desktop development with C++ workload.
+Run from Developer PowerShell; CMake downloads pinned ImGui and MinHook sources automatically:
 
 ```powershell
-git clone --depth 1 --branch v1.92.9b https://github.com/ocornut/imgui deps/imgui
-git clone --depth 1 --branch v1.3.4 https://github.com/TsudaKageyu/minhook deps/minhook
-$env:imgui = "$PWD\deps\imgui"
-$env:minhook = "$PWD\deps\minhook"
-cmake -S . -B build -A x64
-cmake --build build --config Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 ```
 
-Artifacts land in `build/Release/`.
+Artifacts land in `build/`.
 
 Linux rule tests:
 

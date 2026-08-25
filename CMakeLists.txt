@@ -6,14 +6,27 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(WIN32)
-  foreach(dep imgui minhook)
-    if(NOT DEFINED ENV{${dep}})
-      message(FATAL_ERROR "source for '${dep}' not provided as environment variable")
-    endif()
-  endforeach()
+  include(FetchContent)
 
-  set(IMGUI_DIR "$ENV{imgui}")
-  set(MINHOOK_DIR "$ENV{minhook}")
+  set(IMGUI_DIR "$ENV{imgui}" CACHE PATH "Path to ImGui sources")
+  if(NOT IMGUI_DIR)
+    FetchContent_Declare(imgui_source
+      GIT_REPOSITORY https://github.com/ocornut/imgui.git
+      GIT_TAG v1.92.9b
+      GIT_SHALLOW TRUE)
+    FetchContent_Populate(imgui_source)
+    set(IMGUI_DIR "${imgui_source_SOURCE_DIR}")
+  endif()
+
+  set(MINHOOK_DIR "$ENV{minhook}" CACHE PATH "Path to MinHook sources")
+  if(NOT MINHOOK_DIR)
+    FetchContent_Declare(minhook_source
+      GIT_REPOSITORY https://github.com/TsudaKageyu/minhook.git
+      GIT_TAG v1.3.4
+      GIT_SHALLOW TRUE)
+    FetchContent_Populate(minhook_source)
+    set(MINHOOK_DIR "${minhook_source_SOURCE_DIR}")
+  endif()
 
   if(MINGW)
     add_link_options(-static -static-libgcc -static-libstdc++)

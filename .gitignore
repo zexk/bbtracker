@@ -4,3 +4,4 @@ result-*
 .cache/
 compile_commands.json
 *.log
+nexus-drafts/
