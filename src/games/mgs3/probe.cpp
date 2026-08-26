@@ -97,6 +97,15 @@ bool sig_match(const uint8_t* p, size_t avail)
     return true;
 }
 
+constexpr bool gameplay_area(const char* area)
+{
+    return area[0] == 's' || area[0] == 'v';
+}
+
+static_assert(gameplay_area("s001a"));
+static_assert(gameplay_area("v000a"));
+static_assert(!gameplay_area("title"));
+
 bool find_slot_via_sig(HMODULE mod, uintptr_t& out_slot)
 {
     const auto base = reinterpret_cast<uintptr_t>(mod);
@@ -376,7 +385,7 @@ bool poll_stats(GameStats& out)
         g_zero_polls = 0;
     }
 
-    return true;
+    return gameplay_area(out.area_code);
 }
 
 } // namespace bb::mgs3

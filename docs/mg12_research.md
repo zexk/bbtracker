@@ -2,6 +2,28 @@
 
 Target build inspected: Steam app `2131680`, October 13, 2025 binaries.
 
+This document records both tracker-facing fields and partial decompilation notes.
+Addresses are RVAs relative to the named DLL, not preferred-image virtual addresses.
+Names such as `top_level_state` are descriptive names assigned during analysis; stripped
+release binaries provide no symbols beyond their two exported entry points.
+
+## Binary layout
+
+Both DLLs are 64-bit PE images built from Konami's `MGS_HD_BP_Perforce` tree. CodeView
+records reference these original PDB paths, but PDB files are not shipped:
+
+- MG1: `MGS3/x64/Steam_Release_Mg12/mg1.pdb`
+- MG2: `MGS3/x64/Steam_Release_Mg12/mg2.pdb`
+
+Each DLL exports only a procedure-table getter and a host-procedure setter:
+
+- `MG1_GetMG1Procs` / `MG1_SetMGSProcs`
+- `MG2_GetMG2Procs` / `MG2_SetMGSProcs`
+
+Game code calls back into the host through this installed procedure table. Several
+small functions near the start of `.text` are jump thunks into real game functions,
+so call targets must be followed before assigning behavior.
+
 ## Runtime
 
 `METAL GEAR.exe` starts either game with `-mgst mg1` or `-mgst mg2` and loads
@@ -26,8 +48,25 @@ resolve to this contiguous block:
 Difficulty lives at offset `0x88` in the object reached through the pointer at
 `mg2.dll+0x46DE0`.
 
-Rank routine divides raw timer by 60. Result uses quarter-second units: its Big
-Boss boundary is `0x627` (1575 quarter-seconds, 1:45:00). Full time tiers are:
+The object pointer is installed during top-level state transitions around
+`mg2.dll+0x25E90` and `mg2.dll+0x25F69`. Rank counters remain in static storage after
+leaving gameplay, so pointer readability and plausible counter values do not prove a
+run is active.
+
+### MG2 run visibility
+
+`mg2.dll+0x39170` holds `41` at main menu, `0` during ordinary gameplay, pause,
+and codec, and `35` inside trucks. Tracker publishes MG2 stats for every value except
+main-menu sentinel `41`. Death and ending behavior remain untested.
+
+Rank-counter helpers around `mg2.dll+0x21030` through `0x21096` directly increment
+individual globals. `mg2.dll+0x210A0` initializes a run snapshot; `mg2.dll+0x215A0`
+copies it back. This explains why stale but internally valid rank data remains visible
+outside gameplay.
+
+Rank routine divides raw timer by 60. Each result unit represents four seconds:
+its Big Boss boundary is `0x627` (`0x627 * 60` raw ticks, 1:45:00), proving raw
+timer advances at 15 Hz. Full time tiers are:
 
 | Result index | Boundary | Real time |
 | --- | --- | --- |
@@ -66,6 +105,22 @@ MG1 end-screen rendering starts at `mg1.dll+0x202E0`; rank evaluation starts at
 | `0x2F778` | `0x198` | special-item use |
 | `0x2F780` | `0x1A0` | continues |
 
+`mg1.dll+0x15100` is a trivial getter returning `mg1.dll+0x2F5E0`. The rank-state
+region is `0x1A4` bytes: `mg1.dll+0x14F80` clears that exact size, while routines near
+`0x14EC0` and `0x158B0` copy it to and from the adjacent snapshot at
+`mg1.dll+0x2F7B0`.
+
+The timer-update routine at `mg1.dll+0x15B80` calls host procedure-table entry
+`+0x140` before updating `mg1.dll+0x2F768`. Static behavior identifies this callback
+as a clock-advance/active-tick query. It cannot serve as a visibility gate by itself:
+both pause and main menu can stop timer advancement, while pause must keep tracker
+visible.
+
+Live transition logging identified `mg1.dll+0x2E260` as an active-run state. It is `0`
+at main menu and `8` during gameplay. It remained `8` through pause and resume, then
+changed from `8` to `0` on return to main menu. Tracker now requires value `8` before
+publishing MG1 stats. Death, ending, and load screens still need validation.
+
 Big Boss/Fox checks encoded by the evaluator:
 
 - raw timer below `0xAFC8` (45,000 ticks at 15 Hz, `0:50:00`)
@@ -101,3 +156,8 @@ health anchor.
 One ASI target can support both games: wait for `mg1.dll` or `mg2.dll`, select
 matching probe and rules, and keep overlay unavailable until selected module and
 fields pass validation. Existing D3D11 overlay path is reusable.
+
+For run visibility, prefer an explicit lifecycle state over timer movement or nonzero
+counters. MG1 uses live-tested `+0x2E260 == 8`. MG2 rejects live-tested main-menu
+sentinel `+0x39170 == 41`. Loading either DLL proves selected game only,
+not an active ranked run.

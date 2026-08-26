@@ -639,8 +639,7 @@ void draw_panel()
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 
     if (!have_stats) {
-        ImGui::TextDisabled("stats unavailable");
-        ImGui::TextDisabled("memory probe not resolved yet; see bbtracker.log");
+        ImGui::TextDisabled("no active ranked run");
         ImGui::End();
         return;
     }

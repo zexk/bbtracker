@@ -652,7 +652,7 @@ bool poll_stats(GameStats& out)
     }
     std::memcpy(out.area_code, stage, sizeof(out.area_code));
 
-    return g_game_time_index >= 0;
+    return g_game_time_index >= 0 && gameplay && variant != PsxVariant::Unknown;
 }
 
 } // namespace bb::mgs1

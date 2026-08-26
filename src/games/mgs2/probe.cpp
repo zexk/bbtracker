@@ -23,6 +23,15 @@ constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID2.exe";
 constexpr uint8_t kGametypeTanker = 16;
 constexpr uint8_t kGametypeTP = 32;
 
+constexpr bool ranked_game(uint8_t gametype)
+{
+    return gametype == kGametypeTanker || gametype == kGametypeTP;
+}
+
+static_assert(ranked_game(kGametypeTanker));
+static_assert(ranked_game(kGametypeTP));
+static_assert(!ranked_game(0));
+
 struct GameStateOffsets {
     constexpr static size_t kRadarType = 0x06;
     constexpr static size_t kGameOverIfDiscovered = 0x07;
@@ -264,7 +273,8 @@ bool poll_stats(GameStats& out)
     }
     out.difficulty_raw = read_at<uint8_t>(player, StatOffsets::kDifficulty);
 
-    switch (read_at<uint8_t>(player, StatOffsets::kGametype)) {
+    const uint8_t gametype = read_at<uint8_t>(player, StatOffsets::kGametype);
+    switch (gametype) {
     case kGametypeTanker: out.mission = 16; break;
     case kGametypeTP: out.mission = 32; break;
     default: out.mission = 0; break;
@@ -284,7 +294,7 @@ bool poll_stats(GameStats& out)
         std::memcpy(out.area_code, area, sizeof(out.area_code));
     }
 
-    return true;
+    return ranked_game(gametype);
 }
 
 } // namespace bb::mgs2
