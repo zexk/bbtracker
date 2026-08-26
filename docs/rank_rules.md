@@ -22,7 +22,7 @@ Serials were verified against Master Collection Vol.1's own images
   `SLES-01507/11507` DE, `SLES-01508/11508` IT, `SLES-01734/11734` ES).
   VR Missions (`SLUS-00957`) and Special Missions
   (`SLES-02136`) contain no ranked campaign and are intentionally ignored.
-  Unrecognized serials default here so no unknown region can slip past the
+  Unrecognized serials keep tracker hidden so no unknown region can slip past
   FOX/BIG BOSS gates.
 
 The tracker image embeds the same strings and is excluded from the scan.

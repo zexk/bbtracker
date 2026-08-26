@@ -43,7 +43,7 @@ struct SerialRule {
 // Disc serials surface in memory either as PSX paths ("cdrom:\SLPM_862.47;1")
 // or plain product codes ("SLPM-86247"); both spellings are listed.
 // Serials verified against Master Collection Vol.1 windata/alldata.bin and
-// windata/dlc/dlc_japan.bin; anything unrecognized defaults to WesternOriginal.
+// windata/dlc/dlc_japan.bin; unrecognized serials keep stats hidden.
 constexpr std::array kSerialRules{
     // JP original Premium Package (dlc_japan.bin, both discs)
     SerialRule{"SLPM_861.11", PsxVariant::JapaneseOriginal},
