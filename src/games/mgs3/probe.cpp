@@ -369,10 +369,12 @@ bool poll_stats(GameStats& out)
             break;
         }
     }
-    if (std::strcmp(area, out.area_code) != 0) {
+    static char last_area[8]{};
+    if (std::strcmp(area, last_area) != 0) {
         LOG_INFO("area: %s", area);
-        std::memcpy(out.area_code, area, sizeof(out.area_code));
+        std::memcpy(last_area, area, sizeof(last_area));
     }
+    std::memcpy(out.area_code, area, sizeof(out.area_code));
 
     if (out.kills == 0 && out.alerts == 0 && out.saves == 0 && out.continues == 0
         && out.play_time_seconds == 0.0) {

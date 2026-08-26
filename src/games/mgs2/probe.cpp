@@ -289,10 +289,12 @@ bool poll_stats(GameStats& out)
             break;
         }
     }
-    if (std::strcmp(area, out.area_code) != 0) {
+    static char last_area[8]{};
+    if (std::strcmp(area, last_area) != 0) {
         LOG_INFO("area: %s", area);
-        std::memcpy(out.area_code, area, sizeof(out.area_code));
+        std::memcpy(last_area, area, sizeof(last_area));
     }
+    std::memcpy(out.area_code, area, sizeof(out.area_code));
 
     return ranked_game(gametype);
 }
