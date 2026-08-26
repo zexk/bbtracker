@@ -36,6 +36,9 @@ const char* g_label = "?";
 StatsFn g_stats_fn = nullptr;
 Game g_game = Game::MGS3;
 OverlayState g{};
+GameStats g_stats{};
+bool g_have_stats = false;
+SRWLOCK g_stats_lock = SRWLOCK_INIT;
 
 using PresentFn = HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT);
 using ResizeBuffersFn =
@@ -622,8 +625,11 @@ void draw_panel()
     static bool have_stats = false;
     static uint64_t next_poll = 0;
     const uint64_t now = GetTickCount64();
-    if (g_stats_fn && now >= next_poll) {
-        have_stats = g_stats_fn(stats);
+    if (now >= next_poll) {
+        AcquireSRWLockShared(&g_stats_lock);
+        stats = g_stats;
+        have_stats = g_have_stats;
+        ReleaseSRWLockShared(&g_stats_lock);
         next_poll = now + 250;
     }
 
@@ -1025,17 +1031,44 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
         break;
     }
 
-    GameStats warmup{};
-    if (g_stats_fn) {
-        g_stats_fn(warmup);
-    }
-
     while (!install_hooks()) {
         LOG_WARN("hook install failed, retrying in 5s");
         Sleep(5000);
     }
 
     LOG_INFO("hooks installed");
+
+    LARGE_INTEGER frequency{};
+    QueryPerformanceFrequency(&frequency);
+    uint64_t total_ticks = 0;
+    uint64_t max_ticks = 0;
+    unsigned timing_samples = 0;
+    for (;;) {
+        LARGE_INTEGER started{};
+        LARGE_INTEGER finished{};
+        QueryPerformanceCounter(&started);
+        GameStats stats{};
+        const bool have_stats = g_stats_fn && g_stats_fn(stats);
+        QueryPerformanceCounter(&finished);
+        const uint64_t elapsed = static_cast<uint64_t>(finished.QuadPart - started.QuadPart);
+        total_ticks += elapsed;
+        max_ticks = elapsed > max_ticks ? elapsed : max_ticks;
+        AcquireSRWLockExclusive(&g_stats_lock);
+        g_stats = stats;
+        g_have_stats = have_stats;
+        ReleaseSRWLockExclusive(&g_stats_lock);
+        if (++timing_samples == 240) {
+            LOG_INFO("probe timing: avg=%lluus max=%lluus",
+                     static_cast<unsigned long long>(total_ticks * 1000000
+                                                     / frequency.QuadPart / timing_samples),
+                     static_cast<unsigned long long>(max_ticks * 1000000
+                                                     / frequency.QuadPart));
+            total_ticks = 0;
+            max_ticks = 0;
+            timing_samples = 0;
+        }
+        Sleep(250);
+    }
 }
 
 } // namespace bb

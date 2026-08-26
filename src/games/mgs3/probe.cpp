@@ -114,8 +114,17 @@ bool find_slot_via_sig(HMODULE mod, uintptr_t& out_slot)
         const uintptr_t region_end =
             reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
         const uintptr_t stop = region_end < scan_start + scan_size ? region_end : scan_start + scan_size;
-        for (uintptr_t p = addr; p + std::size(kStatsSig) <= stop; ++p) {
-            if (!sig_match(reinterpret_cast<const uint8_t*>(p), stop - p)) {
+        uintptr_t p = addr;
+        while (p + std::size(kStatsSig) <= stop) {
+            const auto* found = static_cast<const uint8_t*>(std::memchr(
+                reinterpret_cast<const void*>(p), kStatsSig[0],
+                stop - p - std::size(kStatsSig) + 1));
+            if (!found) {
+                break;
+            }
+            p = reinterpret_cast<uintptr_t>(found);
+            if (!sig_match(found, stop - p)) {
+                ++p;
                 continue;
             }
             const int32_t disp = *reinterpret_cast<volatile const int32_t*>(p + 3);

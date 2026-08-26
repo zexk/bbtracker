@@ -158,6 +158,8 @@ struct SerialHit {
 
 SerialHit scan_disc_serial()
 {
+    static uintptr_t cursor = 0x10000;
+
     // The tracker's own image embeds every serial string, so exclude self.
     HMODULE self = nullptr;
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
@@ -172,7 +174,12 @@ SerialHit scan_disc_serial()
     const uintptr_t self_begin = reinterpret_cast<uintptr_t>(self_info.lpBaseOfDll);
     const uintptr_t self_end = self_begin + self_info.SizeOfImage;
 
-    uintptr_t cursor = 0x10000;
+    LARGE_INTEGER frequency{};
+    LARGE_INTEGER started{};
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&started);
+    const int64_t deadline = started.QuadPart + frequency.QuadPart / 1000;
+
     MEMORY_BASIC_INFORMATION mbi{};
     constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
         | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
@@ -182,13 +189,42 @@ SerialHit scan_disc_serial()
         if ((base < self_begin || base >= self_end) && mbi.State == MEM_COMMIT
             && (mbi.Protect & kReadable) != 0
             && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize <= 0x4000000) {
-            const std::string_view text{reinterpret_cast<const char*>(base), mbi.RegionSize};
-            for (const SerialRule& rule : kSerialRules) {
-                if (text.find(rule.text) != std::string_view::npos) {
-                    SerialHit hit{};
-                    hit.variant = rule.variant;
-                    rule.text.copy(hit.serial, sizeof(hit.serial) - 1);
-                    return hit;
+            const char* next = reinterpret_cast<const char*>(cursor > base ? cursor : base);
+            const char* const region_limit = reinterpret_cast<const char*>(end);
+            while (next < region_limit) {
+                constexpr size_t kScanChunkSize = 0x100000;
+                const char* const search_limit = static_cast<size_t>(region_limit - next)
+                        < kScanChunkSize
+                    ? region_limit
+                    : next + kScanChunkSize;
+                const auto* found = static_cast<const char*>(
+                    std::memchr(next, 'S', static_cast<size_t>(search_limit - next)));
+                if (!found) {
+                    next = search_limit;
+                } else {
+                    next = found + 1;
+                    if (region_limit - found >= 4
+                        && (std::memcmp(found + 1, "LPM", 3) == 0
+                            || std::memcmp(found + 1, "LUS", 3) == 0
+                            || std::memcmp(found + 1, "LES", 3) == 0)) {
+                        const std::string_view candidate{
+                            found, static_cast<size_t>(region_limit - found)};
+                        for (const SerialRule& rule : kSerialRules) {
+                            if (candidate.starts_with(rule.text)) {
+                                SerialHit hit{};
+                                hit.variant = rule.variant;
+                                rule.text.copy(hit.serial, sizeof(hit.serial) - 1);
+                                cursor = 0x10000;
+                                return hit;
+                            }
+                        }
+                    }
+                }
+                LARGE_INTEGER current{};
+                QueryPerformanceCounter(&current);
+                if (current.QuadPart >= deadline) {
+                    cursor = reinterpret_cast<uintptr_t>(next);
+                    return {};
                 }
             }
         }
@@ -197,6 +233,7 @@ SerialHit scan_disc_serial()
         }
         cursor = end;
     }
+    cursor = 0x10000;
     return {};
 }
 
@@ -213,7 +250,7 @@ PsxVariant disc_variant()
     if (now < next_scan) {
         return PsxVariant::Unknown;
     }
-    next_scan = now + 1000;
+    next_scan = now + 250;
     const SerialHit hit = scan_disc_serial();
     if (hit.variant == PsxVariant::Unknown) {
         return PsxVariant::Unknown;
@@ -401,6 +438,8 @@ void log_hex_dump(const uint8_t* data, size_t len)
 
 bool find_candidate(uintptr_t& out)
 {
+    // ponytail: startup latch can take ~12s because this scans process memory. Replace with a
+    // verified PSX RAM anchor when available; keep this scan as the compatibility fallback.
     struct Candidate {
         uintptr_t address;
         std::array<uint32_t, kGameTimeOffsets.size()> clocks;
