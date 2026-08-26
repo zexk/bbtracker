@@ -70,6 +70,17 @@ void test_japanese_original_bypasses_difficulty()
     CHECK(std::string_view(best(s)) == "BIG BOSS");
 }
 
+void test_gated_editions_reject_easy_elite()
+{
+    // US/PAL originals keep both gates even though their Easy tier matches
+    // the JP fixed difficulty; a misdetection must not award elite ranks.
+    GameStats s = with(2.9);
+    s.difficulty = Difficulty::Easy;
+    CHECK(std::string_view(best(s)) != "FOX");
+    s.radar_off = true;
+    CHECK(std::string_view(best(s)) != "BIG BOSS");
+}
+
 void test_integral_elite_ladder_uses_difficulty()
 {
     GameStats s = with(2.9);
@@ -214,6 +225,7 @@ int main()
         {"fox_when_radar_on", test_fox_when_radar_on},
         {"elite_wrong_difficulty_rejected", test_elite_wrong_difficulty_rejected},
         {"japanese_original_bypasses_difficulty", test_japanese_original_bypasses_difficulty},
+        {"gated_editions_reject_easy_elite", test_gated_editions_reject_easy_elite},
         {"integral_elite_ladder_uses_difficulty", test_integral_elite_ladder_uses_difficulty},
         {"integral_special_family_uses_difficulty", test_integral_special_family_uses_difficulty},
         {"integral_requirements_do_not_include_radar",

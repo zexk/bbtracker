@@ -33,16 +33,85 @@ bool g_integral = false;
 
 bool range_readable(uintptr_t addr, size_t len);
 
-constexpr bool integral_serial(std::string_view text)
+enum class PsxVariant { Unknown, WesternOriginal, JapaneseOriginal, Integral };
+
+struct SerialRule {
+    std::string_view text;
+    PsxVariant variant;
+};
+
+// Disc serials surface in memory either as PSX paths ("cdrom:\SLPM_862.47;1")
+// or plain product codes ("SLPM-86247"); both spellings are listed.
+// Serials verified against Master Collection Vol.1 windata/alldata.bin and
+// windata/dlc/dlc_japan.bin; anything unrecognized defaults to WesternOriginal.
+constexpr std::array kSerialRules{
+    // JP original Premium Package (dlc_japan.bin, both discs)
+    SerialRule{"SLPM_861.11", PsxVariant::JapaneseOriginal},
+    SerialRule{"SLPM-86111", PsxVariant::JapaneseOriginal},
+    SerialRule{"SLPM_861.12", PsxVariant::JapaneseOriginal},
+    SerialRule{"SLPM-86112", PsxVariant::JapaneseOriginal},
+
+    // Integral (dlc_japan.bin, both discs)
+    SerialRule{"SLPM_862.47", PsxVariant::Integral},
+    SerialRule{"SLPM-86247", PsxVariant::Integral},
+    SerialRule{"SLPM_862.48", PsxVariant::Integral},
+    SerialRule{"SLPM-86248", PsxVariant::Integral},
+    SerialRule{"SLPM_862.49", PsxVariant::Integral},
+    SerialRule{"SLPM-86249", PsxVariant::Integral},
+
+    // Western original: US/EU campaign discs
+    SerialRule{"SLUS_005.94", PsxVariant::WesternOriginal},
+    SerialRule{"SLUS-00594", PsxVariant::WesternOriginal},
+    SerialRule{"SLUS_007.76", PsxVariant::WesternOriginal},
+    SerialRule{"SLUS-00776", PsxVariant::WesternOriginal},
+    SerialRule{"SLES_013.70", PsxVariant::WesternOriginal},
+    SerialRule{"SLES-01370", PsxVariant::WesternOriginal},
+    SerialRule{"SLES_113.70", PsxVariant::WesternOriginal},
+    SerialRule{"SLES-11370", PsxVariant::WesternOriginal},
+    SerialRule{"SLES_015.06", PsxVariant::WesternOriginal},
+    SerialRule{"SLES-01506", PsxVariant::WesternOriginal},
+    SerialRule{"SLES_115.06", PsxVariant::WesternOriginal},
+    SerialRule{"SLES-11506", PsxVariant::WesternOriginal},
+    SerialRule{"SLES_015.07", PsxVariant::WesternOriginal},
+    SerialRule{"SLES-01507", PsxVariant::WesternOriginal},
+    SerialRule{"SLES_115.07", PsxVariant::WesternOriginal},
+    SerialRule{"SLES-11507", PsxVariant::WesternOriginal},
+    SerialRule{"SLES_015.08", PsxVariant::WesternOriginal},
+    SerialRule{"SLES-01508", PsxVariant::WesternOriginal},
+    SerialRule{"SLES_115.08", PsxVariant::WesternOriginal},
+    SerialRule{"SLES-11508", PsxVariant::WesternOriginal},
+    SerialRule{"SLES_017.34", PsxVariant::WesternOriginal},
+    SerialRule{"SLES-01734", PsxVariant::WesternOriginal},
+    SerialRule{"SLES_117.34", PsxVariant::WesternOriginal},
+    SerialRule{"SLES-11734", PsxVariant::WesternOriginal},
+};
+
+constexpr PsxVariant classify_serial(std::string_view text)
 {
-    return text.find("SLPM_862.47") != std::string_view::npos
-        || text.find("SLPM_862.48") != std::string_view::npos
-        || text.find("SLPM-86247") != std::string_view::npos
-        || text.find("SLPM-86248") != std::string_view::npos;
+    for (const SerialRule& rule : kSerialRules) {
+        if (text.find(rule.text) != std::string_view::npos) {
+            return rule.variant;
+        }
+    }
+    return PsxVariant::Unknown;
 }
 
-static_assert(integral_serial("cdrom:\\SLPM_862.47;1"));
-static_assert(!integral_serial("cdrom:\\SLUS_005.94;1"));
+constexpr const char* variant_name(PsxVariant v)
+{
+    switch (v) {
+    case PsxVariant::JapaneseOriginal: return "JP original";
+    case PsxVariant::Integral: return "Integral";
+    case PsxVariant::WesternOriginal: return "western original";
+    default: return "unknown";
+    }
+}
+
+static_assert(classify_serial("cdrom:\\SLPM_861.11;1") == PsxVariant::JapaneseOriginal);
+static_assert(classify_serial("SLPM-86248") == PsxVariant::Integral);
+static_assert(classify_serial("SLPM_862.49;1") == PsxVariant::Integral);
+static_assert(classify_serial("SLUS_005.94;1") == PsxVariant::WesternOriginal);
+static_assert(classify_serial("SLES_013.70;1") != PsxVariant::JapaneseOriginal);
+static_assert(classify_serial("garbage") == PsxVariant::Unknown);
 
 struct FieldOffsets {
     constexpr static size_t kStage = 0x03;
@@ -82,17 +151,23 @@ bool range_readable(uintptr_t addr, size_t len)
     return true;
 }
 
-bool detect_integral()
+struct SerialHit {
+    PsxVariant variant = PsxVariant::Unknown;
+    char serial[16]{};
+};
+
+SerialHit scan_disc_serial()
 {
+    // The tracker's own image embeds every serial string, so exclude self.
     HMODULE self = nullptr;
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
                                 | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                            reinterpret_cast<LPCWSTR>(&detect_integral), &self)) {
-        return false;
+                            reinterpret_cast<LPCWSTR>(&scan_disc_serial), &self)) {
+        return {};
     }
     MODULEINFO self_info{};
     if (!GetModuleInformation(GetCurrentProcess(), self, &self_info, sizeof(self_info))) {
-        return false;
+        return {};
     }
     const uintptr_t self_begin = reinterpret_cast<uintptr_t>(self_info.lpBaseOfDll);
     const uintptr_t self_end = self_begin + self_info.SizeOfImage;
@@ -106,16 +181,47 @@ bool detect_integral()
         const uintptr_t end = base + mbi.RegionSize;
         if ((base < self_begin || base >= self_end) && mbi.State == MEM_COMMIT
             && (mbi.Protect & kReadable) != 0
-            && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize <= 0x4000000
-            && integral_serial({reinterpret_cast<const char*>(base), mbi.RegionSize})) {
-            return true;
+            && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize <= 0x4000000) {
+            const std::string_view text{reinterpret_cast<const char*>(base), mbi.RegionSize};
+            for (const SerialRule& rule : kSerialRules) {
+                if (text.find(rule.text) != std::string_view::npos) {
+                    SerialHit hit{};
+                    hit.variant = rule.variant;
+                    rule.text.copy(hit.serial, sizeof(hit.serial) - 1);
+                    return hit;
+                }
+            }
         }
         if (end <= cursor) {
             break;
         }
         cursor = end;
     }
-    return false;
+    return {};
+}
+
+PsxVariant g_variant = PsxVariant::Unknown;
+char g_serial[sizeof(SerialHit{}.serial)]{};
+
+PsxVariant disc_variant()
+{
+    static uint64_t next_scan = 0;
+    if (g_variant != PsxVariant::Unknown) {
+        return g_variant;
+    }
+    const uint64_t now = GetTickCount64();
+    if (now < next_scan) {
+        return PsxVariant::Unknown;
+    }
+    next_scan = now + 1000;
+    const SerialHit hit = scan_disc_serial();
+    if (hit.variant == PsxVariant::Unknown) {
+        return PsxVariant::Unknown;
+    }
+    g_variant = hit.variant;
+    std::memcpy(g_serial, hit.serial, sizeof(g_serial));
+    LOG_INFO("mgs1 disc serial %s -> %s", g_serial, variant_name(g_variant));
+    return g_variant;
 }
 
 template <typename T>
@@ -156,7 +262,16 @@ uint32_t read_game_frames()
         current[i] = read_at<uint32_t>(g_array_start - kGameTimeOffsets[i], 0);
     }
     if (g_game_time_index >= 0) {
-        return current[static_cast<size_t>(g_game_time_index)];
+        const uint32_t selected = current[static_cast<size_t>(g_game_time_index)];
+        if (clock_reset(g_last_game_frames, selected)) {
+            LOG_INFO("mgs1 new emulated session; resetting variant detection");
+            g_variant = PsxVariant::Unknown;
+            g_serial[0] = '\0';
+            g_game_time_index = -1;
+            g_time_sample_tick = 0;
+            return 0;
+        }
+        return selected;
     }
 
     const uint64_t now = GetTickCount64();
@@ -402,8 +517,7 @@ bool poll_stats(GameStats& out)
         LOG_INFO("mgs1 work array at %p stage=%s score=%d",
                  reinterpret_cast<const void*>(g_array_start), stage, best_score);
         log_hex_dump(reinterpret_cast<const uint8_t*>(g_array_start), 0xD0);
-        g_integral = g_game_time_index == 0 && detect_integral();
-        LOG_INFO("mgs1 variant=%s", g_integral ? "Integral" : "original");
+        g_integral = disc_variant() == PsxVariant::Integral;
         g_time_sample_tick = 0;
     }
 
@@ -438,8 +552,23 @@ bool poll_stats(GameStats& out)
         g_last_radar_state = radar_state;
     }
 
+    const PsxVariant variant = disc_variant();
+    g_integral = variant == PsxVariant::Integral;
     out.mgs1_integral = g_integral;
-    out.mgs1_japanese_original = !g_integral && g_game_time_index > 0;
+    out.mgs1_japanese_original = variant == PsxVariant::JapaneseOriginal;
+    if (g_game_time_index >= 0 && variant != PsxVariant::Unknown) {
+        const int expected = out.mgs1_japanese_original ? 1 : 0;
+        if (g_game_time_index != expected) {
+            static bool warned_mismatch = false;
+            if (!warned_mismatch) {
+                warned_mismatch = true;
+                LOG_WARN("mgs1 %s serial but game-time offset -0x%04X (expected -0x%04X)",
+                         variant_name(variant),
+                         static_cast<unsigned>(kGameTimeOffsets[g_game_time_index]),
+                         static_cast<unsigned>(kGameTimeOffsets[expected]));
+            }
+        }
+    }
     const int8_t diff = out.mgs1_japanese_original
         ? 0
         : read_at<int8_t>(g_array_start, FieldOffsets::kDifficulty);

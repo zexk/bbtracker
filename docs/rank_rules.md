@@ -8,10 +8,38 @@ hidden in code comments.
 
 Source: [muni_shinobu's original MGS codename chart](https://www.tentenpro.com/muni_shinobu/mgs/codename.html).
 
-Original and Integral use separate rank tables. Probe detects Integral from its
-`SLPM-86247`/`SLPM-86248` disc serial and applies its 64-rule, difficulty-tiered
-system. Japanese original uses original rules without US/EU FOX and BIG BOSS
-difficulty gates.
+Original and Integral use separate rank tables; Integral's 64-rule,
+difficulty-tiered system comes from muni's `/mgs/int_codename.html`. Probe picks
+the variant from the disc serial found in emulated memory (both `SLPM_86x.xx`
+path and `SLPM-86xxx` code spellings), rescanning until a serial latches.
+Serials were verified against Master Collection Vol.1's own images
+(`windata/alldata.bin`, `windata/dlc/dlc_japan.bin`):
+
+- Japanese original: Premium Package `SLPM-86111/86112` (DLC).
+- Integral: `SLPM-86247/86248/86249` (DLC).
+- Western original: US (`SLUS-00594/00776`) and EU localizations
+  (`SLES-01370/11370` UK, `SLES-01506/11506` FR,
+  `SLES-01507/11507` DE, `SLES-01508/11508` IT, `SLES-01734/11734` ES).
+  VR Missions (`SLUS-00957`) and Special Missions
+  (`SLES-02136`) contain no ranked campaign and are intentionally ignored.
+  Unrecognized serials default here so no unknown region can slip past the
+  FOX/BIG BOSS gates.
+
+The tracker image embeds the same strings and is excluded from the scan.
+When game-time resets for a newly booted image, probe clears latched serial and
+timer offset, then discovers both again. This supports returning to collection
+menu and launching another edition without restarting process.
+Region never derives from memory layout: game-time offset selection (western
+originals and Integral `-0x939D`, assumed shared since EU is the only western
+edition probed; JP `-0x9495`; third candidate `-0x9B11` of unknown provenance)
+only picks which counter to read, and a mismatch with the serial variant is
+logged as a warning.
+
+Rank differences by edition, per muni's chart and the speedrun community:
+the Japanese original offers only its fixed Easy-equivalent difficulty and
+still ranks rank 1 BIG BOSS, so its elite rows carry no difficulty gate. The
+US/EU originals and Integral gate FOX to Hard and BIG BOSS to Extreme while
+sharing the same stat thresholds.
 
 Probe uses scored live-stage records derived from NeopolitanDreamz's
 `MGS1_master.CT` and bmn's `livesplit_asl_mgs1` layouts. Confirmed live fields include

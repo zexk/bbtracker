@@ -81,7 +81,7 @@ double stat_value(const GameStats& s, StatId id);
 
 bool cond_met(const GameStats& s, const Cond& c);
 
-bool rule_matches(const GameStats& s, const RankRule& r);
+bool rule_matches(const GameStats& s, const RankRule& r, bool skip_tier = false);
 
 std::optional<Match> evaluate_mgs3(const GameStats& s);
 

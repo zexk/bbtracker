@@ -74,9 +74,9 @@ TierMask tier_bit(Difficulty d)
     return kX;
 }
 
-bool rule_matches(const GameStats& s, const RankRule& r)
+bool rule_matches(const GameStats& s, const RankRule& r, bool skip_tier)
 {
-    if ((r.tiers & tier_bit(s.difficulty)) == 0) {
+    if (!skip_tier && (r.tiers & tier_bit(s.difficulty)) == 0) {
         return false;
     }
     if (r.needs_time && s.play_time_seconds <= 0.0) {
@@ -222,13 +222,11 @@ std::optional<Match> evaluate_mgs1(const GameStats& s)
 {
     const std::span<const RankRule> rules = s.mgs1_integral ? mgs1_integral_rules() : mgs1_rules();
     for (const RankRule& r : rules) {
-        bool matches = rule_matches(s, r);
-        if (!matches && !s.mgs1_integral && s.mgs1_japanese_original && r.kind == Kind::Elite) {
-            GameStats jp = s;
-            jp.difficulty = r.name[0] == 'B' ? Difficulty::Extreme : Difficulty::Hard;
-            matches = rule_matches(jp, r);
-        }
-        if (matches) {
+        // Japanese original has no difficulty choice, so its elite ranks carry
+        // no tier gate; US/EU gate FOX to Hard and BIG BOSS to Extreme.
+        const bool jp_ungated = !s.mgs1_integral && s.mgs1_japanese_original
+            && r.kind == Kind::Elite;
+        if (rule_matches(s, r, jp_ungated)) {
             return Match{r.name, r.kind};
         }
     }
