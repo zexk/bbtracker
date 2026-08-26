@@ -180,7 +180,7 @@ bool resolve(uintptr_t& out_block, uintptr_t& out_story_base)
     }
 
     const uintptr_t slot = g_slot_addr;
-    if (!range_readable(slot, sizeof(uintptr_t))) {
+    if (!range_readable(slot, 0x10 + sizeof(uintptr_t))) {
         g_slot_addr = 0;
         return false;
     }
