@@ -388,6 +388,7 @@ void apply_game_theme()
     }
 
     if (g_game == Game::MGS4) {
+        style.ScrollbarRounding = 0.0f;
         colors[ImGuiCol_Text]              = ImVec4(0.84f, 0.83f, 0.66f, 1.00f);
         colors[ImGuiCol_TextDisabled]      = ImVec4(0.49f, 0.48f, 0.36f, 1.00f);
         colors[ImGuiCol_WindowBg]          = ImVec4(0.08f, 0.08f, 0.05f, 0.96f);
@@ -416,6 +417,10 @@ void apply_game_theme()
         colors[ImGuiCol_ResizeGrip]        = ImVec4(0.62f, 0.42f, 0.08f, 0.35f);
         colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.94f, 0.66f, 0.14f, 0.75f);
         colors[ImGuiCol_ResizeGripActive]  = ImVec4(0.94f, 0.66f, 0.14f, 1.00f);
+        colors[ImGuiCol_ScrollbarBg]       = ImVec4(0.10f, 0.10f, 0.06f, 0.85f);
+        colors[ImGuiCol_ScrollbarGrab]     = ImVec4(0.38f, 0.35f, 0.21f, 0.90f);
+        colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.62f, 0.42f, 0.08f, 0.95f);
+        colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.94f, 0.66f, 0.14f, 1.00f);
         return;
     }
 
@@ -853,7 +858,6 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
                               ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
             ImGui::TableSetupColumn("emblem / requirement", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("progress", ImGuiTableColumnFlags_WidthFixed, 125.0f);
-            ImGui::TableHeadersRow();
             const ImVec4 done_color(0.42f, 0.90f, 0.45f, 1.0f);
             const ImVec4 pending_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
             const auto row = [&](const char* name, const char* goal, const char* value) {
@@ -881,32 +885,32 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
                 row(name, goal, text);
             };
             char text[96];
-            count("BEAR", "Choke 100 enemies with CQC", stats.cqc_chokes, 100);
-            count("EAGLE", "Land 150 headshots", stats.headshots, 150);
+            count("BEAR", "100 CQC chokes", stats.cqc_chokes, 100);
+            count("EAGLE", "150 headshots", stats.headshots, 150);
             snprintf(text, sizeof(text), "knife %d / 50\nCQC %d / 50\nalerts %d / 25",
                      stats.knife_defeats, stats.cqc_holds, stats.alerts);
-            row("ASSASSIN", "50 knife defeats, 50 CQC holds, at most 25 alerts", text);
+            row("ASSASSIN", "50 knife, 50 CQC, max 25 alerts", text);
             snprintf(text, sizeof(text), "%d kills", stats.kills);
-            row("PIGEON", "Finish with no kills", text);
-            count("BLUE BIRD", "Give 50 items to militia or rebels", stats.items_given, 50);
-            count("HAWK", "Receive 25 militia or rebel praises", stats.praises, 25);
-            count("LITTLE GRAY", "Acquire all 69 counted weapons", stats.weapons_acquired, 69);
+            row("PIGEON", "No kills", text);
+            count("BLUE BIRD", "Give allies 50 items", stats.items_given, 50);
+            count("HAWK", "Earn 25 ally praises", stats.praises, 25);
+            count("LITTLE GRAY", "Acquire 69 weapons", stats.weapons_acquired, 69);
             count("ANT", "Search 50 held-up enemies", stats.body_searches, 50);
             count("GIBBON", "Hold up 50 enemies", stats.hold_ups, 50);
-            time("TORTOISE", "Spend 60 minutes in box or drum", stats.box_time_seconds, 60 * 60);
+            time("TORTOISE", "60 min in box or drum", stats.box_time_seconds, 60 * 60);
             count("RABBIT", "Turn 100 magazine pages", stats.magazine_pages, 100);
-            count("BEE", "Use Syringe or Scanning Plug 50 times", stats.syringe_uses, 50);
-            time("GECKO", "Spend 60 minutes pressed against walls", stats.wall_time_seconds, 60 * 60);
-            count("SCARAB", "Perform 100 prone side rolls", stats.side_rolls, 100);
-            count("FROG", "Perform 200 forward rolls", stats.forward_rolls, 200);
-            time("INCH WORM", "Crawl for 60 minutes", stats.crawl_time_seconds, 60 * 60);
-            time("LOBSTER", "Crouch for 150 minutes", stats.crouch_time_seconds, 150 * 60);
-            count("HYENA", "Pick up 400 weapons or items", stats.pickups, 400);
+            count("BEE", "50 Syringe / Scanning Plug uses", stats.syringe_uses, 50);
+            time("GECKO", "60 min against walls", stats.wall_time_seconds, 60 * 60);
+            count("SCARAB", "100 prone side rolls", stats.side_rolls, 100);
+            count("FROG", "200 forward rolls", stats.forward_rolls, 200);
+            time("INCH WORM", "Crawl for 60 min", stats.crawl_time_seconds, 60 * 60);
+            time("LOBSTER", "Crouch for 150 min", stats.crouch_time_seconds, 150 * 60);
+            count("HYENA", "Pick up 400 weapons / items", stats.pickups, 400);
             count("HOG", "Enter Combat High 10 times", stats.combat_highs, 10);
             count("PIG", "Use 40 recovery items", stats.rations_used, 40);
             count("COW", "Trigger 100 alerts", stats.alerts, 100);
             count("CROCODILE", "Kill 400 enemies", stats.kills, 400);
-            time("GIANT PANDA", "Play for at least 30 hours", stats.play_time_seconds, 30 * 60 * 60);
+            time("GIANT PANDA", "Play for 30 hours", stats.play_time_seconds, 30 * 60 * 60);
             ImGui::EndTable();
         }
     }
