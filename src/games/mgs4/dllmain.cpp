@@ -6,7 +6,7 @@
 DWORD WINAPI init_thread(LPVOID)
 {
     bb::start_overlay(BB_GAME_LABEL, &bb::mgs4::poll_stats,
-                      L"METAL GEAR SOLID4.exe", bb::Game::MGS4);
+                      L"mgs4.exe", bb::Game::MGS4);
     return 0;
 }
 

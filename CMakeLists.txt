@@ -25,6 +25,7 @@ if(WIN32)
     ${IMGUI_DIR}/imgui_tables.cpp
     ${IMGUI_DIR}/imgui_widgets.cpp
     ${IMGUI_DIR}/backends/imgui_impl_dx11.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_dx12.cpp
     ${IMGUI_DIR}/backends/imgui_impl_win32.cpp)
   target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
 
@@ -46,7 +47,7 @@ if(WIN32)
     src/common/codename/rules_mgs1_integral.cpp
     src/overlay/overlay.cpp)
   target_include_directories(core PUBLIC src)
-  target_link_libraries(core PUBLIC imgui minhook d3d11 dxgi d3dcompiler dwmapi)
+  target_link_libraries(core PUBLIC imgui minhook d3d11 d3d12 dxgi d3dcompiler dwmapi)
 
   function(bb_asi name label sources)
     add_library(${name} SHARED ${sources})

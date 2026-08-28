@@ -2,11 +2,13 @@
 
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
+#include <imgui_impl_dx12.h>
 #include <imgui_impl_win32.h>
 
 #include <windows.h>
 #include <d3d11.h>
-#include <dxgi.h>
+#include <d3d12.h>
+#include <dxgi1_4.h>
 
 #include <MinHook.h>
 
@@ -22,12 +24,31 @@
 namespace bb {
 namespace {
 
+enum class Renderer { Unknown, D3D11, D3D12 };
+
+struct D3D12Frame {
+    ID3D12CommandAllocator* allocator = nullptr;
+    ID3D12Resource* buffer = nullptr;
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv{};
+    UINT64 fence_value = 0;
+};
+
 struct OverlayState {
     bool imgui_ready = false;
     bool show = true;
+    Renderer renderer = Renderer::Unknown;
     ID3D11Device* device = nullptr;
     ID3D11DeviceContext* context = nullptr;
     ID3D11RenderTargetView* rtv = nullptr;
+    ID3D12Device* device12 = nullptr;
+    ID3D12CommandQueue* queue12 = nullptr;
+    ID3D12GraphicsCommandList* command_list12 = nullptr;
+    ID3D12DescriptorHeap* rtv_heap12 = nullptr;
+    ID3D12DescriptorHeap* srv_heap12 = nullptr;
+    ID3D12Fence* fence12 = nullptr;
+    HANDLE fence_event12 = nullptr;
+    UINT64 next_fence12 = 0;
+    std::vector<D3D12Frame> frames12;
     HWND hwnd = nullptr;
 };
 
@@ -39,12 +60,16 @@ OverlayState g{};
 using PresentFn = HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT);
 using ResizeBuffersFn =
     HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
+using ExecuteCommandListsFn =
+    void(STDMETHODCALLTYPE*)(ID3D12CommandQueue*, UINT, ID3D12CommandList* const*);
 
 PresentFn oPresent = nullptr;
 ResizeBuffersFn oResizeBuffers = nullptr;
+ExecuteCommandListsFn oExecuteCommandLists = nullptr;
 
 constexpr UINT kPresentIndex = 8;
 constexpr UINT kResizeBuffersIndex = 13;
+constexpr UINT kExecuteCommandListsIndex = 10;
 constexpr UINT kToggleKey = VK_F3;
 constexpr UINT kTabKey = VK_F4;
 
@@ -83,6 +108,8 @@ void release_rtv()
     }
 }
 
+void apply_game_theme();
+
 bool create_rtv(IDXGISwapChain* swap_chain)
 {
     ID3D11Texture2D* back_buffer = nullptr;
@@ -93,6 +120,143 @@ bool create_rtv(IDXGISwapChain* swap_chain)
     HRESULT hr = g.device->CreateRenderTargetView(back_buffer, nullptr, &g.rtv);
     back_buffer->Release();
     return SUCCEEDED(hr);
+}
+
+void wait_d3d12(D3D12Frame* frame = nullptr)
+{
+    const UINT64 value = frame ? frame->fence_value : g.next_fence12;
+    if (!value || !g.fence12 || g.fence12->GetCompletedValue() >= value) {
+        return;
+    }
+    if (SUCCEEDED(g.fence12->SetEventOnCompletion(value, g.fence_event12))) {
+        WaitForSingleObject(g.fence_event12, INFINITE);
+    }
+}
+
+void release_d3d12()
+{
+    wait_d3d12();
+    if (g.imgui_ready && g.renderer == Renderer::D3D12) {
+        ImGui_ImplDX12_Shutdown();
+        ImGui_ImplWin32_Shutdown();
+        ImGui::DestroyContext();
+    }
+    for (auto& frame : g.frames12) {
+        if (frame.buffer) frame.buffer->Release();
+        if (frame.allocator) frame.allocator->Release();
+    }
+    g.frames12.clear();
+    if (g.command_list12) g.command_list12->Release();
+    if (g.rtv_heap12) g.rtv_heap12->Release();
+    if (g.srv_heap12) g.srv_heap12->Release();
+    if (g.fence12) g.fence12->Release();
+    if (g.fence_event12) CloseHandle(g.fence_event12);
+    if (g.device12) g.device12->Release();
+    g.command_list12 = nullptr;
+    g.rtv_heap12 = nullptr;
+    g.srv_heap12 = nullptr;
+    g.fence12 = nullptr;
+    g.fence_event12 = nullptr;
+    g.device12 = nullptr;
+    g.next_fence12 = 0;
+    g.imgui_ready = false;
+    g.renderer = Renderer::Unknown;
+}
+
+void alloc_srv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* cpu,
+               D3D12_GPU_DESCRIPTOR_HANDLE* gpu)
+{
+    *cpu = g.srv_heap12->GetCPUDescriptorHandleForHeapStart();
+    *gpu = g.srv_heap12->GetGPUDescriptorHandleForHeapStart();
+}
+
+void free_srv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE,
+              D3D12_GPU_DESCRIPTOR_HANDLE)
+{
+}
+
+bool init_imgui_d3d12(IDXGISwapChain* swap_chain)
+{
+    if (!g.queue12
+        || FAILED(swap_chain->GetDevice(__uuidof(ID3D12Device),
+                                        reinterpret_cast<void**>(&g.device12)))) {
+        return false;
+    }
+
+    IDXGISwapChain3* swap_chain3 = nullptr;
+    DXGI_SWAP_CHAIN_DESC desc{};
+    if (FAILED(swap_chain->QueryInterface(IID_PPV_ARGS(&swap_chain3)))
+        || FAILED(swap_chain->GetDesc(&desc)) || !desc.BufferCount) {
+        if (swap_chain3) swap_chain3->Release();
+        release_d3d12();
+        return false;
+    }
+    g.hwnd = desc.OutputWindow;
+    g.frames12.resize(desc.BufferCount);
+
+    D3D12_DESCRIPTOR_HEAP_DESC rtv_desc{};
+    rtv_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    rtv_desc.NumDescriptors = desc.BufferCount;
+    D3D12_DESCRIPTOR_HEAP_DESC srv_desc{};
+    srv_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    srv_desc.NumDescriptors = 1;
+    srv_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+    bool ok = SUCCEEDED(g.device12->CreateDescriptorHeap(&rtv_desc, IID_PPV_ARGS(&g.rtv_heap12)))
+        && SUCCEEDED(g.device12->CreateDescriptorHeap(&srv_desc, IID_PPV_ARGS(&g.srv_heap12)))
+        && SUCCEEDED(g.device12->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&g.fence12)));
+    g.fence_event12 = ok ? CreateEventW(nullptr, FALSE, FALSE, nullptr) : nullptr;
+    ok = ok && g.fence_event12;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv = ok ? g.rtv_heap12->GetCPUDescriptorHandleForHeapStart()
+                                         : D3D12_CPU_DESCRIPTOR_HANDLE{};
+    const UINT step = ok ? g.device12->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
+                         : 0;
+    for (UINT i = 0; ok && i < desc.BufferCount; ++i, rtv.ptr += step) {
+        auto& frame = g.frames12[i];
+        frame.rtv = rtv;
+        ok = SUCCEEDED(g.device12->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                                          IID_PPV_ARGS(&frame.allocator)))
+            && SUCCEEDED(swap_chain3->GetBuffer(i, IID_PPV_ARGS(&frame.buffer)));
+        if (ok) g.device12->CreateRenderTargetView(frame.buffer, nullptr, frame.rtv);
+    }
+    if (ok) {
+        ok = SUCCEEDED(g.device12->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                                     g.frames12[0].allocator, nullptr,
+                                                     IID_PPV_ARGS(&g.command_list12)));
+        if (ok) g.command_list12->Close();
+    }
+    swap_chain3->Release();
+    if (!ok) {
+        release_d3d12();
+        return false;
+    }
+
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
+    apply_game_theme();
+    ImGui_ImplWin32_Init(g.hwnd);
+    ImGui_ImplDX12_InitInfo info{};
+    info.Device = g.device12;
+    info.CommandQueue = g.queue12;
+    info.NumFramesInFlight = static_cast<int>(desc.BufferCount);
+    info.RTVFormat = desc.BufferDesc.Format;
+    info.DSVFormat = DXGI_FORMAT_UNKNOWN;
+    info.SrvDescriptorHeap = g.srv_heap12;
+    info.SrvDescriptorAllocFn = alloc_srv;
+    info.SrvDescriptorFreeFn = free_srv;
+    if (!ImGui_ImplDX12_Init(&info)) {
+        ImGui_ImplWin32_Shutdown();
+        ImGui::DestroyContext();
+        release_d3d12();
+        return false;
+    }
+    g.renderer = Renderer::D3D12;
+    g.imgui_ready = true;
+    LOG_INFO("D3D12 overlay ready on hwnd %p", reinterpret_cast<void*>(g.hwnd));
+    return true;
 }
 
 void apply_game_theme()
@@ -306,9 +470,10 @@ bool init_imgui(IDXGISwapChain* swap_chain)
     apply_game_theme();
     ImGui_ImplWin32_Init(g.hwnd);
     ImGui_ImplDX11_Init(g.device, g.context);
+    g.renderer = Renderer::D3D11;
     g.imgui_ready = true;
 
-    LOG_INFO("overlay ready on hwnd %p", reinterpret_cast<void*>(g.hwnd));
+    LOG_INFO("D3D11 overlay ready on hwnd %p", reinterpret_cast<void*>(g.hwnd));
     return true;
 }
 
@@ -442,13 +607,97 @@ const char* mgs2_area_name(const char* code)
     return exact_area_name(code, kAreas, std::size(kAreas));
 }
 
+const char* mgs4_area_name(const char* code)
+{
+    constexpr AreaName kAreas[] = {
+        {"s00a00l", "Prologue Cemetery"},
+        {"s00a10l", "Ending Cemetery"},
+        {"s01a00l", "Middle East Infiltration"},
+        {"s01a05l", "Middle East Infiltration"},
+        {"s01a10l", "Red Zone"},
+        {"s01a20l", "Militia Safehouse"},
+        {"s01a30l", "Urban Ruins"},
+        {"s01a40l", "Advent Palace"},
+        {"s01a50l", "Crescent Meridian"},
+        {"s01a55l", "Crescent Meridian"},
+        {"s01a57l", "Millennium Park"},
+        {"s01a60l", "Liquid's Encampment"},
+        {"s02a10l", "Cove Valley Village"},
+        {"s02a20l", "Power Station"},
+        {"s02a25l", "Power Station"},
+        {"s02a30l", "Confinement Facility"},
+        {"s02a40l", "Vista Mansion"},
+        {"s02a50l", "Research Lab"},
+        {"s02a60l", "Mountain Trail / Riverside"},
+        {"s02a70l", "Vamp Ambush"},
+        {"s02a73l", "Stryker Escape"},
+        {"s02a75l", "Stryker Escape"},
+        {"s02a78l", "Stryker Escape"},
+        {"s02a80l", "High Woodlands Highway"},
+        {"s02a85l", "Marketplace Entrance"},
+        {"s02a90l", "Marketplace"},
+        {"s02a95l", "Marketplace Plaza"},
+        {"s03a00l", "Eastern Europe Station"},
+        {"s03a10l", "Midtown: Resistance Tail"},
+        {"s03a15l", "Midtown: Resistance Tail"},
+        {"s03a16l", "Midtown: Canals"},
+        {"s03a20l", "Midtown: Plaza"},
+        {"s03a25l", "Midtown: North Sector"},
+        {"s03a30l", "Church Courtyard"},
+        {"s03a35l", "Motorcycle Chase"},
+        {"s03a40l", "Motorcycle Chase"},
+        {"s03a50l", "Raging Raven Ambush"},
+        {"s03a60l", "Motorcycle Chase"},
+        {"s03a65l", "Echo's Beacon"},
+        {"s03a70l", "Echo's Beacon"},
+        {"s03a90l", "Volta River"},
+        {"s04a05l", "Metal Gear Solid Flashback"},
+        {"s04a10l", "Snowfield / Heliport / Tank Hangar"},
+        {"s04a20l", "Nuclear Warhead Storage Building"},
+        {"s04a30l", "Snowfield / Communications Tower"},
+        {"s04a40l", "Blast Furnace / Casting Facility"},
+        {"s04a50l", "Underground Base"},
+        {"s04a60l", "Underground Supply Tunnel"},
+        {"s04a65l", "REX Escape"},
+        {"s04a68l", "Port Area"},
+        {"s04a70l", "Port Area: REX vs. RAY"},
+        {"s04a75l", "Outer Haven Arrival"},
+        {"s05a10l", "Ship Bow"},
+        {"s05a20l", "Command Center / Missile Hangar"},
+        {"s05a30l", "Microwave Corridor"},
+        {"s05a40l", "GW"},
+        {"s05a45l", "Liquid Ocelot: Prelude"},
+        {"s05a50l", "Liquid Ocelot"},
+        {"s05a55l", "Liquid Ocelot: Aftermath"},
+        {"s10a10l", "Nomad Mission Briefing"},
+        {"s10a20l", "Nomad: South America Briefing"},
+        {"s10a30l", "Nomad: Eastern Europe Briefing"},
+        {"s10a40l", "Nomad: Shadow Moses Briefing"},
+        {"s20a00l", "USS Missouri"},
+        {"s20a10l", "USS Missouri vs. Outer Haven"},
+        {"s20a20l", "Campbell's Room"},
+        {"s30a00l", "Wedding"},
+        {"s30a10l", "Hospital"},
+    };
+    if (const char* area = exact_area_name(code, kAreas, std::size(kAreas))) return area;
+    if (std::strncmp(code, "r_sna", 5) == 0) return "Nomad Mission Briefing";
+    if (std::strncmp(code, "s00", 3) == 0) return "Prologue";
+    if (std::strncmp(code, "s01", 3) == 0) return "Middle East";
+    if (std::strncmp(code, "s02", 3) == 0) return "South America";
+    if (std::strncmp(code, "s03", 3) == 0) return "Eastern Europe";
+    if (std::strncmp(code, "s04", 3) == 0) return "Shadow Moses";
+    if (std::strncmp(code, "s05", 3) == 0) return "Outer Haven";
+    if (std::strncmp(code, "s06", 3) == 0) return "Epilogue";
+    return nullptr;
+}
+
 const char* area_name(Game game, const char* code)
 {
     switch (game) {
     case Game::MGS1: return mgs1_area_name(code);
     case Game::MGS2: return mgs2_area_name(code);
     case Game::MGS3: return nullptr;
-    case Game::MGS4: return nullptr;
+    case Game::MGS4: return mgs4_area_name(code);
     default: return nullptr;
     }
 }
@@ -498,6 +747,84 @@ void checklist(const char* id, const char* const* names, size_t count, uint64_t 
             ImGui::TextColored(done ? ImVec4(0.42f, 0.90f, 0.45f, 1.0f)
                                     : ImVec4(1, 1, 1, 0.35f),
                                "%s  %s", done ? "x" : "-", names[i]);
+        }
+    }
+    ImGui::EndChild();
+}
+
+void draw_mgs4_feats(const GameStats& stats, int scroll)
+{
+    const std::vector<codename::Match> matches = codename::all_matches_mgs4(stats);
+    const auto matched = [&](const char* name) {
+        for (const auto& match : matches) {
+            if (std::strcmp(match.name, name) == 0) return true;
+        }
+        return false;
+    };
+    if (ImGui::BeginChild("mgs4_feats", ImVec2(0, 360), true)) {
+        if (scroll != 0) {
+            ImGui::SetScrollY(ImGui::GetScrollY()
+                              + scroll * ImGui::GetTextLineHeightWithSpacing() * 8);
+        }
+        if (ImGui::BeginTable("mgs4_feat_rows", 2,
+                              ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+            ImGui::TableSetupColumn("emblem / requirement", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("progress", ImGuiTableColumnFlags_WidthFixed, 125.0f);
+            ImGui::TableHeadersRow();
+            const ImVec4 done_color(0.42f, 0.90f, 0.45f, 1.0f);
+            const ImVec4 pending_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+            const auto row = [&](const char* name, const char* goal, const char* value) {
+                const bool done = matched(name);
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextColored(done ? done_color : pending_color, "%s", name);
+                ImGui::PushTextWrapPos(0.0f);
+                ImGui::TextDisabled("%s", goal);
+                ImGui::PopTextWrapPos();
+                ImGui::TableNextColumn();
+                ImGui::TextColored(done ? done_color : pending_color, "%s", value);
+            };
+            const auto count = [&](const char* name, const char* goal, int value, int target) {
+                char text[40];
+                snprintf(text, sizeof(text), "%d / %d", value, target);
+                row(name, goal, text);
+            };
+            const auto time = [&](const char* name, const char* goal,
+                                  double seconds, double target_seconds) {
+                char current[16], target[16], text[40];
+                format_time(seconds, current, sizeof(current));
+                format_time(target_seconds, target, sizeof(target));
+                snprintf(text, sizeof(text), "%s / %s", current, target);
+                row(name, goal, text);
+            };
+            char text[96];
+            count("BEAR", "Choke 100 enemies with CQC", stats.cqc_chokes, 100);
+            count("EAGLE", "Land 150 headshots", stats.headshots, 150);
+            snprintf(text, sizeof(text), "knife %d / 50\nCQC %d / 50\nalerts %d / 25",
+                     stats.knife_defeats, stats.cqc_holds, stats.alerts);
+            row("ASSASSIN", "50 knife defeats, 50 CQC holds, at most 25 alerts", text);
+            snprintf(text, sizeof(text), "%d kills", stats.kills);
+            row("PIGEON", "Finish with no kills", text);
+            count("BLUE BIRD", "Give 50 items to militia or rebels", stats.items_given, 50);
+            count("HAWK", "Receive 25 militia or rebel praises", stats.praises, 25);
+            count("LITTLE GRAY", "Acquire all 69 counted weapons", stats.weapons_acquired, 69);
+            count("ANT", "Search 50 held-up enemies", stats.body_searches, 50);
+            count("GIBBON", "Hold up 50 enemies", stats.hold_ups, 50);
+            time("TORTOISE", "Spend 60 minutes in box or drum", stats.box_time_seconds, 60 * 60);
+            count("RABBIT", "Turn 100 magazine pages", stats.magazine_pages, 100);
+            count("BEE", "Use Syringe or Scanning Plug 50 times", stats.syringe_uses, 50);
+            time("GECKO", "Spend 60 minutes pressed against walls", stats.wall_time_seconds, 60 * 60);
+            count("SCARAB", "Perform 100 prone side rolls", stats.side_rolls, 100);
+            count("FROG", "Perform 200 forward rolls", stats.forward_rolls, 200);
+            time("INCH WORM", "Crawl for 60 minutes", stats.crawl_time_seconds, 60 * 60);
+            time("LOBSTER", "Crouch for 150 minutes", stats.crouch_time_seconds, 150 * 60);
+            count("HYENA", "Pick up 400 weapons or items", stats.pickups, 400);
+            count("HOG", "Enter Combat High 10 times", stats.combat_highs, 10);
+            count("PIG", "Use 40 recovery items", stats.rations_used, 40);
+            count("COW", "Trigger 100 alerts", stats.alerts, 100);
+            count("CROCODILE", "Kill 400 enemies", stats.kills, 400);
+            time("GIANT PANDA", "Play for at least 30 hours", stats.play_time_seconds, 30 * 60 * 60);
+            ImGui::EndTable();
         }
     }
     ImGui::EndChild();
@@ -562,58 +889,26 @@ void draw_panel()
         have_stats = g_stats_fn(stats);
         next_poll = now + 250;
     }
-
     const char* panel_title = g_game == Game::MGS3 ? "FOXHOUND tracker" : "BIG BOSS tracker";
     ImGui::SetNextWindowSize(ImVec2(380, 480), ImGuiCond_FirstUseEver);
     ImGui::Begin(panel_title, &g.show,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 
     if (!have_stats) {
-        if (g_game == Game::MGS4) {
-            ImGui::SetWindowFontScale(2.0f);
-            ImGui::TextDisabled("---");
-            ImGui::SetWindowFontScale(1.0f);
-            ImGui::Separator();
-            ImGui::Spacing();
-            if (ImGui::BeginTable("mgs4_pending", 2,
-                                  ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-                ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
-                ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-                constexpr const char* requirements[] = {
-                    "difficulty", "alerts", "kills", "continues",
-                    "recovery items", "play time", "special items",
-                };
-                constexpr const char* secondary[] = {
-                    "headshots", "CQC holds", "knife defeats",
-                    "CQC chokes", "hold-ups", "body searches", "combat highs",
-                };
-                for (const char* row : requirements) stat_row(row, "--");
-                for (const char* row : secondary) {
-                    ImGui::TableNextRow();
-                    ImGui::TableNextColumn();
-                    ImGui::TextDisabled("%s", row);
-                    ImGui::TableNextColumn();
-                    ImGui::TextDisabled("--");
-                }
-                ImGui::EndTable();
-            }
-            ImGui::TextDisabled("MGS4 memory probe pending");
-        } else {
-            ImGui::TextDisabled("stats unavailable");
-            ImGui::TextDisabled("memory probe not resolved yet; see bbtracker.log");
-        }
+        ImGui::TextDisabled("no active ranked run");
         ImGui::End();
         return;
     }
 
     static int selected_tab = 0;
-    if (g_game == Game::MGS3 && key_pressed(kTabKey)) {
-        selected_tab = (selected_tab + 1) % 3;
+    const int tab_count = g_game == Game::MGS3 ? 3 : g_game == Game::MGS4 ? 2 : 0;
+    if (tab_count && key_pressed(kTabKey)) {
+        selected_tab = (selected_tab + 1) % tab_count;
     }
     const bool scroll_up = key_pressed(VK_UP);
     const bool scroll_down = key_pressed(VK_DOWN);
     const int scroll = scroll_up ? -1 : scroll_down ? 1 : 0;
-    const bool tabs = g_game == Game::MGS3 && ImGui::BeginTabBar("mgs3_tabs");
+    const bool tabs = tab_count && ImGui::BeginTabBar("tracker_tabs");
     const bool summary = !tabs || ImGui::BeginTabItem(
         "Summary", nullptr, selected_tab == 0 ? ImGuiTabItemFlags_SetSelected : 0);
     if (summary) {
@@ -643,8 +938,8 @@ void draw_panel()
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
 
         const bool classic_mg = g_game == Game::MG1 || g_game == Game::MG2;
-        const bool known_difficulty = classic_mg
-            || g_game == Game::MGS1 || stats.difficulty_game_byte % 10 == 0;
+        const bool known_difficulty = classic_mg || g_game == Game::MGS1 || g_game == Game::MGS4
+            || stats.difficulty_game_byte % 10 == 0;
         const bool valid_difficulty = known_difficulty
             && ((classic_mg && (stats.difficulty == Difficulty::Extreme
                                 || stats.difficulty == Difficulty::Easy))
@@ -797,13 +1092,7 @@ void draw_panel()
             plain_row("captures", buf);
             plain_count("meals eaten", stats.meals_eaten);
         } else if (g_game == Game::MGS4) {
-            plain_count("headshots", stats.headshots);
-            plain_count("CQC holds", stats.cqc_holds);
-            plain_count("knife defeats", stats.knife_defeats);
-            plain_count("CQC chokes", stats.cqc_chokes);
-            plain_count("hold-ups", stats.hold_ups);
-            plain_count("body searches", stats.body_searches);
-            plain_count("combat highs", stats.combat_highs);
+            plain_count("flashbacks", stats.flashbacks_viewed);
         }
         if (stats.area_code[0]) {
             char buf[96];
@@ -823,13 +1112,18 @@ void draw_panel()
     }
     }
 
-    if (tabs && ImGui::BeginTabItem(
+    if (tabs && g_game == Game::MGS4 && ImGui::BeginTabItem(
+                    "Feats", nullptr, selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
+        draw_mgs4_feats(stats, scroll);
+        ImGui::EndTabItem();
+    }
+    if (tabs && g_game == Game::MGS3 && ImGui::BeginTabItem(
                     "Capture", nullptr, selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
         ImGui::Text("%d / 48", stats.plants_captured);
         checklist("captures", kMgs3Captures, std::size(kMgs3Captures), stats.capture_mask, scroll);
         ImGui::EndTabItem();
     }
-    if (tabs && ImGui::BeginTabItem(
+    if (tabs && g_game == Game::MGS3 && ImGui::BeginTabItem(
                     "Kerotan", nullptr, selected_tab == 2 ? ImGuiTabItemFlags_SetSelected : 0)) {
         ImGui::Text("%d / 64", stats.kerotans);
         checklist("kerotans", kMgs3Kerotans, std::size(kMgs3Kerotans), stats.kerotan_mask, scroll);
@@ -843,24 +1137,84 @@ void draw_panel()
     ImGui::End();
 }
 
+void STDMETHODCALLTYPE hk_execute_command_lists(ID3D12CommandQueue* queue, UINT count,
+                                                 ID3D12CommandList* const* lists)
+{
+    if (!g.queue12 && queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT) {
+        queue->AddRef();
+        if (InterlockedCompareExchangePointer(reinterpret_cast<PVOID volatile*>(&g.queue12), queue,
+                                              nullptr)) {
+            queue->Release();
+        } else {
+            LOG_INFO("captured D3D12 direct command queue %p", reinterpret_cast<void*>(queue));
+        }
+    }
+    oExecuteCommandLists(queue, count, lists);
+}
+
+bool render_d3d12(IDXGISwapChain* swap_chain)
+{
+    IDXGISwapChain3* swap_chain3 = nullptr;
+    if (FAILED(swap_chain->QueryInterface(IID_PPV_ARGS(&swap_chain3)))) return false;
+    const UINT index = swap_chain3->GetCurrentBackBufferIndex();
+    swap_chain3->Release();
+    if (index >= g.frames12.size()) return false;
+
+    D3D12Frame& frame = g.frames12[index];
+    wait_d3d12(&frame);
+    if (FAILED(frame.allocator->Reset())
+        || FAILED(g.command_list12->Reset(frame.allocator, nullptr))) return false;
+
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = frame.buffer;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    g.command_list12->ResourceBarrier(1, &barrier);
+    g.command_list12->OMSetRenderTargets(1, &frame.rtv, FALSE, nullptr);
+    g.command_list12->SetDescriptorHeaps(1, &g.srv_heap12);
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), g.command_list12);
+    std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
+    g.command_list12->ResourceBarrier(1, &barrier);
+    if (FAILED(g.command_list12->Close())) return false;
+
+    ID3D12CommandList* lists[] = {g.command_list12};
+    g.queue12->ExecuteCommandLists(1, lists);
+    const UINT64 fence = ++g.next_fence12;
+    if (FAILED(g.queue12->Signal(g.fence12, fence))) return false;
+    frame.fence_value = fence;
+    return true;
+}
+
 HRESULT STDMETHODCALLTYPE hk_present(IDXGISwapChain* swap_chain, UINT sync_interval, UINT flags)
 {
     poll_toggle_key();
     if (!g.show) {
         return oPresent(swap_chain, sync_interval, flags);
     }
-    if (!g.imgui_ready && !init_imgui(swap_chain)) {
-        return oPresent(swap_chain, sync_interval, flags);
+    if (!g.imgui_ready) {
+        ID3D11Device* device11 = nullptr;
+        const bool is_d3d11 = SUCCEEDED(swap_chain->GetDevice(IID_PPV_ARGS(&device11)));
+        if (device11) device11->Release();
+        if (!(is_d3d11 ? init_imgui(swap_chain) : init_imgui_d3d12(swap_chain))) {
+            return oPresent(swap_chain, sync_interval, flags);
+        }
     }
 
-    ImGui_ImplDX11_NewFrame();
+    if (g.renderer == Renderer::D3D11) ImGui_ImplDX11_NewFrame();
+    else ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
     draw_panel();
     ImGui::Render();
 
-    g.context->OMSetRenderTargets(1, &g.rtv, nullptr);
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    if (g.renderer == Renderer::D3D11) {
+        g.context->OMSetRenderTargets(1, &g.rtv, nullptr);
+        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    } else {
+        render_d3d12(swap_chain);
+    }
 
     return oPresent(swap_chain, sync_interval, flags);
 }
@@ -868,7 +1222,9 @@ HRESULT STDMETHODCALLTYPE hk_present(IDXGISwapChain* swap_chain, UINT sync_inter
 HRESULT STDMETHODCALLTYPE hk_resize_buffers(IDXGISwapChain* swap_chain, UINT buffer_count, UINT width,
                                             UINT height, DXGI_FORMAT format, UINT flags)
 {
-    if (g.imgui_ready) {
+    if (g.imgui_ready && g.renderer == Renderer::D3D12) {
+        release_d3d12();
+    } else if (g.imgui_ready) {
         ImGui_ImplDX11_InvalidateDeviceObjects();
         release_rtv();
     }
@@ -879,7 +1235,30 @@ HRESULT STDMETHODCALLTYPE hk_resize_buffers(IDXGISwapChain* swap_chain, UINT buf
     return hr;
 }
 
-bool install_hooks()
+bool hook_targets(void* present_target, void* resize_target, void* execute_target = nullptr)
+{
+    if (MH_Initialize() != MH_OK) {
+        LOG_ERROR("MH_Initialize failed");
+        return false;
+    }
+    if (MH_CreateHook(present_target, reinterpret_cast<void*>(&hk_present),
+                      reinterpret_cast<void**>(&oPresent)) != MH_OK
+        || MH_CreateHook(resize_target, reinterpret_cast<void*>(&hk_resize_buffers),
+                         reinterpret_cast<void**>(&oResizeBuffers)) != MH_OK
+        || (execute_target
+            && MH_CreateHook(execute_target, reinterpret_cast<void*>(&hk_execute_command_lists),
+                             reinterpret_cast<void**>(&oExecuteCommandLists)) != MH_OK)) {
+        LOG_ERROR("MH_CreateHook failed");
+        return false;
+    }
+    if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
+        LOG_ERROR("MH_EnableHook failed");
+        return false;
+    }
+    return true;
+}
+
+bool install_d3d11_hooks()
 {
     WNDCLASSEXA wc{};
     wc.cbSize = sizeof(wc);
@@ -933,24 +1312,63 @@ bool install_hooks()
     if (wnd) DestroyWindow(wnd);
     UnregisterClassA(wc.lpszClassName, wc.hInstance);
 
-    if (MH_Initialize() != MH_OK) {
-        LOG_ERROR("MH_Initialize failed");
-        return false;
+    return hook_targets(present_target, resize_target);
+}
+
+bool install_d3d12_hooks()
+{
+    WNDCLASSEXA wc{};
+    wc.cbSize = sizeof(wc);
+    wc.lpfnWndProc = DefWindowProcA;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpszClassName = "BBTrackerDummyWnd12";
+    if (!RegisterClassExA(&wc)) return false;
+    HWND wnd = CreateWindowExA(0, wc.lpszClassName, "", WS_OVERLAPPEDWINDOW, 0, 0, 100, 100,
+                               nullptr, nullptr, wc.hInstance, nullptr);
+
+    IDXGIFactory4* factory = nullptr;
+    ID3D12Device* device = nullptr;
+    ID3D12CommandQueue* queue = nullptr;
+    IDXGISwapChain1* swap_chain1 = nullptr;
+    IDXGISwapChain3* swap_chain3 = nullptr;
+    bool ok = wnd && SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))
+        && SUCCEEDED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
+    D3D12_COMMAND_QUEUE_DESC queue_desc{};
+    queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    if (ok) ok = SUCCEEDED(device->CreateCommandQueue(&queue_desc, IID_PPV_ARGS(&queue)));
+    DXGI_SWAP_CHAIN_DESC1 swap_desc{};
+    swap_desc.Width = 100;
+    swap_desc.Height = 100;
+    swap_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swap_desc.SampleDesc.Count = 1;
+    swap_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swap_desc.BufferCount = 2;
+    swap_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    if (ok) ok = SUCCEEDED(factory->CreateSwapChainForHwnd(queue, wnd, &swap_desc, nullptr, nullptr,
+                                                            &swap_chain1))
+        && SUCCEEDED(swap_chain1->QueryInterface(IID_PPV_ARGS(&swap_chain3)));
+
+    void* present_target = nullptr;
+    void* resize_target = nullptr;
+    void* execute_target = nullptr;
+    if (ok) {
+        void** swap_vtable = *reinterpret_cast<void***>(swap_chain3);
+        void** queue_vtable = *reinterpret_cast<void***>(queue);
+        present_target = swap_vtable[kPresentIndex];
+        resize_target = swap_vtable[kResizeBuffersIndex];
+        execute_target = queue_vtable[kExecuteCommandListsIndex];
+    } else {
+        LOG_ERROR("dummy d3d12 device creation failed");
     }
-    if (MH_CreateHook(present_target, reinterpret_cast<void*>(&hk_present),
-                      reinterpret_cast<void**>(&oPresent))
-            != MH_OK
-        || MH_CreateHook(resize_target, reinterpret_cast<void*>(&hk_resize_buffers),
-                         reinterpret_cast<void**>(&oResizeBuffers))
-               != MH_OK) {
-        LOG_ERROR("MH_CreateHook failed");
-        return false;
-    }
-    if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
-        LOG_ERROR("MH_EnableHook failed");
-        return false;
-    }
-    return true;
+
+    if (swap_chain3) swap_chain3->Release();
+    if (swap_chain1) swap_chain1->Release();
+    if (queue) queue->Release();
+    if (device) device->Release();
+    if (factory) factory->Release();
+    if (wnd) DestroyWindow(wnd);
+    UnregisterClassA(wc.lpszClassName, wc.hInstance);
+    return ok && hook_targets(present_target, resize_target, execute_target);
 }
 
 std::filesystem::path dll_dir()
@@ -977,7 +1395,8 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
     LOG_INFO("bbtracker starting (%s), toggle key vk=0x%02X", g_label, kToggleKey);
 
     bool logged_wait_module = false;
-    bool logged_wait_d3d11 = false;
+    bool logged_wait_renderer = false;
+    bool use_d3d12 = false;
     for (;;) {
         if (!GetModuleHandleW(game_module)) {
             if (!logged_wait_module) {
@@ -987,14 +1406,17 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
             Sleep(500);
             continue;
         }
-        if (!GetModuleHandleW(L"d3d11.dll")) {
-            if (!logged_wait_d3d11) {
-                LOG_INFO("waiting for d3d11.dll");
-                logged_wait_d3d11 = true;
+        HMODULE d3d11 = GetModuleHandleW(L"d3d11.dll");
+        HMODULE d3d12 = GetModuleHandleW(L"d3d12.dll");
+        if (!d3d11 && !d3d12) {
+            if (!logged_wait_renderer) {
+                LOG_INFO("waiting for d3d11.dll or d3d12.dll");
+                logged_wait_renderer = true;
             }
             Sleep(500);
             continue;
         }
+        use_d3d12 = !d3d11 && d3d12;
         break;
     }
 
@@ -1003,12 +1425,12 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
         g_stats_fn(warmup);
     }
 
-    while (!install_hooks()) {
+    while (!(use_d3d12 ? install_d3d12_hooks() : install_d3d11_hooks())) {
         LOG_WARN("hook install failed, retrying in 5s");
         Sleep(5000);
     }
 
-    LOG_INFO("hooks installed");
+    LOG_INFO("D3D%d hooks installed", use_d3d12 ? 12 : 11);
 }
 
 } // namespace bb

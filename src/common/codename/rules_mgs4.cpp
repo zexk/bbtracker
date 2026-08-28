@@ -23,11 +23,11 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& pool)
     const auto elite = [&](const char* name, TierMask tiers, int alerts,
                            double hours, bool strict_alerts = false) {
         add(name, tiers, Kind::Elite,
-            {{StatId::Alerts, strict_alerts ? Op::Eq : Op::Lt, static_cast<double>(alerts)},
+            {{StatId::Alerts, strict_alerts ? Op::Eq : Op::Le, static_cast<double>(alerts)},
              {StatId::Kills, Op::Eq, 0},
              {StatId::Continues, Op::Eq, 0},
              {StatId::RationsUsed, Op::Eq, 0},
-             {StatId::PlayTimeHours, Op::Lt, hours},
+             {StatId::PlayTimeHours, Op::Le, hours},
              {StatId::SpecialItemUsed, Op::Eq, 0}}, true);
     };
     elite("BIG BOSS", kX, 0, 5, true);
@@ -37,17 +37,17 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& pool)
 
     add("MANTIS", kAllTiers, Kind::Elite,
         {{StatId::Alerts, Op::Eq, 0}, {StatId::Continues, Op::Eq, 0},
-         {StatId::RationsUsed, Op::Eq, 0}, {StatId::PlayTimeHours, Op::Lt, 5}}, true);
+         {StatId::RationsUsed, Op::Eq, 0}, {StatId::PlayTimeHours, Op::Le, 5}}, true);
     add("WOLF", kAllTiers, Kind::Elite,
         {{StatId::Continues, Op::Eq, 0}, {StatId::RationsUsed, Op::Eq, 0}});
-    add("RAVEN", kAllTiers, Kind::Elite, {{StatId::PlayTimeHours, Op::Lt, 5}}, true);
+    add("RAVEN", kAllTiers, Kind::Elite, {{StatId::PlayTimeHours, Op::Le, 5}}, true);
     add("OCTOPUS", kAllTiers, Kind::Elite, {{StatId::Alerts, Op::Eq, 0}});
 
     add("BEAR", kAllTiers, Kind::Special, {{StatId::CqcChokes, Op::Ge, 100}});
     add("EAGLE", kAllTiers, Kind::Special, {{StatId::Headshots, Op::Ge, 150}});
     add("ASSASSIN", kAllTiers, Kind::Special,
         {{StatId::KnifeDefeats, Op::Ge, 50}, {StatId::CqcHolds, Op::Ge, 50},
-         {StatId::Alerts, Op::Lt, 25}});
+         {StatId::Alerts, Op::Le, 25}});
     add("PIGEON", kAllTiers, Kind::Special, {{StatId::Kills, Op::Eq, 0}});
     add("BLUE BIRD", kAllTiers, Kind::Special, {{StatId::ItemsGiven, Op::Ge, 50}});
     add("HAWK", kAllTiers, Kind::Special, {{StatId::Praises, Op::Ge, 25}});
@@ -67,7 +67,7 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& pool)
     add("PIG", kAllTiers, Kind::Special, {{StatId::RationsUsed, Op::Ge, 40}});
     add("COW", kAllTiers, Kind::Special, {{StatId::Alerts, Op::Ge, 100}});
     add("CROCODILE", kAllTiers, Kind::Special, {{StatId::Kills, Op::Ge, 400}});
-    add("GIANT PANDA", kAllTiers, Kind::Special, {{StatId::PlayTimeHours, Op::Gt, 30}}, true);
+    add("GIANT PANDA", kAllTiers, Kind::Special, {{StatId::PlayTimeHours, Op::Ge, 30}}, true);
 
     struct GridRow { const char* name; bool high_alerts; bool high_kills; bool high_continues; };
     constexpr GridRow grid[] = {
@@ -78,9 +78,9 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& pool)
     };
     for (const GridRow& row : grid) {
         add(row.name, kAllTiers, Kind::Regular,
-            {{StatId::Alerts, row.high_alerts ? Op::Ge : Op::Lt, 75},
-             {StatId::Kills, row.high_kills ? Op::Ge : Op::Lt, 250},
-             {StatId::Continues, row.high_continues ? Op::Ge : Op::Lt, 25}});
+            {{StatId::Alerts, row.high_alerts ? Op::Gt : Op::Le, 75},
+             {StatId::Kills, row.high_kills ? Op::Gt : Op::Le, 250},
+             {StatId::Continues, row.high_continues ? Op::Gt : Op::Le, 25}});
     }
 
     add("CHICKEN", kAllTiers, Kind::Worst,
@@ -96,7 +96,7 @@ constexpr std::array<ReqRow, 6> kBigBossReqs{{
     {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
     {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
     {"recovery items", StatId::RationsUsed, Op::Eq, 0, ReqFmt::Count},
-    {"play time", StatId::PlayTimeHours, Op::Lt, 5, ReqFmt::Time},
+    {"play time", StatId::PlayTimeHours, Op::Le, 5, ReqFmt::Time},
     {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
 }};
 

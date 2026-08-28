@@ -54,10 +54,15 @@ void test_elite_strict_boundaries()
     GameStats stats{};
     stats.difficulty = Difficulty::Extreme;
     stats.play_time_seconds = 5 * 3600;
+    CHECK(std::string_view(best(stats)) == "BIG BOSS");
+
+    ++stats.play_time_seconds;
     CHECK(std::string_view(best(stats)) == "FOX HOUND");
 
-    stats.play_time_seconds = 5 * 3600 - 1;
+    --stats.play_time_seconds;
     stats.alerts = 3;
+    CHECK(std::string_view(best(stats)) == "FOX HOUND");
+    ++stats.alerts;
     CHECK(std::string_view(best(stats)) == "FOX");
 }
 
@@ -88,17 +93,31 @@ void test_regular_grid_boundaries()
     GameStats stats{};
     stats.difficulty = Difficulty::Normal;
     stats.play_time_seconds = 10 * 3600;
-    stats.alerts = 74;
-    stats.kills = 249;
-    stats.continues = 24;
+    stats.alerts = 75;
+    stats.kills = 250;
+    stats.continues = 25;
     CHECK(has(stats, "SCORPION"));
 
-    stats.alerts = 75;
+    ++stats.alerts;
     CHECK(has(stats, "JAGUAR"));
-    stats.kills = 250;
+    ++stats.kills;
     CHECK(has(stats, "PANTHER"));
-    stats.continues = 25;
+    ++stats.continues;
     CHECK(has(stats, "PUMA"));
+}
+
+void test_other_inclusive_boundaries()
+{
+    GameStats stats{};
+    stats.difficulty = Difficulty::Normal;
+    stats.play_time_seconds = 30 * 3600;
+    stats.alerts = 25;
+    stats.kills = 1;
+    stats.continues = 1;
+    stats.knife_defeats = 50;
+    stats.cqc_holds = 50;
+    CHECK(has(stats, "ASSASSIN"));
+    CHECK(has(stats, "GIANT PANDA"));
 }
 
 void test_chicken_priority()
@@ -122,6 +141,7 @@ int main()
     test_elite_strict_boundaries();
     test_specials_and_multiple_matches();
     test_regular_grid_boundaries();
+    test_other_inclusive_boundaries();
     test_chicken_priority();
     std::printf("%s\n", fails ? "MGS4 rules failed" : "MGS4 rules passed");
     return fails != 0;

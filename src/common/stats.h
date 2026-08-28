@@ -47,6 +47,7 @@ struct GameStats {
     int forward_rolls = 0;
     int pickups = 0;
     int combat_highs = 0;
+    int flashbacks_viewed = 0;
 
     double box_time_seconds = 0.0;
     double wall_time_seconds = 0.0;
