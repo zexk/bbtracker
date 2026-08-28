@@ -1009,6 +1009,10 @@ void draw_panel()
         next_poll = now + 250;
     }
     const char* panel_title = g_game == Game::MGS3 ? "FOXHOUND tracker" : "BIG BOSS tracker";
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + 16.0f,
+                                  viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
+                            ImGuiCond_FirstUseEver, ImVec2(0.0f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(380, 480), ImGuiCond_FirstUseEver);
     ImGui::Begin(panel_title, &g.show,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
