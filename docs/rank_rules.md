@@ -4,6 +4,9 @@ Rule tables live under `src/common/codename/`. Community documentation is not
 always consistent, so unresolved differences are listed here instead of being
 hidden in code comments.
 
+MGS4 rules, PC memory layout, and reverse-engineering reference:
+[mgs4_research.md](mgs4_research.md).
+
 ## MGS1
 
 Source: [muni_shinobu's original MGS codename chart](https://www.tentenpro.com/muni_shinobu/mgs/codename.html).
