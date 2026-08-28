@@ -30,7 +30,7 @@
 
           bbtracker = mingw.stdenv.mkDerivation {
             pname = "bbtracker";
-            version = "0.1.3";
+            version = "0.2.0";
             src = self;
 
             nativeBuildInputs = [
@@ -49,7 +49,7 @@
 
           mgs4-stage-selector = mingw.stdenv.mkDerivation {
             pname = "mgs4-stage-selector";
-            version = "0.1.0";
+            version = "0.2.0";
             src = self;
 
             buildPhase = ''
@@ -94,7 +94,7 @@
         {
           rules-tests = pkgs.stdenv.mkDerivation {
             pname = "bbtracker-rules-tests";
-            version = "0.1.3";
+            version = "0.2.0";
             src = self;
 
             nativeBuildInputs = [
