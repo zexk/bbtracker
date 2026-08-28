@@ -19,18 +19,22 @@ jobs:
         run: |
           nix flake check -L
           nix build -L
+          nix build -L .#mgs4-stage-selector -o result-stage-selector
 
       - name: Package
         env:
           VERSION: ${{ github.ref_name }}
         run: |
           mkdir dist
-          cp result/bin/bbtracker_{mg12,mgs1,mgs2,mgs3}.asi dist/
+          cp result/bin/bbtracker_{mg12,mgs1,mgs2,mgs3,mgs4}.asi dist/
+          cp result-stage-selector/* dist/
           cd dist
-          python3 -m zipfile -c "bbtracker-${VERSION}.zip" ./*.asi
-          for game in mg12 mgs1 mgs2 mgs3; do
+          python3 -m zipfile -c "bbtracker-${VERSION}.zip" bbtracker_*.asi
+          for game in mg12 mgs1 mgs2 mgs3 mgs4; do
             python3 -m zipfile -c "bbtracker-${game}-${VERSION}.zip" "bbtracker_${game}.asi"
           done
+          python3 -m zipfile -c "mgs4-stage-selector-${VERSION}.zip" \
+            launcher.exe mgs4_stage_selector.asi mgs4-stage-selector.ini README.md
 
       - name: Publish release
         uses: softprops/action-gh-release@v3

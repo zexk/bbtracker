@@ -6,6 +6,12 @@ starts registered stage from `Launcher/mgs4-stage-selector.ini` directly with
 Standalone `mgs4_stage_selector.asi` adds an F6 picker. It shares no code or
 state with bbtracker.
 
+Release archive installation:
+
+1. Rename `Launcher/launcher.exe` to `Launcher/launcher.original.exe`.
+2. Copy archive `launcher.exe` and `mgs4-stage-selector.ini` into `Launcher/`.
+3. Copy `mgs4_stage_selector.asi` into `MGS4/`.
+
 ```bash
 ./install.sh
 ./uninstall.sh

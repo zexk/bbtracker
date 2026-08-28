@@ -46,10 +46,34 @@
               platforms = [ "x86_64-windows" ];
             };
           };
+
+          mgs4-stage-selector = mingw.stdenv.mkDerivation {
+            pname = "mgs4-stage-selector";
+            version = "0.1.0";
+            src = self;
+
+            buildPhase = ''
+              runHook preBuild
+              $CC -Os -s -static -municode -mwindows \
+                micromods/mgs4-stage-select/launcher.c -o launcher.exe
+              $CC -Os -s -static -shared \
+                micromods/mgs4-stage-select/selector.c -o mgs4_stage_selector.asi \
+                -luser32 -lgdi32
+              runHook postBuild
+            '';
+
+            installPhase = ''
+              runHook preInstall
+              mkdir -p $out
+              cp launcher.exe mgs4_stage_selector.asi \
+                micromods/mgs4-stage-select/{README.md,mgs4-stage-selector.ini} $out/
+              runHook postInstall
+            '';
+          };
         in
         {
           default = bbtracker;
-          inherit bbtracker;
+          inherit bbtracker mgs4-stage-selector;
         });
 
       devShells = forAllSystems (system:
