@@ -991,8 +991,13 @@ int mgs3_area_kerotan(const char* code)
         {"s182a", "59"}, {"s183a", "60"}, {"s191a", "61"}, {"s191b", "61"},
         {"s192a", "62"}, {"s201a", "63"},
     };
-    const char* index = exact_area_name(code, kAreas, std::size(kAreas));
-    return index ? std::atoi(index) : -1;
+    for (const AreaName& area : kAreas) {
+        if (std::strncmp(code, area.code, 5) == 0
+            && (code[5] == '\0' || code[5] == '_')) {
+            return std::atoi(area.name);
+        }
+    }
+    return -1;
 }
 
 void draw_panel()

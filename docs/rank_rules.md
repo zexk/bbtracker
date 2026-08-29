@@ -84,18 +84,18 @@ fallback. Damage bars use accumulated end-screen field, not an estimated unit
 conversion. Difficulty byte values are 10 through 60; European Extreme uses Extreme
 rank rules.
 
-Kerotan count comes from a 64-bit hit mask at live stats-block offset `0x6532`.
+Kerotan count comes from a 64-bit hit mask at story-block offset `0x242`.
 Checklist order is raw bits 1 through 63 followed by raw bit 0, so overlay rotates
 mask right one bit before display. Current-area state maps live area code to that
-rotated checklist bit.
+rotated checklist bit. Runtime area suffixes such as `_0` are ignored for this lookup.
 
-Game commits new hits to global mask during area transition. After loading a save,
-probe waits for title stats block to be replaced before accepting Kerotan data; this
-normally requires at least one screen transition, and count remains empty until then.
-Transitions can expose temporary zero, fill pattern `01 00 FF FF FF FF FF FF`, or
-stale stats copies with older masks. Probe ignores fill pattern and unions valid masks
-monotonically across runtime copies. Returning to title arms a fresh cache, seeded only
-after loaded save receives its own stats block.
+The earlier stats-block offset `0x6532` only reached the same address for one observed
+stats/story pointer spacing. Other rooms and cutscenes move those blocks independently,
+making that offset read unrelated record-pool data and report false counts such as 8,
+24, or 3. A controlled Virtuous Mission run verified the story-relative field: after
+the first two committed hits it contained `02 00 00 00 00 00 00 00`, then
+`06 00 00 00 00 00 00 00`, while the old stats-relative address read zero after the
+pointer spacing changed.
 
 Leech scans 50 injury records from stats-block offset `0x688`. Records are `0x0E`
 bytes; type `7` with positive injury health means a leech remains attached.

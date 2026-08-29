@@ -39,7 +39,7 @@ struct StatOffsets {
     constexpr static size_t kGameTimeFrames = 0x4C;
     constexpr static size_t kAreaCode = 0x24;
     constexpr static size_t kLifeMeds = 0x5A8;
-    constexpr static size_t kKerotans = 0x6532;
+    constexpr static size_t kStoryKerotans = 0x242;
     constexpr static size_t kCaptureMask = 0x18A0;
     constexpr static size_t kInjuries = 0x688;
     constexpr static size_t kInjurySize = 0x0E;
@@ -58,9 +58,6 @@ uint8_t g_last_diff06 = 0xFF;
 uint8_t g_last_diff04 = 0xFF;
 uint16_t g_last_vm_flags = 0xFFFF;
 uint16_t g_last_se_flags = 0xFFFF;
-uint64_t g_last_kerotan_mask = 0;
-uintptr_t g_kerotan_title_block = 0;
-bool g_kerotan_load_pending = false;
 
 bool range_readable(uintptr_t addr, size_t len)
 {
@@ -257,30 +254,12 @@ bool poll_stats(GameStats& out)
     out.life_med_used = read_at<uint16_t>(StatOffsets::kLifeMeds);
 
     uint64_t kerotan_mask = 0;
-    if (range_readable(reinterpret_cast<uintptr_t>(g_stats + StatOffsets::kKerotans), 8)) {
-        for (size_t i = 0; i < 8; ++i) {
-            const uint8_t bits = read_at<uint8_t>(StatOffsets::kKerotans + i);
-            kerotan_mask |= static_cast<uint64_t>(bits) << (i * 8);
-        }
-    }
-    const bool at_title = std::memcmp(g_stats + StatOffsets::kAreaCode, "title", 6) == 0;
-    if (at_title) {
-        g_last_kerotan_mask = 0;
-        g_kerotan_title_block = block;
-        g_kerotan_load_pending = true;
-        kerotan_mask = 0;
-    } else if (g_kerotan_load_pending && block == g_kerotan_title_block) {
-        kerotan_mask = 0;
-    } else if (g_kerotan_load_pending) {
-        g_last_kerotan_mask = 0;
-        g_kerotan_load_pending = false;
-    }
-    // Wrapped layout briefly exposes this fill pattern during area transitions.
-    if ((kerotan_mask >> 16) == 0xFFFFFFFFFFFFULL) {
-        kerotan_mask = g_last_kerotan_mask;
-    } else {
-        g_last_kerotan_mask |= kerotan_mask;
-        kerotan_mask = g_last_kerotan_mask;
+    if (story_base
+        && range_readable(story_base + StatOffsets::kStoryKerotans,
+                          sizeof(kerotan_mask))) {
+        std::memcpy(&kerotan_mask,
+                    reinterpret_cast<const void*>(story_base + StatOffsets::kStoryKerotans),
+                    sizeof(kerotan_mask));
     }
     out.kerotan_mask = std::rotr(kerotan_mask, 1);
     out.kerotans = std::popcount(kerotan_mask);
