@@ -4,6 +4,7 @@
 enum { ID_STAGE = 100, ID_RESTART = 101 };
 typedef struct { const wchar_t *code; const wchar_t *name; } Stage;
 static const Stage stages[] = {
+    {L"none", L"None (normal launch)"},
     {L"s00a00l", L"Prologue Cemetery"}, {L"s00a10l", L"Ending Cemetery"},
     {L"s01a00l", L"Middle East Infiltration"}, {L"s01a05l", L"Middle East Infiltration"},
     {L"s01a10l", L"Red Zone"}, {L"s01a20l", L"Militia Safehouse"},
@@ -153,7 +154,7 @@ static DWORD WINAPI selector_thread(void *unused)
     SendMessageW(restart, WM_SETFONT, (WPARAM)font, TRUE);
     wchar_t current[32], config[MAX_PATH], label[160];
     swprintf(config, MAX_PATH, L"%ls\\mgs4-stage-selector.ini", launcher_dir);
-    GetPrivateProfileStringW(L"fastLoad", L"stage", L"s01a20l", current, 32, config);
+    GetPrivateProfileStringW(L"fastLoad", L"stage", L"none", current, 32, config);
     int current_index = 0;
     for (int i = 0; i < (int)(sizeof(stages) / sizeof(stages[0])); ++i) {
         swprintf(label, 160, L"%ls  -  %ls", stages[i].code, stages[i].name);

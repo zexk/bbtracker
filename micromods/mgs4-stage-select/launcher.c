@@ -25,13 +25,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, PWSTR ignored, int s
     swprintf(game_dir, MAX_PATH, L"%ls\\..\\MGS4", launcher);
     swprintf(game, MAX_PATH, L"%ls\\mgs4.exe", game_dir);
     swprintf(config, MAX_PATH, L"%ls\\mgs4-stage-selector.ini", launcher);
-    GetPrivateProfileStringW(L"fastLoad", L"stage", L"s01a20l", stage,
+    GetPrivateProfileStringW(L"fastLoad", L"stage", L"none", stage,
                              32, config);
     swprintf(command, 2 * MAX_PATH,
              L"\"%ls\" -region eu -lan en -selfregion EU -resolution 0 "
-             L"-launcherpath launcher.exe -ctrltype AUTO -launcherroot \"%ls\" "
-             L"--stage %ls",
-             game, launcher, stage);
+             L"-launcherpath launcher.exe -ctrltype AUTO -launcherroot \"%ls\"",
+             game, launcher);
+    if (wcscmp(stage, L"none") != 0) {
+        size_t used = wcslen(command);
+        swprintf(command + used, 2 * MAX_PATH - used, L" --stage %ls", stage);
+    }
 
     STARTUPINFOW startup = { .cb = sizeof(startup) };
     PROCESS_INFORMATION process;

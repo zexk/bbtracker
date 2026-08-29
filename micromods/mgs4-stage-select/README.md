@@ -27,7 +27,9 @@ Change stage before launching:
 
 ```ini
 [fastLoad]
-stage=s01a20l
+stage=none
 ```
 
 In game, press F6, choose named stage, then select **Restart into stage**.
+Choose **None (normal launch)** to restart without `--stage` and keep mod
+installed but inactive.
