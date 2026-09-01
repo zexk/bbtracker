@@ -48,6 +48,8 @@ def inspect(body):
         "alerts": u16(0x16E),
         "kills": u16(0x178),
         "special_item_value": u16(0x17A),
+        "bandana_used": bool(u16(0x17A) & 1),
+        "stealth_camouflage_used": bool(u16(0x17A) & 2),
         "cqc_uses": u16(0x180),
         "headshots": u16(0x182),
         "knife_defeats": u16(0x184) + u16(0x186),
@@ -67,6 +69,8 @@ def inspect(body):
         "crawl_time_ticks": u32(0x1AC),
         "wall_time_ticks": u32(0x1B4),
         "box_drum_time_ticks": u32(0x1B8) + u32(0x1BC),
+        "drebin_points": u32(0x1C0),
+        "unknown_01c4": u32(0x1C4),
         "recovery_items_used": u16(0xAE0),
         "flashbacks_viewed": u16(0x5A34),
         "counted_weapon_types": sum(state in (1, 2) for state in weapon_states[1:74]),
@@ -83,9 +87,11 @@ def self_test():
     body[0x034:0x03B] = b"s05a20l"
     struct.pack_into("<I", body, 0x054, 287)
     struct.pack_into("<I", body, 0x168, 3600)
+    struct.pack_into("<H", body, 0x17A, 3)
     struct.pack_into("<HH", body, 0x184, 20, 30)
     struct.pack_into("<HH", body, 0x18E, 150, 250)
     struct.pack_into("<II", body, 0x1B8, 100000, 116000)
+    struct.pack_into("<II", body, 0x1C0, 123456789, 123456789)
     struct.pack_into("<H", body, 0x5A34, 273)
     struct.pack_into("<95H", body, 0x1D4, *([0] * 95))
     struct.pack_into("<H", body, 0x1D4 + 1 * 2, 2)
@@ -102,9 +108,11 @@ def self_test():
     assert result["difficulty"] == "THE BOSS EXTREME"
     assert result["stage"] == "s05a20l"
     assert result["play_time_seconds"] == 60
+    assert result["bandana_used"] and result["stealth_camouflage_used"]
     assert result["knife_defeats"] == 50
     assert result["pickups"] == 400
     assert result["box_drum_time_ticks"] == 216000
+    assert result["drebin_points"] == result["unknown_01c4"] == 123456789
     assert result["flashbacks_viewed"] == 273
     assert result["counted_weapon_types"] == 2
     assert result["little_gray_weapon_progress"] == 2

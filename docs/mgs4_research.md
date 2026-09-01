@@ -44,6 +44,14 @@ hooks DXGI `Present`/`ResizeBuffers` and
 uses per-backbuffer command allocators, render targets, and fences. Both
 renderers were live-validated under Proton.
 
+While MGS4 is running under Proton, set live Drebin-point balance with:
+
+```sh
+sudo python3 scripts/probe-mgs4-memory.py --set-drebin 100000000
+```
+
+Output reports `drebin_points` for verification.
+
 ## Live state pointer
 
 ```text
@@ -80,7 +88,7 @@ All multibyte values are little-endian. Timers use 60 Hz ticks.
 | `0x0168` | `uint32` | total play time |
 | `0x016e` | `uint16` | alert phases |
 | `0x0178` | `uint16` | kills |
-| `0x017a` | `uint16` | special-item use, zero/nonzero |
+| `0x017a` | `uint16` | special-item-use bitmask: bit 0 Bandana, bit 1 Stealth Camouflage |
 | `0x0180` | `uint16` | CQC uses; shared by BEAR and ASSASSIN |
 | `0x0182` | `uint16` | headshots |
 | `0x0184` | `uint16` | knife kills |
@@ -102,7 +110,8 @@ All multibyte values are little-endian. Timers use 60 Hz ticks.
 | `0x01ac` | `uint32` | crawl time |
 | `0x01b4` | `uint32` | wall-press time |
 | `0x01b8`, `0x01bc` | `uint32` | box/drum timer components |
-| `0x01c0`, `0x01c4` | `uint32` | Drebin points copies |
+| `0x01c0` | `uint32` | spendable Drebin-point balance |
+| `0x01c4` | `uint32` | unknown Drebin-related value; unchanged after spending 5,000,000 points |
 | `0x01d4` | `uint16[95]` | weapon states, IDs `0..94` |
 | `0x0350` | `uint16[68]` | separate inventory-related array |
 | `0x0526` | `uint16[99]` | item states, IDs `0..98` |

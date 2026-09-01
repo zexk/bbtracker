@@ -13,6 +13,7 @@ TEXT_SIZE = 0x165CF80
 PROBES = (0, TEXT_RVA, 0x5C780, 0x645E0, 0x69DB0, 0x94040, 0x1844DE0)
 LINKVARBUF_POINTER_RVA = 0x1C28B28
 VARBUF_POINTER_RVA = 0x1C28B38
+DREBIN_POINTS_OFFSET = 0x1C0
 
 
 def module_base(maps):
@@ -41,15 +42,30 @@ def read(memory, address, size):
     return data
 
 
+def write_drebin_points(memory, linkvarbuf, points):
+    if not 0 <= points <= 0xFFFFFFFF:
+        raise ValueError("Drebin points must fit uint32")
+    data = struct.pack("<I", points)
+    memory.seek(linkvarbuf + DREBIN_POINTS_OFFSET)
+    if memory.write(data) != len(data):
+        raise ValueError(f"short memory write at {linkvarbuf + DREBIN_POINTS_OFFSET:#x}")
+
+
 def self_test():
     maps = "6fffd1aa0000-6fffd1aa1000 r--p 00000000 00:01 1 /game/MGS4/mgs4.exe\n"
     assert module_base(maps) == 0x6FFFD1AA0000
+
+    import io
+    memory = io.BytesIO(bytes(0x200))
+    write_drebin_points(memory, 0, 123456789)
+    assert struct.unpack_from("<I", memory.getvalue(), DREBIN_POINTS_OFFSET)[0] == 123456789
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pid", type=int)
     parser.add_argument("--dump-text")
+    parser.add_argument("--set-drebin", type=lambda value: int(value, 0), metavar="POINTS")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
@@ -59,12 +75,15 @@ def main():
     pid = args.pid or find_pid()
     maps = pathlib.Path(f"/proc/{pid}/maps").read_text()
     base = module_base(maps)
-    with open(f"/proc/{pid}/mem", "rb", buffering=0) as memory:
+    mode = "r+b" if args.set_drebin is not None else "rb"
+    with open(f"/proc/{pid}/mem", mode, buffering=0) as memory:
         probes = {f"{rva:#x}": read(memory, base + rva, 16).hex() for rva in PROBES}
         if bytes.fromhex(probes["0x0"])[:2] != b"MZ":
             raise ValueError("live module does not start with MZ")
         linkvarbuf = struct.unpack("<Q", read(memory, base + LINKVARBUF_POINTER_RVA, 8))[0]
         varbuf = struct.unpack("<Q", read(memory, base + VARBUF_POINTER_RVA, 8))[0]
+        if args.set_drebin is not None:
+            write_drebin_points(memory, linkvarbuf, args.set_drebin)
         save_tool = runpy.run_path(pathlib.Path(__file__).with_name("inspect-mgs4-save.py"))
         stats = save_tool["inspect"](read(memory, linkvarbuf, save_tool["BODY_SIZE"]))
         stats["eastern_europe_time_ticks"] = struct.unpack("<I", read(memory, varbuf + 0xDB4, 4))[0]
