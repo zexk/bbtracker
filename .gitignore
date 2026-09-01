@@ -2,6 +2,8 @@ result
 result-*
 /build/
 .cache/
+.direnv/
+__pycache__/
 compile_commands.json
 *.log
 nexus-drafts/
