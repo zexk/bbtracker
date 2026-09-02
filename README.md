@@ -4,9 +4,6 @@ Live rank and codename tracker overlay for Metal Gear Solid: Master Collection.
 Tracks Metal Gear, Metal Gear 2, MGS1, MGS2, MGS3, and MGS4 runs in real time,
 including projected rank, requirements, and run stats.
 
-MGS4 is a target. Its end-of-playthrough emblems replace legacy codenames but
-still judge stats accumulated across one run, including its highest Big Boss emblem.
-
 [Download latest release](https://github.com/zexk/bbtracker/releases/latest)
 
 ## Features
