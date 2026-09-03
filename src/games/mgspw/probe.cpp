@@ -90,6 +90,9 @@ constexpr uint32_t kClearCounterIds[] = {0x44200DC};
 constexpr uint32_t kNoAlertClearIds[] = {0x442011E};
 constexpr uint32_t kNoKillClearIds[] = {0x442011F};
 constexpr uint32_t kAlertIds[] = {0x420002};
+// Non-headshot kills: zero across every headshot-only run, +3 on a
+// body-shot-only run with the same weapon. 0x2002F moves with it.
+constexpr uint32_t kBodyKillIds[] = {0x200ED};
 
 void read_stat_families(uintptr_t block, GameStats& out)
 {
@@ -104,6 +107,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
         {kKillIds, std::size(kKillIds), &out.pw_kills, &out.pw_m_kills},
         {kTranqIds, std::size(kTranqIds), &out.pw_tranq, &out.pw_m_tranq},
         {kAlertIds, std::size(kAlertIds), &out.pw_alerts, &out.pw_m_alerts},
+        {kBodyKillIds, std::size(kBodyKillIds), &out.pw_body_kills, &out.pw_m_body_kills},
         {kFultonIds, std::size(kFultonIds), &out.pw_fulton_recoveries, nullptr},
         {kClearCounterIds, std::size(kClearCounterIds), &out.pw_clear_counter, nullptr},
         {kNoAlertClearIds, std::size(kNoAlertClearIds), &out.pw_noalert_clears, nullptr},

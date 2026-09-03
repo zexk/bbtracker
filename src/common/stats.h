@@ -142,6 +142,10 @@ struct GameStats {
     int pw_m_alerts = -1;
     int pw_m_tranq = -1;
     int pw_m_headshots = -1;
+    // Non-headshot kills (id 0x200ED). Kills minus this is the lethal
+    // headshot count, and headshots minus that is the tranq headshot count.
+    int pw_body_kills = -1;
+    int pw_m_body_kills = -1;
     // Live per-sortie deltas, differenced client-side at stage change
     // (action careers tick live mid-mission; heroism/XP/GMP settle at
     // results, so their segments only move post-results).

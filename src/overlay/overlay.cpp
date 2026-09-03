@@ -1153,6 +1153,14 @@ void draw_mgspw_global(const GameStats& stats)
         snprintf(buf, sizeof(buf), "HS %d  K %d  TQ %d  AL %d", stats.pw_headshots,
                  stats.pw_kills, stats.pw_tranq, stats.pw_alerts);
         row("lifetime", buf);
+        if (stats.pw_body_kills >= 0 && stats.pw_kills >= 0 && stats.pw_headshots >= 0) {
+            // The game stores total headshots and non-headshot kills, so the
+            // lethal/tranq split of the headshots is a subtraction.
+            const int lethal_hs = stats.pw_kills - stats.pw_body_kills;
+            snprintf(buf, sizeof(buf), "%d lethal / %d tranq", lethal_hs,
+                     stats.pw_headshots - lethal_hs);
+            row("headshots", buf);
+        }
         if (stats.pw_fulton_recoveries >= 0) {
             snprintf(buf, sizeof(buf), "%d", stats.pw_fulton_recoveries);
             row("Fulton", buf);

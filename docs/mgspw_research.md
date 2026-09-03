@@ -195,6 +195,25 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x442011E` | clears with no alert |
 | `0x442011F` | clears with no kill |
 | `0x44200DC` | clear counter, subset of `save+0x656C` |
+| `0x200ED`, `0x2002F` | non-headshot (body) kills |
+
+Headshots are stored as one total, so the lethal/tranq split is a
+subtraction:
+
+    lethal headshot kills = kills (0x200E0) - body kills (0x200ED)
+    tranq headshots       = headshots (0x4420031) - lethal headshot kills
+
+Pinned by three single-weapon runs on the same mission: 3 tranq headshots
+moved `0x4420031` and `0x442002E` only; 3 lethal headshots moved
+`0x4420031`, kills and `0x2007C`; 3 lethal **body** shots with that same
+weapon left `0x4420031` flat and lifted `0x200ED` and `0x2002F` off zero
+for the first time this profile. Career kills stood at 20 with `0x200ED` at
+`0`, i.e. every kill before that run had been a headshot, which matches the
+earlier 6-kill run moving `0x4420031` by 6.
+
+`0x2007C` is not headshot-related: it took `+3` from both the headshot run
+and the body run, and only `+2` from an older mixed 6-kill run, so it
+counts kills of one weapon class.
 
 Heroism responds to both lethality and alerts: `+22` on a clean no-kill
 no-alert clear, `+7` on the same mission with one alert, `+0` with kills.
@@ -429,8 +448,10 @@ the retracted weapon-XP multiplier below was invented.
   for per-rank or per-target values but has not been tied to a rank yet.
 - **Career id `0x20023`** moved on only 2 of 5 runs (`+6000` on a first clear,
   `+4945` on a dirty replay), so it is not a plain cumulative score.
-- **`0x2007C`** moved `+2` on a 6-kill run and stayed flat on two 0-kill runs,
-  so it is kill-linked but is not the kill counter.
+- **`0x2007C`** counts kills of one weapon class (`+3` from three kills with a
+  single weapon, `+2` from an older mixed 6-kill run); which class is open.
+- **`0x2002F` vs `0x200ED`** both moved `+3` on the body-shot run and are so
+  far indistinguishable.
 - **`0x200F9`** tracked `0x442002E` for three runs, then diverged (`+6` vs
   `+7`), so the two are not the same counter.
 - **`0x442007B`** moved `+1` on the one main-op clear and on nothing else -
