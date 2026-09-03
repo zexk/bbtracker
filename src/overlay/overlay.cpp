@@ -1096,10 +1096,6 @@ void draw_mgspw_current(const GameStats& stats)
         }
         snprintf(buf, sizeof(buf), "%+d", stats.seg_heroism);
         row("heroism", buf);
-        if (stats.pw_last_score) {
-            snprintf(buf, sizeof(buf), "%u", stats.pw_last_score);
-            row("last score", buf);
-        }
         const double best_seconds = stats.pw_last_best_a / 300.0;
         const unsigned long long best_ms =
             static_cast<unsigned long long>(best_seconds * 1000.0);
@@ -1260,6 +1256,9 @@ void draw_mgspw_global(const GameStats& stats)
             row("stage", stats.pw_stage[0] ? stats.pw_stage : "-");
             row("fulton/XP-next? [+0x130]", f130);
             row("Fulton [0x2008E]", fulton_str);
+            char twin[32];
+            snprintf(twin, sizeof(twin), "%u", stats.pw_last_score);
+            row("twin [+0x278]", twin);
             row("resolvers", resolvers);
             ImGui::EndTable();
         }

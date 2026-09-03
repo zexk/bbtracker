@@ -92,7 +92,7 @@ Timers are 300 Hz ticks unless stated.
 | `+0x54` | `char[24]` | stage code (e.g. `w00s01a`, `my_outer`, `result`) |
 | `+0x84` | `u32` | total play seconds |
 | `+0x88` | `u32` | stage play, 300 Hz (mirrors `PW_MISSIONTIME+0x14`) |
-| `+0x278` | `u32` | last mission score; mirrors at `+0x2A0`, `+0x1FBF4`, `+0x1FC1C` |
+| `+0x278` | `u32` | unidentified per-mission value; mirrors at `+0x2A0`, `+0x1FBF4`, `+0x1FC1C` |
 | `+0x29B4 + 4*id` | `u32` | per-mission best time, `0xFFFFFFFF` = none |
 | `+0x32B4 + 2*id` | `u16` | per-mission rank: `0` = S, `1` = A, `2` = B, `3` = C, `0xFFFF` = never cleared |
 | `+0x46F4 + 2*id` | `u16` | second rank array (`0x1440` after the first), all `0xFFFF` on a solo profile |
@@ -386,11 +386,16 @@ the retracted weapon-XP multiplier below was invented.
   archives, not in code. Data points so far: mission 2 S at 195.45 s (0 kills,
   0 alerts), mission 2 A at 584.90 s, mission 4 A at 726.98 s (0 kills, alerts
   raised).
-- **Score fields.** The four twins (`save+0x278` and mirrors) read `6000` after
-  both an A clear and an S clear, while career id `0x20023` moved on only 2 of
-  5 runs (`+6000` on a first clear, `+4945` on a dirty replay). The twins may
-  be a capped per-mission points value rather than the rank input. A second
-  twinned pair at `+0x250`/`+0x264` (`3936` -> `8000`) is unidentified.
+- **The `+0x278` twins.** Values seen: `4758` -> `6000` -> `8000` -> `6000`,
+  with a second pair at `+0x250`/`+0x264` (`3936` -> `8000`). Not a results
+  score: regular missions display no score number at all, only time, kills,
+  alerts, near-deaths and bonuses. Not a fixed weapon-XP threshold either,
+  since they move per mission - though `6000` does happen to be the Mk22
+  level 1 -> 2 requirement, and its level 2 -> 3 requirement is `13875`
+  (`4136` held plus `9739` reported as remaining). Career id `0x20023` moved
+  on only 2 of 5 runs (`+6000` on a first clear, `+4945` on a dirty replay),
+  so it is not a plain cumulative total either. Next test: run a score-attack
+  Extra Op, which does display points, and see whether the twins match it.
 - **`0x2007C`** moved `+2` on a 6-kill run and stayed flat on two 0-kill runs,
   so it is kill-linked but is not the kill counter.
 - **`0x200F9`** tracked `0x442002E` for three runs, then diverged (`+6` vs
@@ -430,6 +435,10 @@ Kept deliberately: each of these was believed once and cost time.
 - **`save+0x130` as Fulton stock** - disproven, static across Fulton uses.
 - **`char+0x8A0` as player health** - disproven. It reads `393216000` as a
   dword, and the probe's `u16` view of it was a constant `0` in game.
+- **`save+0x278` as the mission score** - withdrawn. Regular missions show no
+  score on the results screen, so whatever these twins hold, it is not the
+  number the rank is scored from. The overlay row was pulled back into
+  Forensics under its raw offset.
 - **`save+0xB4EC` as the Headshot Hero counter** - disproven. It reads `5`
   while career headshots are 71 and the achievement (threshold 50) is already
   unlocked; it is a narrower takedown counter.

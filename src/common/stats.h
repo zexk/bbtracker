@@ -129,8 +129,9 @@ struct GameStats {
     int pw_mission_id = -1;
     int pw_cur_rank = -1;
     uint32_t pw_cur_best = 0;
-    // Last mission's score (save+0x278, mirrored at +0x2A0/+0x1FBF4/+0x1FC1C).
-    // Rank is scored, so this is the number the letter comes from.
+    // save+0x278, mirrored at +0x2A0/+0x1FBF4/+0x1FC1C. Moves per mission
+    // (4758 -> 6000 -> 8000 -> 6000) but is NOT the results score: regular
+    // missions display no score at all. Unidentified; shown in Forensics.
     uint32_t pw_last_score = 0;
     // Career alerts (id 0x420002) plus the game's own per-mission tally,
     // the descriptor's +0x18 field: it counts up live during a mission and
