@@ -92,7 +92,12 @@ Timers are 300 Hz ticks unless stated.
 | `+0x54` | `char[24]` | stage code (e.g. `w00s01a`, `my_outer`, `result`) |
 | `+0x84` | `u32` | total play seconds |
 | `+0x88` | `u32` | stage play, 300 Hz (mirrors `PW_MISSIONTIME+0x14`) |
-| `+0x278` | `u32` | unidentified per-mission value; mirrors at `+0x2A0`, `+0x1FBF4`, `+0x1FC1C` |
+| `+0x250`, `+0x264` | `u32` | best score of a score-attack mission (`8000`); mirrors at `+0x1FBCC`, `+0x1FBE0` |
+| `+0x278` | `u32` | best score of another score-attack mission (`6000`); mirrors at `+0x2A0`, `+0x1FBF4`, `+0x1FC1C` |
+| `+0x420..+0x45C` | `u16[]` | score config block: `9999`, `8000` x3, `1`, `6000` x3, `1`, `1000` x8, `100` |
+| `+0x3C980` | `u32` | last results: run time (300 Hz) |
+| `+0x3C9A8` | `u32` | last results: mission score |
+| `+0x3CA20` | `u32` | last results: previous best time (drives the `NEW` tag) |
 | `+0x29B4 + 4*id` | `u32` | per-mission best time, `0xFFFFFFFF` = none |
 | `+0x32B4 + 2*id` | `u16` | per-mission rank: `0` = S, `1` = A, `2` = B, `3` = C, `0xFFFF` = never cleared |
 | `+0x46F4 + 2*id` | `u16` | second rank array (`0x1440` after the first), all `0xFFFF` on a solo profile |
@@ -156,6 +161,7 @@ Known ids:
 | 1 | first main op | `w00s01a` |
 | 2 | Sandinista Comandante | `w01s04a` |
 | 4 | Armored Vehicle Battle: LAV-Type G | - |
+| 36 | Extra Ops 005: Marksmanship Challenge | - |
 | 52 | Side Ops 10 | - |
 
 The probe prints the id and the stage string together, so this table grows as
@@ -223,11 +229,35 @@ Array at `save+0xBD3C`, stride `0x1C`:
 | `+0x04` | `u32` | developed flag (`3` = developed) |
 | `+0x08` | `u32` | `100` when developed |
 | `+0x0C` | `u32` | stock quantity |
-| `+0x14` | `u16` | XP within the current level; resets to 0 on level-up (level 1 spans 0-6000) |
+| `+0x14` | `u16` | XP within the current level; resets to 0 on level-up (level 1 ends at 6000, level 2 at 12000) |
 | `+0x16` | `u8` | usage level (NV.1..3) |
 
 Equipped weapon id at character `+0x14B8` matches the record id; id 3 is the
 tranquilizer pistol. XP applies exactly as displayed and settles at mission end.
+
+## Results screen
+
+Captured live while the screen was up, for Extra Ops **005 Marksmanship
+Challenge** (mission id 36). Screen showed: Heroism `+7` (total `380`),
+Weapon Experience Mk.22 Mod.0 `+304` LV.2 NEXT `7560`, Clear Time NEW
+`0:00:53`, Marksmanship Target Points `3300`, Clear Rank `A`.
+
+| Field | Screen line | Verified |
+| --- | --- | --- |
+| `save+0x3C980` = `15930` | Clear Time `0:00:53` | 15930/300 = 53.10 s |
+| `save+0x3CA20` = `17085` | drives the `NEW` tag | the previous best, 56.95 s |
+| `save+0x3C9A8` = `3300` | Marksmanship Target Points | exact |
+| `0x4420077` tally = `7` | Heroism `+7` | career went 373 -> 380 |
+| weapon row id 3 xp `4440` | Mk.22 `+304` | 4136 + 304 |
+
+Weapon XP thresholds follow from the `NEXT` line: level 2 ends at
+**12000** (`4440` held + `7560` remaining), level 1 at **6000**. Same
+arithmetic on an earlier run (`2261` held + `9739` remaining) agrees.
+
+Unmapped fields in the same record: `+0x3C990` = `10`, `+0x3C998` = `1`,
+`+0x3C9B4` = `12`, `+0x3C9E8`/`+0x3C9F8` = `2`, `+0x3CA08` = `1`,
+`+0x3CA10` = `456`, `+0x3CA18` = `83`, and three `999`s from `+0x3CA28`.
+The screen shows no line for any of them.
 
 ## Player character
 
@@ -386,16 +416,19 @@ the retracted weapon-XP multiplier below was invented.
   archives, not in code. Data points so far: mission 2 S at 195.45 s (0 kills,
   0 alerts), mission 2 A at 584.90 s, mission 4 A at 726.98 s (0 kills, alerts
   raised).
-- **The `+0x278` twins.** Values seen: `4758` -> `6000` -> `8000` -> `6000`,
-  with a second pair at `+0x250`/`+0x264` (`3936` -> `8000`). Not a results
-  score: regular missions display no score number at all, only time, kills,
-  alerts, near-deaths and bonuses. Not a fixed weapon-XP threshold either,
-  since they move per mission - though `6000` does happen to be the Mk22
-  level 1 -> 2 requirement, and its level 2 -> 3 requirement is `13875`
-  (`4136` held plus `9739` reported as remaining). Career id `0x20023` moved
-  on only 2 of 5 runs (`+6000` on a first clear, `+4945` on a dirty replay),
-  so it is not a plain cumulative total either. Next test: run a score-attack
-  Extra Op, which does display points, and see whether the twins match it.
+- **The `+0x278` / `+0x250` twins** look like per-mission best scores for
+  score-attack missions, but that is one test short of confirmed. Every
+  observation fits: they moved `4758` -> `6000` when a `6000` run scored S on
+  Marksmanship Challenge, and they did **not** move on a later `3300` run on
+  the same mission, which is exactly best-score behaviour. Confirm by beating
+  `6000` there and watching `+0x278` follow. The `6000` value colliding with
+  the Mk22 level-1 XP cost is a coincidence.
+- **Score thresholds.** `3300` scored A and `6000` scored S on Marksmanship
+  Challenge, so that mission's S line is at most `6000`. The `+0x420` config
+  block (`9999`, `8000` x3, `6000` x3, `1000` x8, `100`) is the obvious place
+  for per-rank or per-target values but has not been tied to a rank yet.
+- **Career id `0x20023`** moved on only 2 of 5 runs (`+6000` on a first clear,
+  `+4945` on a dirty replay), so it is not a plain cumulative score.
 - **`0x2007C`** moved `+2` on a 6-kill run and stayed flat on two 0-kill runs,
   so it is kill-linked but is not the kill counter.
 - **`0x200F9`** tracked `0x442002E` for three runs, then diverged (`+6` vs
