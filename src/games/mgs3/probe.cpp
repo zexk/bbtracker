@@ -8,8 +8,12 @@
 #include <iterator>
 
 #include "../../common/log.h"
+#include "../../common/mem.h"
 
 namespace bb::mgs3 {
+
+using bb::mem::range_readable;
+
 namespace {
 
 constexpr uintptr_t kFallbackSlotOffset = 0x00ACDE98;
@@ -58,28 +62,6 @@ uint8_t g_last_diff06 = 0xFF;
 uint8_t g_last_diff04 = 0xFF;
 uint16_t g_last_vm_flags = 0xFFFF;
 uint16_t g_last_se_flags = 0xFFFF;
-
-bool range_readable(uintptr_t addr, size_t len)
-{
-    const uintptr_t end = addr + len;
-    while (addr < end) {
-        MEMORY_BASIC_INFORMATION mbi{};
-        if (!VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))) {
-            return false;
-        }
-        if (mbi.State != MEM_COMMIT) {
-            return false;
-        }
-        constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
-            | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-        if ((mbi.Protect & kReadable) == 0 || (mbi.Protect & PAGE_GUARD) != 0) {
-            return false;
-        }
-        const uintptr_t region_end = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
-        addr = region_end;
-    }
-    return true;
-}
 
 bool sig_match(const uint8_t* p, size_t avail)
 {
@@ -208,9 +190,7 @@ bool resolve(uintptr_t& out_block, uintptr_t& out_story_base)
 template <typename T>
 T read_at(size_t offset)
 {
-    T v{};
-    std::memcpy(&v, g_stats + offset, sizeof(T));
-    return v;
+    return mem::read<T>(g_stats, offset);
 }
 
 } // namespace

@@ -5,30 +5,17 @@
 #include <cstdint>
 #include <cstring>
 
+#include "../../common/mem.h"
+
 namespace bb::mg12 {
+
+using bb::mem::readable;
+using bb::mem::read;
+
 namespace {
 
 constexpr double kMg2TicksPerSecond = 15.0;
 static_assert((0x627 * 60) / kMg2TicksPerSecond == 105 * 60);
-
-bool readable(uintptr_t address, size_t size)
-{
-    MEMORY_BASIC_INFORMATION memory{};
-    if (!VirtualQuery(reinterpret_cast<const void*>(address), &memory, sizeof(memory))) return false;
-    constexpr DWORD access = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
-        | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-    return memory.State == MEM_COMMIT && (memory.Protect & access) != 0
-        && (memory.Protect & PAGE_GUARD) == 0
-        && address + size <= reinterpret_cast<uintptr_t>(memory.BaseAddress) + memory.RegionSize;
-}
-
-template <typename T>
-T read(uintptr_t address)
-{
-    T value{};
-    std::memcpy(&value, reinterpret_cast<const void*>(address), sizeof(value));
-    return value;
-}
 
 void set_common(GameStats& out, uint32_t difficulty, uint32_t timer, uint32_t rations,
                 uint32_t kills, uint32_t alerts, uint32_t special, uint32_t continues,

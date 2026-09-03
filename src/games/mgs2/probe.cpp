@@ -7,8 +7,13 @@
 #include <cstdlib>
 
 #include "../../common/log.h"
+#include "../../common/mem.h"
 
 namespace bb::mgs2 {
+
+using bb::mem::range_readable;
+using bb::mem::read_at;
+
 namespace {
 
 constexpr uintptr_t kPlayerPointerOffset = 0x00949340;
@@ -46,57 +51,27 @@ struct GameStateOffsets {
 uintptr_t g_last_player = 0;
 uintptr_t g_game_state = 0;
 
-bool range_readable_at(uintptr_t addr, size_t len)
-{
-    const uintptr_t end = addr + len;
-    while (addr < end) {
-        MEMORY_BASIC_INFORMATION mbi{};
-        if (!VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))) {
-            return false;
-        }
-        if (mbi.State != MEM_COMMIT) {
-            return false;
-        }
-        constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
-            | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-        if ((mbi.Protect & kReadable) == 0 || (mbi.Protect & PAGE_GUARD) != 0) {
-            return false;
-        }
-        const uintptr_t region_end = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
-        addr = region_end;
-    }
-    return true;
-}
-
-template <typename T>
-T read_gs(uintptr_t gs, size_t offset)
-{
-    T v{};
-    std::memcpy(&v, reinterpret_cast<const uint8_t*>(gs) + offset, sizeof(T));
-    return v;
-}
-
 bool plausible_game_state(uintptr_t p)
 {
-    const uint8_t radar = read_gs<uint8_t>(p, GameStateOffsets::kRadarType);
+    const uint8_t radar = read_at<uint8_t>(p, GameStateOffsets::kRadarType);
     if (radar != 0 && radar != 4 && radar != 0x20) {
         return false;
     }
-    const uint8_t gameover = read_gs<uint8_t>(p, GameStateOffsets::kGameOverIfDiscovered);
+    const uint8_t gameover = read_at<uint8_t>(p, GameStateOffsets::kGameOverIfDiscovered);
     if (gameover != 0 && gameover != 8 && gameover != 16 && gameover != 40) {
         return false;
     }
-    return read_gs<uint16_t>(p, GameStateOffsets::kAlertState) <= 4;
+    return read_at<uint16_t>(p, GameStateOffsets::kAlertState) <= 4;
 }
 
 bool game_state_matches_live(uintptr_t p, const GameStats& ref)
 {
-    return read_gs<uint16_t>(p, GameStateOffsets::kContinues)
+    return read_at<uint16_t>(p, GameStateOffsets::kContinues)
             == static_cast<uint16_t>(ref.continues)
-        && read_gs<uint16_t>(p, GameStateOffsets::kSaves) == static_cast<uint16_t>(ref.saves)
-        && read_gs<uint16_t>(p, GameStateOffsets::kAlerts) == static_cast<uint16_t>(ref.alerts)
-        && read_gs<uint16_t>(p, GameStateOffsets::kShots) == static_cast<uint16_t>(ref.shots_fired)
-        && std::abs(static_cast<double>(read_gs<uint32_t>(p, GameStateOffsets::kPlayTimeFrames)) / 60.0
+        && read_at<uint16_t>(p, GameStateOffsets::kSaves) == static_cast<uint16_t>(ref.saves)
+        && read_at<uint16_t>(p, GameStateOffsets::kAlerts) == static_cast<uint16_t>(ref.alerts)
+        && read_at<uint16_t>(p, GameStateOffsets::kShots) == static_cast<uint16_t>(ref.shots_fired)
+        && std::abs(static_cast<double>(read_at<uint32_t>(p, GameStateOffsets::kPlayTimeFrames)) / 60.0
                     - ref.play_time_seconds)
             < 2.0;
 }
@@ -168,36 +143,6 @@ struct StatOffsets {
 
 uintptr_t g_last_scan_tick = 0;
 
-bool range_readable(uintptr_t addr, size_t len)
-{
-    const uintptr_t end = addr + len;
-    while (addr < end) {
-        MEMORY_BASIC_INFORMATION mbi{};
-        if (!VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))) {
-            return false;
-        }
-        if (mbi.State != MEM_COMMIT) {
-            return false;
-        }
-        constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
-            | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-        if ((mbi.Protect & kReadable) == 0 || (mbi.Protect & PAGE_GUARD) != 0) {
-            return false;
-        }
-        const uintptr_t region_end = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
-        addr = region_end;
-    }
-    return true;
-}
-
-template <typename T>
-T read_at(uintptr_t base, size_t offset)
-{
-    T v{};
-    std::memcpy(&v, reinterpret_cast<const uint8_t*>(base) + offset, sizeof(T));
-    return v;
-}
-
 } // namespace
 
 bool poll_stats(GameStats& out)
@@ -246,10 +191,10 @@ bool poll_stats(GameStats& out)
     out.special_items_mask = read_at<uint16_t>(player, kSpecialItemsOffset);
     out.special_item_used = (out.special_items_mask & 0x000F) != 0;
 
-    if (g_game_state && range_readable_at(g_game_state, 0x150)
+    if (g_game_state && range_readable(g_game_state, 0x150)
         && game_state_matches_live(g_game_state, out)) {
-        out.radar_type = read_gs<uint8_t>(g_game_state, GameStateOffsets::kRadarType);
-        out.alert_state = read_gs<uint16_t>(g_game_state, GameStateOffsets::kAlertState);
+        out.radar_type = read_at<uint8_t>(g_game_state, GameStateOffsets::kRadarType);
+        out.alert_state = read_at<uint16_t>(g_game_state, GameStateOffsets::kAlertState);
         out.alert_state_available = true;
         out.radar_off = out.radar_type == 4;
     } else {

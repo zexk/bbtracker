@@ -7,31 +7,17 @@
 #include <string_view>
 
 #include "../../common/log.h"
+#include "../../common/mem.h"
 
 namespace bb::mgs4 {
+
+using bb::mem::readable;
+using bb::mem::read;
+
 namespace {
 
 constexpr uintptr_t kLinkvarbufPointer = 0x1C28B28;
 constexpr size_t kLinkvarbufSize = 0x8344;
-
-bool readable(uintptr_t address, size_t size)
-{
-    MEMORY_BASIC_INFORMATION memory{};
-    if (!VirtualQuery(reinterpret_cast<const void*>(address), &memory, sizeof(memory))) return false;
-    constexpr DWORD access = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
-        | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-    return memory.State == MEM_COMMIT && (memory.Protect & access) != 0
-        && (memory.Protect & PAGE_GUARD) == 0
-        && address + size <= reinterpret_cast<uintptr_t>(memory.BaseAddress) + memory.RegionSize;
-}
-
-template <typename T>
-T read(const uint8_t* data, size_t offset)
-{
-    T value{};
-    std::memcpy(&value, data + offset, sizeof(value));
-    return value;
-}
 
 Difficulty difficulty(uint16_t value)
 {

@@ -11,8 +11,13 @@
 #include <vector>
 
 #include "../../common/log.h"
+#include "../../common/mem.h"
 
 namespace bb::mgs1 {
+
+using bb::mem::range_readable;
+using bb::mem::read_at;
+
 namespace {
 
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID.exe";
@@ -30,8 +35,6 @@ std::array<uint32_t, kGameTimeOffsets.size()> g_time_samples{};
 uint64_t g_time_sample_tick = 0;
 int g_game_time_index = -1;
 bool g_integral = false;
-
-bool range_readable(uintptr_t addr, size_t len);
 
 enum class PsxVariant { Unknown, WesternOriginal, JapaneseOriginal, Integral };
 
@@ -128,28 +131,6 @@ struct FieldOffsets {
 };
 
 static_assert(FieldOffsets::kRadarState == FieldOffsets::kStage + 9);
-
-bool range_readable(uintptr_t addr, size_t len)
-{
-    const uintptr_t end = addr + len;
-    while (addr < end) {
-        MEMORY_BASIC_INFORMATION mbi{};
-        if (!VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))) {
-            return false;
-        }
-        if (mbi.State != MEM_COMMIT) {
-            return false;
-        }
-        constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
-            | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-        if ((mbi.Protect & kReadable) == 0 || (mbi.Protect & PAGE_GUARD) != 0) {
-            return false;
-        }
-        const uintptr_t region_end = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
-        addr = region_end;
-    }
-    return true;
-}
 
 struct SerialHit {
     PsxVariant variant = PsxVariant::Unknown;
@@ -259,14 +240,6 @@ PsxVariant disc_variant()
     std::memcpy(g_serial, hit.serial, sizeof(g_serial));
     LOG_INFO("mgs1 disc serial %s -> %s", g_serial, variant_name(g_variant));
     return g_variant;
-}
-
-template <typename T>
-T read_at(uintptr_t base, size_t offset)
-{
-    T v{};
-    std::memcpy(&v, reinterpret_cast<const uint8_t*>(base) + offset, sizeof(T));
-    return v;
 }
 
 constexpr uint32_t clock_score(uint32_t delta, uint32_t expected)
