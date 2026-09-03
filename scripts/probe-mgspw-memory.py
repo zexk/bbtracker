@@ -260,7 +260,7 @@ def snapshot(memory, resolved):
         if arr:
             player = struct.unpack("<Q", read_mem(memory, arr, 8))[0]
             if player:
-                hp = struct.unpack("<h", read_mem(memory, player + 0x8A0, 2))[0]
+                hp = struct.unpack("<H", read_mem(memory, player + 0x11BE, 2))[0]
                 weapon = struct.unpack("<h", read_mem(memory, player + 0x14B8, 2))[0]
                 out["player"].update({"hp": hp, "weapon_id": weapon})
     return out

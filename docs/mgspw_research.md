@@ -229,6 +229,19 @@ Array at `save+0xBD3C`, stride `0x1C`:
 Equipped weapon id at character `+0x14B8` matches the record id; id 3 is the
 tranquilizer pistol. XP applies exactly as displayed and settles at mission end.
 
+## Player character
+
+`PW_CHARARRAY` -> `[0]` is the player object.
+
+| Offset | Type | Meaning |
+| ---: | --- | --- |
+| `+0x11BE` | `u16` | health, `8000` = full; regenerates ~20/s while undamaged |
+| `+0x14B8` | `u16` | equipped weapon id |
+
+Health was pinned by two hits (`8000 -> 7420 -> 6429`) plus the refill
+between samples. `+0x32C` dropped `1632 -> 1568` on the first hit and then
+never moved again, so it is not health.
+
 ## Achievement system
 
 50 achievements. All addresses are VAs.
@@ -391,6 +404,7 @@ the retracted weapon-XP multiplier below was invented.
 - **Alert tally.** The `0x420002` career value is confirmed, but that record's
   `+0x18` sequence did not line up with the reported alert counts, so only the
   career reading is trusted.
+- **`char+0x32C`** fell once on damage and then stayed put; unidentified.
 - **`save+0x130`** (reads `229`, static through Fulton uses) is not Fulton
   stock and remains unidentified. `save+0xB550` (`150` against a displayed
   food `151%`) and `save+0xB520` (`131079`) are likewise unexplained.
@@ -414,6 +428,8 @@ Kept deliberately: each of these was believed once and cost time.
   op where the results screen itself showed 8 extractions. The original
   "disproven" call rested on a profile number that counted something else.
 - **`save+0x130` as Fulton stock** - disproven, static across Fulton uses.
+- **`char+0x8A0` as player health** - disproven. It reads `393216000` as a
+  dword, and the probe's `u16` view of it was a constant `0` in game.
 - **`save+0xB4EC` as the Headshot Hero counter** - disproven. It reads `5`
   while career headshots are 71 and the achievement (threshold 50) is already
   unlocked; it is a narrower takedown counter.

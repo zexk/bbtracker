@@ -65,7 +65,7 @@ constexpr size_t kWeaponUseOff = 0x14;
 
 // Character-array layout.
 constexpr size_t kCharCount = 40;
-constexpr size_t kHpOff = 0x8A0;
+constexpr size_t kHpOff = 0x11BE;  // u16, 8000 = full; regenerates ~20/s
 constexpr size_t kWeaponIdOff = 0x14B8;
 
 uintptr_t g_saveroot_ptr = 0;   // address holding save-block pointer

@@ -93,7 +93,7 @@ struct GameStats {
     uint32_t pw_total_play = 0;       // [SAVEROOT+0x84] total play, ticks ~1/s
     uint32_t pw_stage_play = 0;       // [SAVEROOT+0x88] stage play, ticks fast (ms?)
     char pw_stage[32] = {};           // [SAVEROOT+0x54] stage string
-    int pw_player_hp = 0;             // [CHARARRAY[0]+0x8A0]
+    int pw_player_hp = 0;             // [CHARARRAY[0]+0x11BE] u16, 8000 = full
     int pw_weapon_id = -1;            // [CHARARRAY[0]+0x14B8]
     int pw_heroism = 0;               // [SAVEROOT+0x64F4] validated lifetime Heroism
     int pw_heroism_delta = 0;         // [SAVEROOT+0x64EC] last-mission delta

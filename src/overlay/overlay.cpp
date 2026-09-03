@@ -1106,7 +1106,7 @@ void draw_mgspw_current(const GameStats& stats)
         snprintf(buf, sizeof(buf), "%llu:%02llu.%03llu", best_ms / 60000,
                  (best_ms / 1000) % 60, best_ms % 1000);
         row("last best", buf);
-        snprintf(buf, sizeof(buf), "%d (wpn %d)", stats.pw_player_hp,
+        snprintf(buf, sizeof(buf), "%d%% (wpn %d)", stats.pw_player_hp * 100 / 8000,
                  stats.pw_weapon_id);
         row("player HP", buf);
         ImGui::EndTable();
