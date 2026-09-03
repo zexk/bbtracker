@@ -1277,7 +1277,7 @@ void draw_panel()
         stats = g_stats;
         have_stats = g_have_stats;
         ReleaseSRWLockShared(&g_stats_lock);
-        next_poll = now + 250;
+        next_poll = now + 100;
     }
     const char* panel_title = g_game == Game::MGS3 || g_game == Game::MGSPW
         ? "FOXHOUND tracker"
@@ -1878,7 +1878,9 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
             max_ticks = 0;
             timing_samples = 0;
         }
-        Sleep(250);
+        // 10 Hz: the live per-mission tallies are read here, and at 4 Hz the
+        // sampling lag was visible in game. PW probe costs ~80us per poll.
+        Sleep(100);
     }
 }
 
