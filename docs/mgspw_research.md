@@ -186,9 +186,11 @@ Confirmed ids, each pinned by runs with counted actions:
 
 | id | meaning |
 | --- | --- |
-| `0x420008`, `0x200E0` | kills |
+| `0x420008`, `0x200E0` | lethal takedowns (kills), total |
 | `0x420002` | alerts |
-| `0x442002E` | tranq takedowns (body shots count, misses do not) |
+| `0x442002E` | non-lethal takedowns, total (body shots count, misses do not) |
+| `0x200F9` | per-type takedowns: pistol |
+| `0x2007C` | per-type takedowns: assault rifle |
 | `0x4420031` | headshots |
 | `0x4420077` | heroism (equals `save+0x64F4`) |
 | `0x2008E` | Fulton recoveries |
@@ -196,6 +198,18 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x442011F` | clears with no kill |
 | `0x44200DC` | clear counter, subset of `save+0x656C` |
 | `0x200ED`, `0x2002F` | non-headshot (body) kills |
+
+The game keeps a takedown counter per weapon type - 11 of them, CQC and
+stun rod included - plus lethal and non-lethal totals. `0x442002E` and
+`0x420008` are those totals; the per-type counters live in the sparse block
+`0x200DD..0x20110` plus strays like `0x2007C`, and a type reads `0` until it
+is used, which is why only a handful are ever non-zero.
+
+Two are pinned by player-reported runs: a 7-takedown mission (6 pistol,
+1 CQC) moved the non-lethal total `+7` and `0x200F9` `+6`, and three
+single-weapon assault-rifle runs moved `0x2007C` `+3` each. Ids `0x200F7`
+and `0x20106` both went `0 -> 1` on the run containing the single CQC
+takedown, so one of them is CQC and the other is boss/vehicle related.
 
 Headshots are stored as one total, so the lethal/tranq split is a
 subtraction:
@@ -448,8 +462,12 @@ the retracted weapon-XP multiplier below was invented.
   for per-rank or per-target values but has not been tied to a rank yet.
 - **Career id `0x20023`** moved on only 2 of 5 runs (`+6000` on a first clear,
   `+4945` on a dirty replay), so it is not a plain cumulative score.
-- **`0x2007C`** counts kills of one weapon class (`+3` from three kills with a
-  single weapon, `+2` from an older mixed 6-kill run); which class is open.
+- **The other nine weapon types.** Only pistol (`0x200F9`) and assault rifle
+  (`0x2007C`) are identified. Each unused type reads `0`, so a run using one
+  type for 2-3 takedowns lights up exactly one slot.
+- **CQC vs boss counter.** `0x200F7` and `0x20106` both moved `0 -> 1` on the
+  run that contained one CQC takedown and one destroyed vehicle; a single CQC
+  takedown in any other mission separates them.
 - **`0x2002F` vs `0x200ED`** both moved `+3` on the body-shot run and are so
   far indistinguishable.
 - **`0x200F9`** tracked `0x442002E` for three runs, then diverged (`+6` vs

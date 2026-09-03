@@ -146,6 +146,11 @@ struct GameStats {
     // headshot count, and headshots minus that is the tranq headshot count.
     int pw_body_kills = -1;
     int pw_m_body_kills = -1;
+    // Per-weapon-type takedowns. The game keeps one counter per type (11 of
+    // them, CQC and stun rod included); these two are the ones identified so
+    // far. pw_tranq/pw_kills are the non-lethal/lethal totals they roll into.
+    int pw_pistol_takedowns = -1;  // id 0x200F9
+    int pw_ar_takedowns = -1;      // id 0x2007C
     // Live per-sortie deltas, differenced client-side at stage change
     // (action careers tick live mid-mission; heroism/XP/GMP settle at
     // results, so their segments only move post-results).

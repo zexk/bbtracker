@@ -1150,8 +1150,15 @@ void draw_mgspw_global(const GameStats& stats)
                      stats.pw_s_missions);
             row("missions cleared", buf);
         }
-        snprintf(buf, sizeof(buf), "HS %d  K %d  TQ %d  AL %d", stats.pw_headshots,
-                 stats.pw_kills, stats.pw_tranq, stats.pw_alerts);
+        snprintf(buf, sizeof(buf), "%d lethal / %d non-lethal", stats.pw_kills,
+                 stats.pw_tranq);
+        row("takedowns", buf);
+        if (stats.pw_pistol_takedowns >= 0) {
+            snprintf(buf, sizeof(buf), "pistol %d  AR %d", stats.pw_pistol_takedowns,
+                     stats.pw_ar_takedowns);
+            row("by weapon", buf);
+        }
+        snprintf(buf, sizeof(buf), "HS %d  AL %d", stats.pw_headshots, stats.pw_alerts);
         row("lifetime", buf);
         if (stats.pw_body_kills >= 0 && stats.pw_kills >= 0 && stats.pw_headshots >= 0) {
             // The game stores total headshots and non-headshot kills, so the
