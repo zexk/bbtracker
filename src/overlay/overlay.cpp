@@ -16,6 +16,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <array>
+#include <optional>
 #include <vector>
 #include <filesystem>
 
@@ -1000,6 +1002,30 @@ int mgs3_area_kerotan(const char* code)
     return -1;
 }
 
+using EvaluateFn = std::optional<codename::Match> (*)(const GameStats&);
+using RequirementsFn = std::vector<codename::ReqStatus> (*)(const GameStats&);
+
+constexpr EvaluateFn kEvaluateFns[] = {
+    [static_cast<int>(Game::MG1)] = codename::evaluate_mg1,
+    [static_cast<int>(Game::MG2)] = codename::evaluate_mg2,
+    [static_cast<int>(Game::MGS1)] = codename::evaluate_mgs1,
+    [static_cast<int>(Game::MGS2)] = codename::evaluate_mgs2,
+    [static_cast<int>(Game::MGS3)] = codename::evaluate_mgs3,
+    [static_cast<int>(Game::MGS4)] = codename::evaluate_mgs4,
+};
+
+constexpr RequirementsFn kRequirementsFns[] = {
+    [static_cast<int>(Game::MG1)] = codename::elite_requirements_mg1,
+    [static_cast<int>(Game::MG2)] = codename::elite_requirements_mg2,
+    [static_cast<int>(Game::MGS1)] = codename::elite_requirements_mgs1,
+    [static_cast<int>(Game::MGS2)] = codename::elite_requirements_mgs2,
+    [static_cast<int>(Game::MGS3)] = codename::elite_requirements_mgs3,
+    [static_cast<int>(Game::MGS4)] = codename::elite_requirements_mgs4,
+};
+
+static_assert(std::size(kEvaluateFns) == 6);
+static_assert(std::size(kRequirementsFns) == 6);
+
 void draw_panel()
 {
     static GameStats stats{};
@@ -1040,12 +1066,7 @@ void draw_panel()
     const bool summary = !tabs || ImGui::BeginTabItem(
         "Summary", nullptr, selected_tab == 0 ? ImGuiTabItemFlags_SetSelected : 0);
     if (summary) {
-    auto match = g_game == Game::MG1    ? codename::evaluate_mg1(stats)
-                 : g_game == Game::MG2  ? codename::evaluate_mg2(stats)
-                 : g_game == Game::MGS1 ? codename::evaluate_mgs1(stats)
-                 : g_game == Game::MGS2 ? codename::evaluate_mgs2(stats)
-                 : g_game == Game::MGS3 ? codename::evaluate_mgs3(stats)
-                                        : codename::evaluate_mgs4(stats);
+    auto match = kEvaluateFns[static_cast<int>(g_game)](stats);
 
     const auto [id_green, id_yellow, id_red] = id_colors(g_game);
     const ImVec4 codename_color = !match ? ImVec4(1, 1, 1, 0.35f)
@@ -1087,12 +1108,7 @@ void draw_panel()
         }
 
         std::vector<codename::ReqStatus> reqs =
-            g_game == Game::MG1    ? codename::elite_requirements_mg1(stats)
-            : g_game == Game::MG2  ? codename::elite_requirements_mg2(stats)
-            : g_game == Game::MGS1 ? codename::elite_requirements_mgs1(stats)
-            : g_game == Game::MGS2 ? codename::elite_requirements_mgs2(stats)
-            : g_game == Game::MGS3 ? codename::elite_requirements_mgs3(stats)
-                                   : codename::elite_requirements_mgs4(stats);
+            kRequirementsFns[static_cast<int>(g_game)](stats);
         for (const codename::ReqStatus& r : reqs) {
             char ratio[96];
             if (std::strcmp(r.label, "special items") == 0 && g_game == Game::MGS2) {
