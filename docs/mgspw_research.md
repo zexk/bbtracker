@@ -541,8 +541,17 @@ overlay now heads the Current tab with the mission id plus that mission's
 stored rank and best time, so a run can be read against its own record
 while it is being played.
 
-Known mission ids so far: 2 = Sandinista Comandante (stage `w01s04a`),
-4 = Armored Vehicle Battle: LAV-Type G, 52 = Side Ops 10.
+Known mission ids so far:
+
+| id | mission | stage |
+| ---: | --- | --- |
+| 1 | first main op | `w00s01a` |
+| 2 | Sandinista Comandante | `w01s04a` |
+| 4 | Armored Vehicle Battle: LAV-Type G | - |
+| 52 | Side Ops 10 | - |
+
+The probe prints the id and the stage string together, so the table fills
+itself in as missions are played.
 
 ## Heroism candidate
 
