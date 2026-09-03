@@ -123,6 +123,36 @@ enum class ReqFmt : uint8_t {
     Time,
 };
 
+struct ReqRow {
+    const char* label;
+    StatId stat;
+    Op op;
+    double limit;
+    ReqFmt fmt;
+};
+
+inline ReqStatus make_req_status(const GameStats& s, const ReqRow& row, bool time_gated)
+{
+    bool pass = cond_met(s, Cond{row.stat, row.op, row.limit});
+    if (time_gated && row.fmt == ReqFmt::Time && s.play_time_seconds <= 0.0) {
+        pass = false;
+    }
+    return ReqStatus{row.label, pass, stat_value(s, row.stat), row.limit,
+                     static_cast<uint8_t>(row.fmt), static_cast<uint8_t>(row.op)};
+}
+
+inline std::vector<ReqStatus> requirements_from_rows(const GameStats& s,
+                                                     std::span<const ReqRow> rows,
+                                                     bool time_gated)
+{
+    std::vector<ReqStatus> out;
+    out.reserve(rows.size());
+    for (const ReqRow& row : rows) {
+        out.push_back(make_req_status(s, row, time_gated));
+    }
+    return out;
+}
+
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);
 
 std::optional<Match> evaluate_mgs2(const GameStats& s);

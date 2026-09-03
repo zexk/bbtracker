@@ -148,14 +148,6 @@ const RankRule* find_mgs3(const char* name)
 
 namespace {
 
-struct ReqRow {
-    const char* label;
-    StatId stat;
-    Op op;
-    double limit;
-    ReqFmt fmt;
-};
-
 constexpr std::array<ReqRow, 9> kFoxhoundReqs{{
     {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
     {"alerts", StatId::Alerts, Op::Eq, 0, ReqFmt::Count},
@@ -172,18 +164,7 @@ constexpr std::array<ReqRow, 9> kFoxhoundReqs{{
 
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s)
 {
-    std::vector<ReqStatus> out;
-    for (const ReqRow& row : kFoxhoundReqs) {
-        out.push_back(ReqStatus{
-            row.label,
-            cond_met(s, Cond{row.stat, row.op, row.limit}),
-            stat_value(s, row.stat),
-            row.limit,
-            static_cast<uint8_t>(row.fmt),
-            static_cast<uint8_t>(row.op),
-        });
-    }
-    return out;
+    return requirements_from_rows(s, kFoxhoundReqs, false);
 }
 
 std::optional<Match> evaluate_mgs2(const GameStats& s)
@@ -198,15 +179,7 @@ std::optional<Match> evaluate_mgs2(const GameStats& s)
 
 namespace {
 
-struct Mgs2ReqRow {
-    const char* label;
-    StatId stat;
-    Op op;
-    double limit;
-    ReqFmt fmt;
-};
-
-constexpr std::array<Mgs2ReqRow, 10> kBigBossReqs{{
+constexpr std::array<ReqRow, 10> kBigBossReqs{{
     {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
     {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
     {"shots fired", StatId::ShotsFired, Op::Le, 700, ReqFmt::Count},
@@ -223,18 +196,7 @@ constexpr std::array<Mgs2ReqRow, 10> kBigBossReqs{{
 
 std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s)
 {
-    std::vector<ReqStatus> out;
-    for (const Mgs2ReqRow& row : kBigBossReqs) {
-        out.push_back(ReqStatus{
-            row.label,
-            cond_met(s, Cond{row.stat, row.op, row.limit}),
-            stat_value(s, row.stat),
-            row.limit,
-            static_cast<uint8_t>(row.fmt),
-            static_cast<uint8_t>(row.op),
-        });
-    }
-    return out;
+    return requirements_from_rows(s, kBigBossReqs, false);
 }
 
 std::optional<Match> evaluate_mgs1(const GameStats& s)
@@ -254,15 +216,7 @@ std::optional<Match> evaluate_mgs1(const GameStats& s)
 
 namespace {
 
-struct Mgs1ReqRow {
-    const char* label;
-    StatId stat;
-    Op op;
-    double limit;
-    ReqFmt fmt;
-};
-
-constexpr std::array<Mgs1ReqRow, 6> kOriginalLadderReqs{{
+constexpr std::array<ReqRow, 6> kOriginalLadderReqs{{
     {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
     {"discovered", StatId::Alerts, Op::Lt, 4, ReqFmt::Count},
     {"kills", StatId::Kills, Op::Lt, 25, ReqFmt::Count},
@@ -271,7 +225,7 @@ constexpr std::array<Mgs1ReqRow, 6> kOriginalLadderReqs{{
     {"play time", StatId::PlayTimeHours, Op::Lt, 3, ReqFmt::Time},
 }};
 
-constexpr std::array<Mgs1ReqRow, 5> kIntegralLadderReqs{{
+constexpr std::array<ReqRow, 5> kIntegralLadderReqs{{
     {"discovered", StatId::Alerts, Op::Lt, 4, ReqFmt::Count},
     {"kills", StatId::Kills, Op::Lt, 25, ReqFmt::Count},
     {"rations used", StatId::RationsUsed, Op::Le, 1, ReqFmt::Count},
@@ -283,25 +237,10 @@ constexpr std::array<Mgs1ReqRow, 5> kIntegralLadderReqs{{
 
 std::vector<ReqStatus> elite_requirements_mgs1(const GameStats& s)
 {
-    std::vector<ReqStatus> out;
-    const std::span<const Mgs1ReqRow> rows =
-        s.mgs1_integral ? std::span<const Mgs1ReqRow>{kIntegralLadderReqs}
-                        : std::span<const Mgs1ReqRow>{kOriginalLadderReqs};
-    for (const Mgs1ReqRow& row : rows) {
-        bool pass = cond_met(s, Cond{row.stat, row.op, row.limit});
-        if (row.fmt == ReqFmt::Time && s.play_time_seconds <= 0.0) {
-            pass = false;
-        }
-        out.push_back(ReqStatus{
-            row.label,
-            pass,
-            stat_value(s, row.stat),
-            row.limit,
-            static_cast<uint8_t>(row.fmt),
-            static_cast<uint8_t>(row.op),
-        });
-    }
-    return out;
+    const std::span<const ReqRow> rows =
+        s.mgs1_integral ? std::span<const ReqRow>{kIntegralLadderReqs}
+                        : std::span<const ReqRow>{kOriginalLadderReqs};
+    return requirements_from_rows(s, rows, true);
 }
 
 namespace {
@@ -324,20 +263,6 @@ constexpr std::array<ReqRow, 6> kMg2Reqs{{
     {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
 }};
 
-std::vector<ReqStatus> mg_requirements(const GameStats& s, std::span<const ReqRow> rows)
-{
-    std::vector<ReqStatus> out;
-    for (const ReqRow& row : rows) {
-        bool pass = cond_met(s, Cond{row.stat, row.op, row.limit});
-        if (row.fmt == ReqFmt::Time && s.play_time_seconds <= 0.0) {
-            pass = false;
-        }
-        out.push_back({row.label, pass, stat_value(s, row.stat), row.limit,
-                       static_cast<uint8_t>(row.fmt), static_cast<uint8_t>(row.op)});
-    }
-    return out;
-}
-
 bool all_pass(const std::vector<ReqStatus>& requirements)
 {
     for (const ReqStatus& requirement : requirements) {
@@ -359,7 +284,7 @@ std::optional<Match> evaluate_mg1(const GameStats& s)
 
 std::vector<ReqStatus> elite_requirements_mg1(const GameStats& s)
 {
-    return mg_requirements(s, kMg1Reqs);
+    return requirements_from_rows(s, kMg1Reqs, true);
 }
 
 std::optional<Match> evaluate_mg2(const GameStats& s)
@@ -373,7 +298,7 @@ std::optional<Match> evaluate_mg2(const GameStats& s)
 
 std::vector<ReqStatus> elite_requirements_mg2(const GameStats& s)
 {
-    return mg_requirements(s, kMg2Reqs);
+    return requirements_from_rows(s, kMg2Reqs, true);
 }
 
 } // namespace bb::codename

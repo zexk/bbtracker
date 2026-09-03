@@ -90,7 +90,6 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& pool)
     return rules;
 }
 
-struct ReqRow { const char* label; StatId stat; Op op; double limit; ReqFmt fmt; };
 constexpr std::array<ReqRow, 6> kBigBossReqs{{
     {"alerts", StatId::Alerts, Op::Eq, 0, ReqFmt::Count},
     {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
@@ -128,13 +127,7 @@ std::vector<Match> all_matches_mgs4(const GameStats& s)
 
 std::vector<ReqStatus> elite_requirements_mgs4(const GameStats& s)
 {
-    std::vector<ReqStatus> out;
-    for (const ReqRow& row : kBigBossReqs) {
-        out.push_back({row.label, cond_met(s, {row.stat, row.op, row.limit}),
-                       stat_value(s, row.stat), row.limit,
-                       static_cast<uint8_t>(row.fmt), static_cast<uint8_t>(row.op)});
-    }
-    return out;
+    return requirements_from_rows(s, kBigBossReqs, false);
 }
 
 } // namespace bb::codename
