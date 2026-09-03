@@ -127,19 +127,6 @@ bool find_slot_via_sig(HMODULE mod, uintptr_t& out_slot)
     }
     return false;
 }
-
-void log_hex_dump(const uint8_t* data, size_t len)
-{
-    for (size_t row = 0; row < len; row += 16) {
-        char line[128];
-        size_t pos = 0;
-        pos += snprintf(line + pos, sizeof(line) - pos, "  %04zx:", row);
-        for (size_t i = 0; i < 16 && row + i < len; ++i) {
-            pos += snprintf(line + pos, sizeof(line) - pos, " %02X", data[row + i]);
-        }
-        LOG_INFO("%s", line);
-    }
-}
 bool resolve(uintptr_t& out_block, uintptr_t& out_story_base)
 {
     HMODULE mod = GetModuleHandleW(kModuleName);

@@ -396,19 +396,6 @@ bool is_logger_table(uintptr_t p)
     return std::memcmp(tail, kLoggerTail, 8) == 0;
 }
 
-void log_hex_dump(const uint8_t* data, size_t len)
-{
-    for (size_t row = 0; row < len; row += 16) {
-        char line[128];
-        size_t pos = 0;
-        pos += snprintf(line + pos, sizeof(line) - pos, "  %04zx:", row);
-        for (size_t i = 0; i < 16 && row + i < len; ++i) {
-            pos += snprintf(line + pos, sizeof(line) - pos, " %02X", data[row + i]);
-        }
-        LOG_INFO("%s", line);
-    }
-}
-
 bool find_candidate(uintptr_t& out)
 {
     // ponytail: startup latch can take ~12s because this scans process memory. Replace with a

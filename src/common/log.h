@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 namespace bb {
 
 enum class LogLevel : int {
@@ -11,6 +14,7 @@ enum class LogLevel : int {
 
 bool log_init(const char* path);
 void log_shutdown();
+void log_hex_dump(const uint8_t* data, size_t len);
 void log_write(LogLevel lvl, const char* fmt, ...)
 #if defined(__GNUC__) || defined(__clang__)
     __attribute__((format(printf, 2, 3)))

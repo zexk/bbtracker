@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
 
@@ -67,6 +68,19 @@ void log_write(LogLevel lvl, const char* fmt, ...)
     fprintf(g_file, "[%02u:%02u:%02u.%03u] [%s] %s\n", st.wHour, st.wMinute, st.wSecond,
             st.wMilliseconds, level_tag(lvl), msg);
     fflush(g_file);
+}
+
+void log_hex_dump(const uint8_t* data, size_t len)
+{
+    for (size_t row = 0; row < len; row += 16) {
+        char line[128];
+        size_t pos = 0;
+        pos += snprintf(line + pos, sizeof(line) - pos, "  %04zx:", row);
+        for (size_t i = 0; i < 16 && row + i < len; ++i) {
+            pos += snprintf(line + pos, sizeof(line) - pos, " %02X", data[row + i]);
+        }
+        LOG_INFO("%s", line);
+    }
 }
 
 } // namespace bb
