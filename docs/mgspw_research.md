@@ -482,6 +482,43 @@ Live tallies ticked again through this run: the tranq record's `+0x18`
 stepped `0,2,3,4,5,6,7` and the headshot record's `0,1,2,3`, each landing on
 the value the results screen showed.
 
+## Rank improvement observed: mission id 2 (S)
+
+Player re-cleared "Sandinista Comandante" with S. The arrays moved exactly
+as the model predicts:
+
+| field | before | after |
+| --- | --- | --- |
+| rank (`save+0x32B8`) | `1` (A) | `0` (S) |
+| best time (`save+0x29BC`) | `175470` = 584.90 s | `58635` = 195.45 s |
+
+So **mission id 2 = Sandinista Comandante**, and a rank slot is overwritten
+on improvement, not only on first clear.
+
+Run deltas: heroism `+22` (the clean-run value again), tranq `+12`,
+headshots `+10`, Fulton `+9`, `clears` +1, and **both** clean-clear
+counters moved (`0x442011E` no-alert and `0x442011F` no-kill), so the run
+had zero kills and zero alerts.
+
+Two S/A data points now sit against each other:
+
+| mission | rank | time | kills | alerts |
+| --- | --- | ---: | ---: | ---: |
+| 2 Sandinista Comandante | S | 195.45 s | 0 | 0 |
+| 2 Sandinista Comandante | A | 584.90 s | ? | ? |
+| 4 LAV-Type G | A | 726.98 s | 0 | had alerts |
+
+Consistent with the player's read that time, kills and alerts all feed the
+score.
+
+Score anomaly: the four score twins (`save+0x278`, `+0x2A0`, `+0x1FBF4`,
+`+0x1FC1C`) still read `6000` after this S run - the same value the A-rank
+LAV clear left - and the career score id `0x20023` did not move at all.
+`0x20023` has now moved on exactly two runs (a first clear `+6000` and a
+dirty Side Ops replay `+4945`) and stayed flat on three others, so
+"cumulative score" is not the whole story; the twins may be a capped
+per-mission points value rather than the rank input.
+
 ## Heroism candidate
 
 Single dword `123` at save `+0x64F4` with `min=-999999 max=999999` bounds
