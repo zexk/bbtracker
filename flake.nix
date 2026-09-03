@@ -85,6 +85,17 @@
             packages = [ pkgs.clang-tools ];
             inputsFrom = [ self.packages.${system}.bbtracker ];
           };
+
+          # Reverse-engineering shell: live PE analysis of MGS_PW.
+          # ghidra-bin for headless import of the runtime .text dump,
+          # capstone for quick scripted disassembly of the stat-table
+          # and rank logic. Run with: nix develop .#re
+          re = pkgs.mkShellNoCC {
+            packages = [
+              pkgs.ghidra-bin
+              (pkgs.python3.withPackages (ps: [ ps.capstone ]))
+            ];
+          };
         });
 
       checks = forAllSystems (system:

@@ -14,6 +14,7 @@ declare -A TARGETS=(
   [bbtracker_mgs3.asi]="$STEAMAPPS/MGS3"
   [bbtracker_mgs2.asi]="$STEAMAPPS/MGS2"
   [bbtracker_mgs4.asi]="$STEAMAPPS/METAL GEAR SOLID 4/MGS4"
+  [bbtracker_mgspw.asi]="$STEAMAPPS/MGS_PW/mgspw"
 )
 
 rc=0

@@ -85,6 +85,75 @@ struct GameStats {
     bool mgs1_integral = false;
     bool mgs1_japanese_original = false;
 
+    // Peace Walker probe (FOXHOUND tracker bootstrap, all unverified).
+    uint64_t pw_mission_raw = 0;      // [PW_MISSIONTIME] ticks 300/s of active game time
+    uint64_t pw_mission_aux = 0;      // [PW_MISSIONTIME+0x08] second accumulator
+    uint32_t pw_area = 0;             // [PW_MISSIONTIME+0x10] area timer, mirrors stage?
+    uint32_t pw_mission_secondary = 0;// [PW_MISSIONTIME+0x14] mirror of area timer
+    uint32_t pw_total_play = 0;       // [SAVEROOT+0x84] total play, ticks ~1/s
+    uint32_t pw_stage_play = 0;       // [SAVEROOT+0x88] stage play, ticks fast (ms?)
+    char pw_stage[32] = {};           // [SAVEROOT+0x54] stage string
+    int pw_player_hp = 0;             // [CHARARRAY[0]+0x8A0]
+    int pw_weapon_id = -1;            // [CHARARRAY[0]+0x14B8]
+    int pw_heroism = 0;               // [SAVEROOT+0x64F4] validated lifetime Heroism
+    int pw_heroism_delta = 0;         // [SAVEROOT+0x64EC] last-mission delta
+    uint32_t pw_gmp = 0;              // [SAVEROOT+0xB52C] validated funds
+    uint32_t pw_last_best_a = 0;      // [SAVEROOT+0x586C] last-mission best twin slot A
+    uint32_t pw_last_best_b = 0;      // [SAVEROOT+0x5874] last-mission best twin slot B
+    int pw_clears = -1;               // [SAVEROOT+0x656C] validated global clear count (replays count)
+    int pw_s_count = -1;              // [SAVEROOT+0x9084] validated lifetime S-rank count
+    int pw_fulton = -1;               // [SAVEROOT+0x130] contested: Fulton stock or inspected-weapon XP-to-next
+    // FOXHOUND lifetime inputs, resolved by descriptor ID (table moves).
+    // -1 = unresolved. Confirmed by quantified missions: headshots +1
+    // on exactly-1-headshot run, kills +3 on 3-kill run, tranq +2 on
+    // 2-tranq run. Max across id matches (live copy leads stale
+    // snapshot copies). Fulton single-evidence (one +1).
+    int pw_headshots = -1; // id 0x4420031
+    int pw_kills = -1;     // ids 0x420008, 0x2007C, 0x200E0
+    int pw_tranq = -1;     // ids 0x442002E, 0x200F9
+    // id 0x2008E: Fulton recoveries. Confirmed over four runs, including an
+    // 8-extraction main op where the in-game results screen showed 8.
+    int pw_fulton_recoveries = -1;
+    // Confirmed over three quantified runs (clean / 6-kill+alert /
+    // 0-kill+alert): 0x442011E only moves when the run had no alert,
+    // 0x442011F only when it had no kill. 0x44200DC moves on every clear.
+    int pw_clear_counter = -1;   // id 0x44200DC
+    int pw_noalert_clears = -1;  // id 0x442011E
+    int pw_nokill_clears = -1;   // id 0x442011F
+    // Per-mission rank array (save+0x32B4, u16 by mission id): 0 = S,
+    // 0xFFFF = never cleared. Best time lives at save+0x29B4 + 4*id.
+    int pw_unique_cleared = -1;
+    int pw_s_missions = -1;
+    // Last mission's score (save+0x278, mirrored at +0x2A0/+0x1FBF4/+0x1FC1C).
+    // Rank is scored, so this is the number the letter comes from.
+    uint32_t pw_last_score = 0;
+    // Career alerts (id 0x420002) plus the game's own per-mission tally,
+    // the descriptor's +0x18 field: it counts up live during a mission and
+    // the game clears it at mission start, so it beats latching baselines.
+    // -1 = unresolved.
+    int pw_alerts = -1;
+    int pw_m_kills = -1;
+    int pw_m_alerts = -1;
+    int pw_m_tranq = -1;
+    int pw_m_headshots = -1;
+    // Live per-sortie deltas, differenced client-side at stage change
+    // (action careers tick live mid-mission; heroism/XP/GMP settle at
+    // results, so their segments only move post-results).
+    char seg_stage[32] = {};
+    double seg_time_seconds = 0.0;
+    int seg_headshots = 0;
+    int seg_kills = 0;
+    int seg_tranq = 0;
+    int seg_fulton = 0;
+    int seg_heroism = 0;
+    bool pw_saveroot_ok = false;
+    bool pw_mission_ok = false;
+    bool pw_chararray_ok = false;
+    // First 16 weapon-record XP values ([rec+0x14] u16, stride 0x1C;
+    // per-level pool, resets on level-up). -1 = unreadable.
+    int pw_weapon_use[16] = {-1, -1, -1, -1, -1, -1, -1, -1,
+                             -1, -1, -1, -1, -1, -1, -1, -1};
+
 };
 
 } // namespace bb

@@ -270,7 +270,8 @@ void apply_game_theme()
     ImGui::StyleColorsDark();
     if (g_game != Game::MG1 && g_game != Game::MG2
         && g_game != Game::MGS1 && g_game != Game::MGS2
-        && g_game != Game::MGS3 && g_game != Game::MGS4) {
+        && g_game != Game::MGS3 && g_game != Game::MGS4
+        && g_game != Game::MGSPW) {
         return;
     }
 
@@ -1012,6 +1013,7 @@ constexpr EvaluateFn kEvaluateFns[] = {
     [static_cast<int>(Game::MGS2)] = codename::evaluate_mgs2,
     [static_cast<int>(Game::MGS3)] = codename::evaluate_mgs3,
     [static_cast<int>(Game::MGS4)] = codename::evaluate_mgs4,
+    [static_cast<int>(Game::MGSPW)] = nullptr,
 };
 
 constexpr RequirementsFn kRequirementsFns[] = {
@@ -1021,10 +1023,232 @@ constexpr RequirementsFn kRequirementsFns[] = {
     [static_cast<int>(Game::MGS2)] = codename::elite_requirements_mgs2,
     [static_cast<int>(Game::MGS3)] = codename::elite_requirements_mgs3,
     [static_cast<int>(Game::MGS4)] = codename::elite_requirements_mgs4,
+    [static_cast<int>(Game::MGSPW)] = nullptr,
 };
 
-static_assert(std::size(kEvaluateFns) == 6);
-static_assert(std::size(kRequirementsFns) == 6);
+static_assert(std::size(kEvaluateFns) == 7);
+static_assert(std::size(kRequirementsFns) == 7);
+
+void draw_mgspw_current(const GameStats& stats)
+{
+    // Current sortie: segment deltas land at results tally (actions) or
+    // lobby exit (heroism/XP/GMP); the master clock ticks live.
+    const double seg_seconds = stats.seg_time_seconds;
+    const unsigned long long seg_ms =
+        static_cast<unsigned long long>(seg_seconds * 1000.0);
+    char seg_clock[32];
+    snprintf(seg_clock, sizeof(seg_clock), "%llu:%02llu.%03llu", seg_ms / 60000,
+             (seg_ms / 1000) % 60, seg_ms % 1000);
+    ImGui::TextDisabled("%s", stats.seg_stage[0] ? stats.seg_stage : "-");
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::TextUnformatted(seg_clock);
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Separator();
+    ImGui::Spacing();
+    // pw_mission_raw is the high-res TOTAL play clock (raw/300 ~= total);
+    // the seg line above is the current mission time.
+    char buf[64];
+    if (ImGui::BeginTable("pw_current", 2,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("field", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+        const auto row = [&](const char* k, const char* v) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(k);
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(v);
+        };
+        // The game keeps its own per-mission tally in each stat descriptor
+        // (+0x18); it beats the client-side segment delta because the game
+        // clears it at mission start. Fall back to the segment when a
+        // descriptor is unresolved.
+        const auto stat_row = [&](const char* k, int mission_value, int seg) {
+            if (mission_value >= 0) {
+                snprintf(buf, sizeof(buf), "%d", mission_value);
+            } else {
+                snprintf(buf, sizeof(buf), "%+d (seg)", seg);
+            }
+            row(k, buf);
+        };
+        stat_row("headshots", stats.pw_m_headshots, stats.seg_headshots);
+        stat_row("kills", stats.pw_m_kills, stats.seg_kills);
+        stat_row("tranq", stats.pw_m_tranq, stats.seg_tranq);
+        if (stats.pw_m_alerts >= 0) {
+            snprintf(buf, sizeof(buf), "%d", stats.pw_m_alerts);
+            row("alerts", buf);
+        }
+        snprintf(buf, sizeof(buf), "%+d", stats.seg_heroism);
+        row("heroism", buf);
+        if (stats.pw_last_score) {
+            snprintf(buf, sizeof(buf), "%u", stats.pw_last_score);
+            row("last score", buf);
+        }
+        const double best_seconds = stats.pw_last_best_a / 300.0;
+        const unsigned long long best_ms =
+            static_cast<unsigned long long>(best_seconds * 1000.0);
+        snprintf(buf, sizeof(buf), "%llu:%02llu.%03llu", best_ms / 60000,
+                 (best_ms / 1000) % 60, best_ms % 1000);
+        row("last best", buf);
+        snprintf(buf, sizeof(buf), "%d (wpn %d)", stats.pw_player_hp,
+                 stats.pw_weapon_id);
+        row("player HP", buf);
+        ImGui::EndTable();
+    }
+}
+
+void draw_mgspw_global(const GameStats& stats)
+{
+    // Career totals. Clocks render from validated units; raw values live
+    // under Forensics.
+    char total_clock[32], stage_clock[32];
+    snprintf(total_clock, sizeof(total_clock), "%u:%02u:%02u", stats.pw_total_play / 3600,
+             (stats.pw_total_play / 60) % 60, stats.pw_total_play % 60);
+    const unsigned long long stage_ms =
+        static_cast<unsigned long long>(stats.pw_stage_play) * 1000ULL / 300ULL;
+    snprintf(stage_clock, sizeof(stage_clock), "%llu:%02llu.%03llu", stage_ms / 60000,
+             (stage_ms / 1000) % 60, stage_ms % 1000);
+    if (ImGui::BeginTable("pw_global", 2,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("field", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+        const auto row = [&](const char* k, const char* v) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(k);
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(v);
+        };
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%d (%+d last)", stats.pw_heroism,
+                 stats.pw_heroism_delta);
+        row("heroism", buf);
+        snprintf(buf, sizeof(buf), "%u", stats.pw_gmp);
+        row("GMP", buf);
+        if (stats.pw_clears >= 0) {
+            snprintf(buf, sizeof(buf), "%d", stats.pw_clears);
+            row("clears", buf);
+        }
+        if (stats.pw_s_count >= 0) {
+            snprintf(buf, sizeof(buf), "%d", stats.pw_s_count);
+            row("S-ranks", buf);
+        }
+        if (stats.pw_unique_cleared >= 0) {
+            snprintf(buf, sizeof(buf), "%d (S %d)", stats.pw_unique_cleared,
+                     stats.pw_s_missions);
+            row("missions cleared", buf);
+        }
+        snprintf(buf, sizeof(buf), "HS %d  K %d  TQ %d  AL %d", stats.pw_headshots,
+                 stats.pw_kills, stats.pw_tranq, stats.pw_alerts);
+        row("lifetime", buf);
+        if (stats.pw_fulton_recoveries >= 0) {
+            snprintf(buf, sizeof(buf), "%d", stats.pw_fulton_recoveries);
+            row("Fulton", buf);
+        }
+        if (stats.pw_nokill_clears >= 0) {
+            snprintf(buf, sizeof(buf), "%d", stats.pw_nokill_clears);
+            row("no-kill clears", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.pw_noalert_clears);
+            row("no-alert clears", buf);
+        }
+        if (stats.pw_headshots >= 0 && stats.pw_kills >= 0 && stats.pw_tranq >= 0) {
+            // Draft lethal/non-lethal score: sleep+stun+incap - 2*kills,
+            // with tranq takedowns as the combined non-lethal input.
+            // Provisional until stun/incap split out.
+            snprintf(buf, sizeof(buf), "%d", stats.pw_tranq - 2 * stats.pw_kills);
+            row("lethal score (prov.)", buf);
+        }
+        row("total play", total_clock);
+        row("stage play", stage_clock);
+        ImGui::EndTable();
+    }
+    ImGui::Spacing();
+    ImGui::TextDisabled("weapon XP (settles at mission end)");
+    bool any_weapon = false;
+    for (int i = 0; i < 16; ++i) {
+        if (stats.pw_weapon_use[i] > 0) {
+            any_weapon = true;
+            break;
+        }
+    }
+    if (any_weapon && ImGui::BeginTable("pw_weap", 4, ImGuiTableFlags_RowBg)) {
+        for (int i = 0; i < 16; ++i) {
+            if (stats.pw_weapon_use[i] <= 0) {
+                continue;
+            }
+            ImGui::TableNextColumn();
+            ImGui::Text("id%02d %d", i + 1, stats.pw_weapon_use[i]);
+        }
+        ImGui::EndTable();
+    } else if (!any_weapon) {
+        ImGui::TextDisabled("no weapon XP yet");
+    }
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("Forensics")) {
+        const uint64_t raw = stats.pw_mission_raw;
+        static uint64_t last_raw = 0;
+        static uint64_t last_tick = 0;
+        static char rate[48] = "measuring...";
+        const uint64_t tick = GetTickCount64();
+        if (last_tick && tick > last_tick && raw != last_raw) {
+            const double r =
+                (raw >= last_raw ? static_cast<double>(raw - last_raw)
+                                 : -static_cast<double>(last_raw - raw))
+                * 1000.0 / static_cast<double>(tick - last_tick);
+            snprintf(rate, sizeof(rate), "~%.0f/s (nominal 300)", r);
+            last_raw = raw;
+            last_tick = tick;
+        } else if (!last_tick) {
+            last_raw = raw;
+            last_tick = tick;
+        }
+        char hex[32], dec[32], aux[32], area[32], resolvers[32], f130[32];
+        snprintf(hex, sizeof(hex), "0x%llX", static_cast<unsigned long long>(raw));
+        snprintf(dec, sizeof(dec), "%llu", static_cast<unsigned long long>(raw));
+        snprintf(aux, sizeof(aux), "0x%llX (%llu)",
+                 static_cast<unsigned long long>(stats.pw_mission_aux),
+                 static_cast<unsigned long long>(stats.pw_mission_aux));
+        snprintf(area, sizeof(area), "%u / %u", stats.pw_area, stats.pw_mission_secondary);
+        snprintf(resolvers, sizeof(resolvers), "%s/%s/%s",
+                 stats.pw_saveroot_ok ? "SAVE" : "-save",
+                 stats.pw_mission_ok ? "TIME" : "-time",
+                 stats.pw_chararray_ok ? "CHAR" : "-char");
+        if (stats.pw_fulton >= 0) {
+            snprintf(f130, sizeof(f130), "%d (?)", stats.pw_fulton);
+        } else {
+            snprintf(f130, sizeof(f130), "-");
+        }
+        char fulton_str[32];
+        if (stats.pw_fulton_recoveries >= 0) {
+            snprintf(fulton_str, sizeof(fulton_str), "%d (%+d sortie)", stats.pw_fulton_recoveries,
+                     stats.seg_fulton);
+        } else {
+            snprintf(fulton_str, sizeof(fulton_str), "-");
+        }
+        if (ImGui::BeginTable("pw_forensic", 2,
+                              ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+            ImGui::TableSetupColumn("field", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+            const auto row = [&](const char* k, const char* v) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(k);
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(v);
+            };
+            row("total raw dec", dec);
+            row("total raw hex", hex);
+            row("mission tick rate", rate);
+            row("aux [+0x08]", aux);
+            row("area [+0x10] / sec [+0x14]", area);
+            row("stage", stats.pw_stage[0] ? stats.pw_stage : "-");
+            row("fulton/XP-next? [+0x130]", f130);
+            row("Fulton [0x2008E]", fulton_str);
+            row("resolvers", resolvers);
+            ImGui::EndTable();
+        }
+    }
+}
 
 void draw_panel()
 {
@@ -1039,7 +1263,9 @@ void draw_panel()
         ReleaseSRWLockShared(&g_stats_lock);
         next_poll = now + 250;
     }
-    const char* panel_title = g_game == Game::MGS3 ? "FOXHOUND tracker" : "BIG BOSS tracker";
+    const char* panel_title = g_game == Game::MGS3 || g_game == Game::MGSPW
+        ? "FOXHOUND tracker"
+        : "BIG BOSS tracker";
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + 16.0f,
                                   viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
@@ -1055,7 +1281,9 @@ void draw_panel()
     }
 
     static int selected_tab = 0;
-    const int tab_count = g_game == Game::MGS3 ? 3 : g_game == Game::MGS4 ? 2 : 0;
+    const int tab_count = g_game == Game::MGS3 ? 3 : g_game == Game::MGS4 ? 2
+        : g_game == Game::MGSPW                                             ? 2
+                                                                            : 0;
     if (tab_count && key_pressed(kTabKey)) {
         selected_tab = (selected_tab + 1) % tab_count;
     }
@@ -1063,10 +1291,33 @@ void draw_panel()
     const bool scroll_down = key_pressed(VK_DOWN);
     const int scroll = scroll_up ? -1 : scroll_down ? 1 : 0;
     const bool tabs = tab_count && ImGui::BeginTabBar("tracker_tabs");
+    if (g_game == Game::MGSPW) {
+        if (!tabs || ImGui::BeginTabItem(
+                         "Current", nullptr,
+                         selected_tab == 0 ? ImGuiTabItemFlags_SetSelected : 0)) {
+            draw_mgspw_current(stats);
+            if (tabs) {
+                ImGui::EndTabItem();
+            }
+        }
+        if (tabs && ImGui::BeginTabItem(
+                        "Global", nullptr,
+                        selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
+            draw_mgspw_global(stats);
+            ImGui::EndTabItem();
+        }
+        if (tabs) {
+            ImGui::EndTabBar();
+        }
+        ImGui::End();
+        return;
+    }
+    (void)scroll;
     const bool summary = !tabs || ImGui::BeginTabItem(
         "Summary", nullptr, selected_tab == 0 ? ImGuiTabItemFlags_SetSelected : 0);
     if (summary) {
-    auto match = kEvaluateFns[static_cast<int>(g_game)](stats);
+    const auto eval_fn = kEvaluateFns[static_cast<int>(g_game)];
+    auto match = eval_fn ? eval_fn(stats) : std::optional<codename::Match>{};
 
     const auto [id_green, id_yellow, id_red] = id_colors(g_game);
     const ImVec4 codename_color = !match ? ImVec4(1, 1, 1, 0.35f)
@@ -1107,8 +1358,10 @@ void draw_panel()
                                known_difficulty ? "" : " (?)");
         }
 
-        std::vector<codename::ReqStatus> reqs =
-            kRequirementsFns[static_cast<int>(g_game)](stats);
+        std::vector<codename::ReqStatus> reqs;
+        if (const auto req_fn = kRequirementsFns[static_cast<int>(g_game)]) {
+            reqs = req_fn(stats);
+        }
         for (const codename::ReqStatus& r : reqs) {
             char ratio[96];
             if (std::strcmp(r.label, "special items") == 0 && g_game == Game::MGS2) {
