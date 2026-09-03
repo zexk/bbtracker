@@ -519,6 +519,31 @@ dirty Side Ops replay `+4945`) and stayed flat on three others, so
 "cumulative score" is not the whole story; the twins may be a capped
 per-mission points value rather than the rank input.
 
+## Current mission id (resolved)
+
+Found by value scan: snapshot every address holding `52` while in Side Ops
+10, then diff for `-50` after starting Sandinista Comandante (id 2). 31
+addresses survived; six were stable (three module globals, three
+save-relative), all reading the mission id.
+
+The useful one is **`0x1414F0A00`**. Its writer `0x1401674B2` clears it to
+`-1` at mission start and then loads it from script variable `0x49`
+(`0x1400A5260`/`0x1400A4A20`), which is exactly "current mission, or none".
+The other stable mirrors are `0x141140398`, `0x14121F004` (a `u16` fed from
+name hash `0x8815F5`) and `save+0x5244`, `+0x1D6E4`, `+0x24BC0`.
+
+New resolver `PW_MISSIONID`, unique in the runtime `.text`:
+
+    33 DB BE FF FF FF FF B9 FF FF FF 00 48 89 1D ?? ?? ?? ?? 8B EB 89 35 ?? ?? ?? ??
+
+with the displacement at offset 23. Both probes resolve it, and the ASI
+overlay now heads the Current tab with the mission id plus that mission's
+stored rank and best time, so a run can be read against its own record
+while it is being played.
+
+Known mission ids so far: 2 = Sandinista Comandante (stage `w01s04a`),
+4 = Armored Vehicle Battle: LAV-Type G, 52 = Side Ops 10.
+
 ## Heroism candidate
 
 Single dword `123` at save `+0x64F4` with `min=-999999 max=999999` bounds

@@ -40,6 +40,9 @@ PATTERNS = {
     "PW_SAVEROOT": ("48 8B 05 ?? ?? ?? ?? 48 05 3C BD 00 00 C3", 3),
     "PW_CHARARRAY": ("53 48 83 EC 20 48 8B 05 ?? ?? ?? ?? 48 63 D1 48 8B 0C D0", 8),
     "PW_MISSIONTIME": ("48 89 05 ?? ?? ?? ?? 41 0F BA E1 19", 3),
+    # mission-start init: clears the current-mission-id global to -1
+    "PW_MISSIONID": ("33 DB BE FF FF FF FF B9 FF FF FF 00 48 89 1D ?? ?? ?? ??"
+                     " 8B EB 89 35 ?? ?? ?? ??", 23),
 }
 
 
@@ -244,6 +247,11 @@ def snapshot(memory, resolved):
             out["foxhound"]["tranq_kill"] = "UNVERIFIED (sleep/stun/incap cat scan pending)"
     else:
         out["save"] = {"error": "PW_SAVEROOT unresolved"}
+
+    mid = resolved.get("PW_MISSIONID")
+    if mid is not None:
+        out["mission"]["current_id"] = struct.unpack(
+            "<i", read_mem(memory, mid, 4))[0]
 
     ca = resolved.get("PW_CHARARRAY")
     if ca is not None:

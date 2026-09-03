@@ -1039,6 +1039,22 @@ void draw_mgspw_current(const GameStats& stats)
     char seg_clock[32];
     snprintf(seg_clock, sizeof(seg_clock), "%llu:%02llu.%03llu", seg_ms / 60000,
              (seg_ms / 1000) % 60, seg_ms % 1000);
+    if (stats.pw_mission_id > 0) {
+        char head[64];
+        const char* rank_names[] = {"S", "A", "B", "C"};
+        const char* rank = stats.pw_cur_rank >= 0 && stats.pw_cur_rank < 4
+            ? rank_names[stats.pw_cur_rank] : "-";
+        if (stats.pw_cur_best) {
+            const unsigned long long best_ms =
+                static_cast<unsigned long long>(stats.pw_cur_best) * 1000ULL / 300ULL;
+            snprintf(head, sizeof(head), "mission %d  best %s  %llu:%02llu.%03llu",
+                     stats.pw_mission_id, rank, best_ms / 60000, (best_ms / 1000) % 60,
+                     best_ms % 1000);
+        } else {
+            snprintf(head, sizeof(head), "mission %d  first clear", stats.pw_mission_id);
+        }
+        ImGui::TextDisabled("%s", head);
+    }
     ImGui::TextDisabled("%s", stats.seg_stage[0] ? stats.seg_stage : "-");
     ImGui::SetWindowFontScale(2.0f);
     ImGui::TextUnformatted(seg_clock);

@@ -124,6 +124,11 @@ struct GameStats {
     // 0xFFFF = never cleared. Best time lives at save+0x29B4 + 4*id.
     int pw_unique_cleared = -1;
     int pw_s_missions = -1;
+    // Current mission (-1 outside a mission) plus its stored result:
+    // rank -1 = never cleared, best 0 = no time on record.
+    int pw_mission_id = -1;
+    int pw_cur_rank = -1;
+    uint32_t pw_cur_best = 0;
     // Last mission's score (save+0x278, mirrored at +0x2A0/+0x1FBF4/+0x1FC1C).
     // Rank is scored, so this is the number the letter comes from.
     uint32_t pw_last_score = 0;

@@ -35,6 +35,19 @@ constexpr bool kCharArrayWild[std::size(kCharArrayPat)] = {
     false, false, false};
 constexpr int kCharArrayDisp = 8;
 
+// Mission-start init: clears the current-mission-id global to -1 before the
+// script variable is read into it, so the store's displacement names it.
+constexpr uint8_t kMissionIdPat[] = {0x33, 0xDB, 0xBE, 0xFF, 0xFF, 0xFF, 0xFF,
+                                     0xB9, 0xFF, 0xFF, 0xFF, 0x00, 0x48, 0x89,
+                                     0x1D, 0x00, 0x00, 0x00, 0x00, 0x8B, 0xEB,
+                                     0x89, 0x35, 0x00, 0x00, 0x00, 0x00};
+constexpr bool kMissionIdWild[std::size(kMissionIdPat)] = {
+    false, false, false, false, false, false, false,
+    false, false, false, false, false, false, false,
+    false, true,  true,  true,  true,  false, false,
+    false, false, true,  true,  true,  true};
+constexpr int kMissionIdDisp = 23;
+
 constexpr uint8_t kMissionTimePat[] = {0x48, 0x89, 0x05, 0x00, 0x00, 0x00, 0x00,
                                        0x41, 0x0F, 0xBA, 0xE1, 0x19};
 constexpr bool kMissionTimeWild[std::size(kMissionTimePat)] = {
@@ -58,6 +71,7 @@ constexpr size_t kWeaponIdOff = 0x14B8;
 uintptr_t g_saveroot_ptr = 0;   // address holding save-block pointer
 uintptr_t g_mission_time = 0;   // address of qword elapsed timer
 uintptr_t g_chararray_ptr = 0;  // address holding character-pointer-array
+uintptr_t g_mission_id = 0;     // address of current mission id (-1 outside a mission)
 bool g_scanned = false;
 bool g_dumped = false;
 
@@ -225,6 +239,8 @@ void ensure_resolved()
                               std::size(kMissionTimePat), kMissionTimeDisp);
     g_chararray_ptr = scan_one(mod, kCharArrayPat, kCharArrayWild,
                                std::size(kCharArrayPat), kCharArrayDisp);
+    g_mission_id = scan_one(mod, kMissionIdPat, kMissionIdWild,
+                            std::size(kMissionIdPat), kMissionIdDisp);
     LOG_INFO("MGSPW resolved save=%llX time=%llX chars=%llX",
              static_cast<unsigned long long>(g_saveroot_ptr ? g_saveroot_ptr - base : 0),
              static_cast<unsigned long long>(g_mission_time ? g_mission_time - base : 0),
@@ -341,6 +357,7 @@ bool poll_stats(GameStats& out)
         // length that matches the confirmed clear/S counts.
         constexpr size_t kRankArrayOff = 0x32B4;
         constexpr size_t kRankArrayLen = 272;
+        constexpr size_t kBestTimeOff = 0x29B4;
         if (range_readable(save_block + kRankArrayOff, kRankArrayLen * 2)) {
             const auto* ranks =
                 reinterpret_cast<volatile const uint16_t*>(save_block + kRankArrayOff);
@@ -358,6 +375,25 @@ bool poll_stats(GameStats& out)
             }
             out.pw_unique_cleared = cleared;
             out.pw_s_missions = s_missions;
+        }
+        // Current mission: the id indexes both per-mission arrays, so the
+        // overlay can show this mission's stored rank and best time.
+        if (g_mission_id && range_readable(g_mission_id, 4)) {
+            const int id = *reinterpret_cast<volatile const int32_t*>(g_mission_id);
+            out.pw_mission_id = id;
+            if (id > 0 && static_cast<size_t>(id) < kRankArrayLen
+                && range_readable(save_block + kRankArrayOff + id * 2, 2)
+                && range_readable(save_block + kBestTimeOff + id * 4, 4)) {
+                const uint16_t rank =
+                    *reinterpret_cast<volatile const uint16_t*>(save_block + kRankArrayOff + id * 2);
+                const uint32_t best =
+                    *reinterpret_cast<volatile const uint32_t*>(save_block + kBestTimeOff + id * 4);
+                out.pw_cur_rank = rank == 0xFFFF ? -1 : static_cast<int>(rank);
+                out.pw_cur_best = best == 0xFFFFFFFFu ? 0 : best;
+            } else {
+                out.pw_cur_rank = -1;
+                out.pw_cur_best = 0;
+            }
         }
         read_stat_families(save_block, out);
         static uintptr_t last_dump_block = 0;
