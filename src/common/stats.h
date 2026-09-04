@@ -157,6 +157,7 @@ struct GameStats {
     int pw_sniper_takedowns = -1;   // id 0x200E1, lethal
     int pw_pistol_lethal = -1;      // id 0x200DF, lethal
     int pw_cqc_takedowns = -1;      // id 0x20104, chokes and slams alike
+    int pw_grenade_takedowns = -1;  // id 0x200E6, lethal
     // Live per-sortie deltas, differenced client-side at stage change
     // (action careers tick live mid-mission; heroism/XP/GMP settle at
     // results, so their segments only move post-results).

@@ -1158,6 +1158,8 @@ void draw_mgspw_global(const GameStats& stats)
                      stats.pw_pistol_takedowns, stats.pw_pistol_lethal,
                      stats.pw_ar_takedowns, stats.pw_shotgun_takedowns,
                      stats.pw_sniper_takedowns, stats.pw_cqc_takedowns);
+            snprintf(buf, sizeof(buf), "%d", stats.pw_grenade_takedowns);
+            row("grenade", buf);
             row("by weapon", buf);
         }
         snprintf(buf, sizeof(buf), "HS %d  AL %d", stats.pw_headshots, stats.pw_alerts);

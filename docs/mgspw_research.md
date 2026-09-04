@@ -196,6 +196,7 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x200E0` | per-type takedowns: assault rifle, lethal |
 | `0x200E1` | per-type takedowns: sniper rifle, lethal |
 | `0x200E4` | per-type takedowns: shotgun, lethal |
+| `0x200E6` | per-type takedowns: grenade, lethal |
 | `0x420002` | alerts |
 | `0x442002E` | non-lethal takedowns, total (body shots count, misses do not) |
 | `0x200DF` | per-type takedowns: pistol, lethal |
@@ -235,6 +236,8 @@ Pistol confirms the alignment: lethal `0x200DF` is index 2, non-lethal
 | 3 | assault rifle | `0x200E0` | `0x200FA` (predicted) |
 | 4 | sniper rifle | `0x200E1` | `0x200FB` (predicted) |
 | 7 | shotgun | `0x200E4` | `0x200FE` (predicted) |
+| 9 | grenade | `0x200E6` | `0x20100` (predicted) |
+| 13 | CQC | - | `0x20104` |
 
 The non-lethal predictions are untested; the Mosin Nagant (the only tranq
 weapon besides the Mk22, dropped after Main Op 7) would settle them.
@@ -535,7 +538,11 @@ the retracted weapon-XP multiplier below was invented.
   Each unused type reads `0`, so a run using one type for 2-3 takedowns
   lights up exactly one slot. Next: SMG, sniper, LMG, rockets, grenades, plus
   the non-lethal slots for the types already found.
-- **`0x2007C`** spans weapon types (`+3` from assault-rifle and shotgun runs
+- **`0x2007C`** now looks like kills on unaware enemies rather than firearm
+  kills: it took `+3` from every clean single-weapon run, but only `+2` from
+  the messy 6-kill LAV run and `+2` from a 3-kill grenade run the player
+  described as "messy alarms wise". A run where every kill lands on an
+  already-alerted enemy would confirm it. Previously it spans weapon types (`+3` from assault-rifle and shotgun runs
   alike, `+2` from a mixed 6-kill run), so it is not one class; firearm kills
   as distinct from explosives and CQC is the current guess.
 - **`0x442002E` scope.** CQC takedowns never touch it (two runs), so it
