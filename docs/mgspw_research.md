@@ -509,6 +509,49 @@ MSVC RTTI is readable: 146 type descriptors including `WinStorage`,
 the Steam callback types. Retained PSP paths (`ms0:/PSP/SAVEDATA/ULUS10509DAT`)
 sit next to the PC save root, so port code kept much of the PSP terminology.
 
+## Archive encryption (broken)
+
+The Master Collection wraps every shipped archive in an extra layer the PSP
+and PS3 releases do not have, which is why Jayveer's
+[Chrysalis](https://github.com/Jayveer/Chrysalis) fails on these files in
+both `-psp` and `-ps3` modes (it also needs building 64-bit: the released
+binary is 32-bit and the slot archive is 519 MB).
+
+The layer is an **MT19937 keystream XOR seeded from a hash of the file
+name** - no block cipher, which is why no AES or SHA tables appear anywhere
+in the executable. Dmytro Bidlov's [Peace Walker Localization
+Tool](https://github.com/LittleBitUA/PEACE-WALKER-LOCALIZATION-TOOL)
+implements it (`src/pwcrypt.py`) along with the container formats, so there
+is no reason to reimplement any of it.
+
+With that, `MLG/disc0_rel/002aba34.DAT` + `.KEY` (the Master Collection's
+renamed `SLOT.DAT`/`SLOT.KEY`) unpacks cleanly: 2137 of 2137 blocks, 1.3 GB,
+no failures, and `slottext.export` pulls 10,074 strings out of it.
+
+### Mission names
+
+Mission titles live in SLOT element `002FF/8`, 182 entries. Anchored against
+missions this profile actually cleared:
+
+| element index | mission id | title |
+| ---: | ---: | --- |
+| 3 | 1 | OPENING/INVESTIGATE THE SUPPLY FACILITY |
+| 4 | 2 | CONTACT THE SANDINISTA COMANDANTE |
+| 5 | 3 | PURSUE AMANDA |
+| 6 | 4 | ARMORED VEHICLE BATTLE: LAV-TYPE G |
+| 7 | 5 | RESCUE CHICO |
+| 8 | 6 | PURSUE THE JUNGLE TRAIN |
+| 9 | 7 | TANK BATTLE: T-72U |
+| 36 | 36 | [EXTRA OPS: 005] |
+| 52 | 52 | [EXTRA OPS: 010] |
+
+Main Ops sit at `index - 2` (five cleared missions confirm it) while Extra
+Ops are index-aligned - id 36 is the Marksmanship Challenge whose results
+screen read "[005]", and id 52 is the Fulton Recovery op. The two sections
+therefore need separate rules; why the offset resets is not yet understood.
+
+`scripts/pwtext.py` drives the extraction end to end.
+
 ## Installed data and saves
 
 Main directory holds the executable, `steam_api64.dll`,
@@ -516,10 +559,9 @@ Main directory holds the executable, `steam_api64.dll`,
 separate Unity/IL2CPP app under `launcher/`; its `GameAssembly.dll` is not
 gameplay code.
 
-Data archives are named by the same 24-bit hash as the mission name field:
-`MLG/disc0_rel/*.PDT|.DAT|.KEY`, `MLG/Text/*.olang`, `Text/*.txp`. All sampled
-content is encrypted (entropy ~7.96 bits/byte), so mission and rank vocabulary
-cannot be read off disk.
+Data archives are named by a 24-bit hash: `MLG/disc0_rel/*.PDT|.DAT|.KEY`,
+`MLG/Text/*.olang`, `Text/*.txp`. They look like noise on disk (entropy ~7.96
+bits/byte) but the encryption is broken - see "Archive encryption".
 
 The per-user save directory holds `usersv` (exactly `0x1000` bytes,
 first 256 bytes encrypted or obfuscated, no `MGSS` magic) and
