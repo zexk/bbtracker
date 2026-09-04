@@ -1144,8 +1144,18 @@ void draw_panel()
                          stats.special_item_used ? "Infinity Bandana" : "NONE");
             } else if (std::strcmp(r.label, "special items") == 0
                        && g_game == Game::MGS4) {
-                snprintf(ratio, sizeof(ratio), "%s",
-                         stats.special_item_used ? "USED" : "NONE");
+                ratio[0] = '\0';
+                const uint16_t used = stats.special_items_mask & 0x03;
+                const char* names[] = {"Infinity Bandana", "Stealth Camo"};
+                for (int i = 0; i < 2; ++i) {
+                    if ((used & (1u << i)) != 0) {
+                        snprintf(ratio + strlen(ratio), sizeof(ratio) - strlen(ratio), "%s%s",
+                                 ratio[0] ? ", " : "", names[i]);
+                    }
+                }
+                if (!used) {
+                    snprintf(ratio, sizeof(ratio), "NONE");
+                }
             } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS1) {
                 snprintf(ratio, sizeof(ratio), "%s", stats.radar_off ? "OFF" : "ON");
             } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS2) {

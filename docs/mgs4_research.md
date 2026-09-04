@@ -497,7 +497,6 @@ Open items:
 
 - stable signature/version gate for pointer after executable updates;
 - exact action taxonomy behind CQC counter `0x180`;
-- bit layout of special-item field `0x17a`;
 - box/drum component identities;
 - run-save integrity algorithm;
 - native trigger sites for Steam achievements;
