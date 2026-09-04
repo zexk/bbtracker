@@ -841,6 +841,7 @@ auditing is therefore not available; live diffing is the method.
 | `pwdis.py` | overlays the `.pdata` function map on a runtime `.text` dump, disassembles, xrefs strings and immediates; `--raw` for functions `.pdata` omits, `--xref-mem` for globals, `--cmd-tables` for the script-command dispatch map |
 | `pwwatch.py` | records which save-block slots move across a session (how the live tallies were found) |
 | `pwach.py` | dumps the achievement metadata and predicate map |
+| `pwinsig.py` | reconstructs the insignia requirement table (stat id, threshold, heroism award) |
 | `pwhash.py` | name-hash helper for the script-variable lookups |
 | `find-mgspw-counter.py` | Cheat-Engine style snap/diff value scan (how `PW_MISSIONID` was found) |
 | `scan-mgspw-strings.py`, `rtti-mgspw-ach.py` | string and RTTI enumeration |

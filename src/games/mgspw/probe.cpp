@@ -286,6 +286,23 @@ void read_codename_state(uintptr_t block, GameStats& out)
     out.pw_codename_state_ok = true;
 }
 
+// save+0x1C009 + index, index 1..110; granter 0x140544B80, bit 0 is ownership.
+constexpr uintptr_t kInsigniaStateOff = 0x1C009;
+constexpr size_t kInsigniaCount = 110;
+
+void read_insignia_state(uintptr_t block, GameStats& out)
+{
+    const uintptr_t base = block + kInsigniaStateOff;
+    if (!range_readable(base, kInsigniaCount + 1)) {
+        return;
+    }
+    int owned = 0;
+    for (size_t index = 1; index <= kInsigniaCount; ++index) {
+        owned += *reinterpret_cast<volatile const uint8_t*>(base + index) & 1;
+    }
+    out.pw_insignias = owned;
+}
+
 void read_codename_axes(GameStats& out)
 {
     if (!g_stat_array || !range_readable(g_stat_array, sizeof(uintptr_t))) return;
@@ -554,6 +571,7 @@ bool poll_stats(GameStats& out)
         read_stat_families(save_block, out);
         read_codename_axes(out);
         read_codename_state(save_block, out);
+        read_insignia_state(save_block, out);
         static uintptr_t last_dump_block = 0;
         if (save_block != last_dump_block
             && range_readable(save_block + 0x40, 0x60)) {

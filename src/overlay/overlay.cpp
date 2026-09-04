@@ -1369,6 +1369,9 @@ void draw_mgspw_codename(const GameStats& stats)
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Text("awarded  %d / 24", owned);
+    if (stats.pw_insignias >= 0) {
+        ImGui::TextDisabled("insignias  %d / 110", stats.pw_insignias);
+    }
     if (!owned) {
         ImGui::TextDisabled("none yet - codenames are granted at a result screen");
         return;
