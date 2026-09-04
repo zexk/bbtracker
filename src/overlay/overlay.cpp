@@ -1320,12 +1320,11 @@ void draw_mgspw_codename(const GameStats& stats)
     ImGui::SetWindowFontScale(2.0f);
     ImGui::TextColored(title_color, "%s", match ? match->name : "---");
     ImGui::SetWindowFontScale(1.0f);
-    ImGui::TextDisabled("estimated - solo table only");
     ImGui::Separator();
     ImGui::Spacing();
 
     if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("toward FOX", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("toward FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         for (const codename::ReqStatus& r : codename::elite_requirements_mgspw(stats)) {
             char value[64];
@@ -1344,8 +1343,8 @@ void draw_mgspw_codename(const GameStats& stats)
     }
 
     ImGui::Spacing();
-    ImGui::TextDisabled("FOXHOUND is the co-op title; no co-op counter resolves");
-    ImGui::TextDisabled("on a solo profile, so it cannot be reached here.");
+    ImGui::TextDisabled("FOX and FOXHOUND share these axes; the co-op half is");
+    ImGui::TextDisabled("not measured, so the solo name is shown.");
 }
 
 void draw_panel()

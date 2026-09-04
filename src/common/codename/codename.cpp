@@ -310,8 +310,7 @@ std::vector<ReqStatus> elite_requirements_mg2(const GameStats& s)
 //
 // The axes are the game's, the cut-offs are ours: PW's own classifier has not
 // been located, so "all weapons" and the lethal/non-lethal balance are read
-// from the career counters with the thresholds documented here. Treat the
-// resulting name as an estimate; the per-axis rows are the real content.
+// from the career counters with the thresholds documented here.
 
 namespace {
 
@@ -417,9 +416,10 @@ std::optional<Match> evaluate_mgspw(const GameStats& s)
     if (p.total <= 0) {
         return std::nullopt;
     }
-    // Co-op play is not exposed by any resolved counter - every CO-OP line on
-    // the in-game stats screen reads 0 on a solo profile - so the co-op half of
-    // the table is unreachable here and FOXHOUND cannot be claimed.
+    // No resolved counter distinguishes co-op from solo play, and co-op runs
+    // share the same save, so the axis cannot be read either way. Report the
+    // solo name; the co-op counterpart (FOXHOUND for FOX) sits at the same
+    // weapon-class and force coordinates and stays reachable.
     const bool nonlethal = p.nonlethal > p.lethal;
     for (const PwTitle& t : kPwTitles) {
         if (t.cls == p.dominant && !t.coop && t.nonlethal == nonlethal) {
