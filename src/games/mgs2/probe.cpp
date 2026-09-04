@@ -219,6 +219,12 @@ bool poll_stats(GameStats& out)
     out.difficulty_raw = read_at<uint8_t>(player, StatOffsets::kDifficulty);
 
     const uint8_t gametype = read_at<uint8_t>(player, StatOffsets::kGametype);
+    static uint8_t last_gametype = 0xFF;
+    if (gametype != last_gametype) {
+        LOG_INFO("mgs2 gametype %u (ranked %d), difficulty %u", gametype,
+                 ranked_game(gametype) ? 1 : 0, out.difficulty_raw);
+        last_gametype = gametype;
+    }
     switch (gametype) {
     case kGametypeTanker: out.mission = 16; break;
     case kGametypeTP: out.mission = 32; break;
