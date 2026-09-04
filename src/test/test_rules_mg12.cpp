@@ -84,8 +84,13 @@ int main()
     g = bb::codename::pw_grade(pw);
     assert(g.grade == 0 && std::string_view(g.blocker) == "heroism"
            && g.need == 10000);
+    // The floor is strictly greater, so landing exactly on it earns nothing.
     pw.pw_heroism = 10000;
+    assert(bb::codename::pw_grade(pw).grade == 0);
+    pw.pw_heroism = 10001;
     assert(bb::codename::pw_grade(pw).grade == 1);
     pw.pw_heroism = 250000;
+    assert(bb::codename::pw_grade(pw).grade == 4);
+    pw.pw_heroism = 250001;
     assert(bb::codename::pw_grade(pw).grade == 5);
 }

@@ -506,7 +506,9 @@ PwGrade pw_grade(const GameStats& s)
                                  : s.pw_camaraderie <= kPwCamaraderieStep[i];
         const bool flag_ok = grade == 5 ? s.pw_codename_grade5_ok
             : grade == 4 ? s.pw_codename_grade4_ok : true;
-        const bool heroism_ok = !all_weapons || heroism >= kPwHeroismFloor[i];
+        // Strictly greater: the evaluator skips the grade on jle against the
+        // floor, so exactly 10000 Heroism does not earn grade 1.
+        const bool heroism_ok = !all_weapons || heroism > kPwHeroismFloor[i];
         if (ratio_ok && cam_ok && flag_ok && heroism_ok) {
             out.grade = grade;
             continue;

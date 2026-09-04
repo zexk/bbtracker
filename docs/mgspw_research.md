@@ -763,12 +763,14 @@ Second axis is camaraderie aggregate at snapshot `+0x30`, built by
 `*0x140EA4870 + 0x5008`, reads count at table start, and sums the dword at
 `table + 0x110*(i+1)` for every entry. Ordinary low-camaraderie ids use
 `<= 10k/50k/100k/200k/500k`;
-high ids use strict `>` at same steps. Grade 4 and 5 additionally require
+high ids use strict `>` at same steps. Both confirmed from the branches: the
+low variant skips on `jg` against the step, the high variant on `jle`. Grade 4 and 5 additionally require
 result flags `+0x29` and `+0x28`; grades 3-5 require cooperation ratio at least
 1, grade 2 requires over 0.5, grade 1 over 0.05.
 
 All-weapons grades add Heroism (`stat 0x77`) floors of `10k`, `50k`, `100k`,
-`150k`, and `250k`. Low-camaraderie variants require camaraderie at or below
+`150k`, and `250k`. The floor is **strictly greater**: the evaluator skips the
+grade on `jle` against it, so exactly `10000` Heroism does not earn grade 1. Low-camaraderie variants require camaraderie at or below
 their matching normal threshold; high variants require it above. Evaluator
 only calls `0x140544B20` when candidate grade exceeds stored grade, so grades
 never decrease.
