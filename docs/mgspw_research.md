@@ -1,9 +1,8 @@
 # MGS Peace Walker Master Collection PC reverse-engineering reference
 
-Reference for Peace Walker support in bbtracker. Values apply to Steam build
-`24525201`. Everything under "Confirmed layout" was verified live against
-quantified runs; everything still uncertain is kept in "Open items" and
-"Retracted and corrected" so the same mistakes are not made twice.
+Technical reference for Peace Walker support in bbtracker. Values apply to
+Steam build `24525201`. What is still unproven, and the mistakes worth not
+repeating, are at the end under "Validation and unknowns".
 
 ## Target build
 
@@ -197,11 +196,9 @@ record = *(0x14121DFE8) - 0x10 + (id & 0xFFFF) * 0x28
 ```
 
 and bounds-checks the index against `0x123`, so the table is 291 records. The
-`-0x10` is because the global points at `record+0x10`; the getter's operand
-carries the `+0x10` instead. Verified against eight known ids - pistol lethal
-and non-lethal, CQC, kills, tranq total, heroism, headshots, no-alert clears -
-each landing on its own record. `PW_STATARRAY` resolves the global by AOB on
-the getter, which matches exactly once.
+`-0x10` is there because the global points at `record+0x10`. Verified against
+twelve known ids, each landing on its own record. `PW_STATARRAY` resolves the
+global by AOB on the getter, which matches exactly once.
 
 | Offset | Type | Meaning |
 | ---: | --- | --- |
@@ -209,10 +206,6 @@ the getter, which matches exactly once.
 | `+0x10` | `u32` | stat id |
 | `+0x18` | `i32` | this mission's tally - ticks live during play |
 | `+0x20` | `i32` | career value - settles during the results tally |
-
-The `999999` that appears `0x28` bytes after a record's own bound is the *next*
-record's bound. Reading the pair as one record's frame is what made these look
-like 48-byte records, and why the probe scanned for them until now.
 
 Category matters: `0x042`/`0x442` ids keep a real tally at `+0x18`; `0x002`
 ids leave junk there (large negative values), so filter to a sane range.
@@ -222,21 +215,10 @@ Confirmed ids, each pinned by runs with counted actions:
 | id | meaning |
 | --- | --- |
 | `0x420008` | lethal takedowns (kills), total |
-| `0x200E0` | per-type takedowns: assault rifle, lethal |
-| `0x200E1` | per-type takedowns: sniper rifle, lethal |
-| `0x200E2` | per-type takedowns: LMG, lethal |
-| `0x200FB` | per-type takedowns: sniper rifle, non-lethal (Mosin) |
-| `0x200E4` | per-type takedowns: shotgun, lethal |
-| `0x200E5` | per-type takedowns: rocket launcher, lethal |
-| `0x200E6` | per-type takedowns: grenade, lethal |
-| `0x200E8` | per-type takedowns: placed explosive, lethal |
 | `0x2007C` | kills on enemies that never spotted the player |
 | `0x20023` | career damage taken, same 0-8000 scale as health |
 | `0x420002` | alerts |
 | `0x442002E` | non-lethal takedowns, total (body shots count, misses do not) |
-| `0x200DF` | per-type takedowns: pistol, lethal |
-| `0x200F9` | per-type takedowns: pistol, non-lethal |
-| `0x20104` | per-type takedowns: CQC (non-lethal bank index 13), chokes and slams alike |
 | `0x442007B` | CQC uses (career); a choke-then-slam sequence is one use |
 | `0x2006B` | ineffective CQC (a slam that fails to stun) |
 | `0x4420031` | headshots |
@@ -249,64 +231,49 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x4420030` | total hold-ups |
 | `0x200ED`, `0x2002F` | non-headshot (body) kills |
 
-The game keeps a takedown counter per weapon type - 11 of them, CQC and
-stun rod included - plus lethal and non-lethal totals. `0x442002E` and
-`0x420008` are those totals; the per-type counters live in the sparse block
-`0x200DD..0x20110` plus strays like `0x2007C`, and a type reads `0` until it
-is used, which is why only a handful are ever non-zero.
+Per-type counters live in the sparse block `0x200DD..0x20110` and are listed
+under "Takedown counters"; a type reads `0` until used, so only a handful are
+ever non-zero.
 
-### Two banks, 26 slots each
+### Takedown counters
 
-The sparse range `0x200DD..0x20110` is exactly 52 ids and splits into two
-26-slot banks that share one index:
+The sparse range `0x200DD..0x20110` is 52 ids: four axes of thirteen, indexed
+`0xDD + axis*13 + slot`, of which twelve slots per axis are used. The axes are
+the codename evaluator's own inputs - see "Codename system" - and supersede the
+earlier reading of two 26-slot lethal/non-lethal banks.
 
-    lethal      base 0x200DD, index = weapon type
-    non-lethal  base 0x200F7, same indexing
-
-| index | type | lethal | non-lethal |
+| slot | weapon class | lethal id | non-lethal id |
 | ---: | --- | --- | --- |
 | 2 | pistol | `0x200DF` | `0x200F9` |
-| 3 | assault rifle | `0x200E0` | `0x200FA` (predicted) |
+| 3 | assault rifle | `0x200E0` | `0x200FA` |
 | 4 | sniper rifle | `0x200E1` | `0x200FB` |
-| 5 | LMG | `0x200E2` | `0x200FC` (predicted) |
-| 7 | shotgun | `0x200E4` | `0x200FE` (predicted) |
+| 5 | LMG | `0x200E2` | `0x200FC` |
+| 7 | shotgun | `0x200E4` | `0x200FE` |
 | 8 | rocket launcher | `0x200E5` | - |
-| 9 | grenade | `0x200E6` | `0x20100` (predicted) |
-| 11 | placed explosive (C4) | `0x200E8` | `0x20102` (predicted) |
-| 13 | CQC | - | `0x20104` |
+| 9 | grenade | `0x200E6` | `0x20100` |
+| 11 | placed explosive | `0x200E8` | `0x20102` |
+| 0 | CQC | - | `0x20104` |
 
-**The model is confirmed by prediction.** `0x200FB` was written here as the
-predicted sniper slot before the profile owned a Mosin Nagant; a 2-takedown
-Mosin run later lifted exactly that address off zero. The remaining non-lethal
-predictions follow from the same arithmetic.
+`0x200FB` was predicted from this arithmetic before the profile owned a Mosin
+Nagant, and a later 2-takedown Mosin run lifted exactly that address off zero.
 
-CQC occupies index 13 with no lethal counterpart - there is no lethal CQC in
-this game. `0x20104` counts CQC takedowns and `0x442007B` counts CQC uses: an
-ineffective slam (an enemy must be choked a little first) is a use with no
-takedown, and a choke-then-slam sequence is a single use. `0x2006B` counts
-ineffective CQC alone.
+CQC has no lethal counterpart. `0x20104` counts takedowns and `0x442007B`
+counts uses: an ineffective slam is a use with no takedown, a choke-then-slam
+sequence is one use, and `0x2006B` counts ineffective CQC alone.
 
-Headshots are stored as one total, so the lethal/tranq split is a subtraction.
-Explosive kills carry no hit location - neither a rocket run nor a grenade run
-moved the headshot or body-kill counters - so they subtract out too:
+Headshots are one total, so the lethal/tranq split is a subtraction. Explosive
+kills carry no hit location and subtract out too:
 
     explosive kills       = grenade (0x200E6) + rocket (0x200E5)
     lethal headshot kills = kills (0x420008) - body kills (0x200ED) - explosive
     tranq headshots       = headshots (0x4420031) - lethal headshot kills
 
-Heroism responds to both lethality and alerts: `+22` on a clean no-kill
-no-alert clear, `+7` on the same mission with one alert, `+0` with kills.
+Heroism responds to lethality and alerts: `+22` on a clean no-kill no-alert
+clear, `+7` with one alert, `+0` with kills.
 
-Ids are data-driven. Only two code sites embed one as an immediate:
+Ids are data-driven; only two code sites embed one as an immediate.
 `0x14037B0B5` posts `0x420001..0x420004` through the event dispatcher
-`0x140079210(ctx, id, valuePtr)` from an alert-state switch, and
-`0x140190152` references `0x420021`.
-
-Two loose ends here. `0x200F7` is the non-lethal bank base but behaves like a
-mission counter, staying flat on CQC runs and moving on the LAV mission
-alongside `0x20106`. And one CQC/stun run moved `0x20104` without moving
-`0x442002E`, while an earlier LAV run moved both; CQC variants may land in
-different counters.
+`0x140079210(ctx, id, valuePtr)`, and `0x140190152` references `0x420021`.
 
 ## Timers
 
@@ -519,98 +486,57 @@ therefore need separate rules; why the offset resets is not yet understood.
 
 `scripts/pwtext.py` drives the extraction end to end.
 
-### Rank thresholds and insignia tiers: searched, not found
+### Mission rank thresholds
 
-Both are data-driven and neither turned up in the decrypted archive:
+Still unknown, and the only one of the award systems that is. The letter grade
+per mission is data-driven and did not turn up in the decrypted archive: no
+tier pattern in any of the 409 small parameter elements, no insignia vocabulary
+anywhere in the binary, and no `data.cnf` in any of the 142 QAR archives. The
+92 files the PDT catalogue names `scenerio.gcx` are DAR archives, not GCL
+bytecode, so the GCX decompiler cannot read them under either spelling.
 
-- element types across all 2137 blocks are `olang`, `mdb`, `txp`, `mtar`,
-  `mtsq`, `sep`, `eft`, `la3`, `ypk`, `vrd`, `bin`, `mdpe`, `lt2`, `vcp`,
-  `dcd`, `ohd`, `geom`, `vlm`, `eqp`, `nav`; the small parameter-ish ones
-  (`bin`, `eqp`, `dcd`, `vlm`, `nav`, 409 elements) contain no 25/50/100
-  tier pattern;
-- the insignia block `001FC` holds only `olang` text plus `ypk`/`ohd`;
-- insignia descriptions are templates - "over `$1` headshots (Heroism
-  increases by `$2`)" - so the numbers live in a table elsewhere;
-- the executable has no `insignia`, `emblem`, `medal` or `award` strings at
-  all, and the one promising `.data` table at `0x1033300` is 5-dword records
-  carrying typed ids (`0x20000200`-style), i.e. R&D or dialogue triggers.
-
-The `.cnf` script data was the next lead - Chrysalis parses those files, and
-its issue #6 asks the same question about `.slot` lines, so it is unsolved in
-the community too. It does not survive contact with the Master Collection
-data either:
-
-- the 92 files the PDT catalogue names `scenerio.gcx` are DAR archives, not
-  GCL bytecode (`0023_scenerio.gcx` opens on its first DAR row, `ICON0.png`),
-  so the GCX decompiler cannot read them under either spelling;
-- no `data.cnf` exists in any of the 142 QAR archives, and no `.cnf` member in
-  the 837 files extracted from the scenario DARs. Chrysalis uses `data.cnf` as
-  the old STAGEDAT stage index, which the PDT extraction has already passed;
-- no extracted member holds the little-endian float `0.9` or `1.1`, so if the
-  reported balance rule is exact it uses integer arithmetic or an indirect
-  table.
-
-The remaining anchor is runtime code, not another archive pass. The live
-codename text at `save+0x1C098` does not help reach it: searching decrypted
-`.text` for the displacement `0x1C098` yields only instruction-byte
-coincidences, because the save pointer and field address are formed
-indirectly.
+Insignia thresholds, once part of this hunt, are solved - see "Insignia
+system". They were never in the archive: they are `.rdata` constants the game
+assembles on the stack.
 
 ### Comm-message database
 
-The CO-OPS comm messages (ally radio lines) are a 226-record database. It was
-mistaken for the codename and insignia tables for a while, so it is documented
-here in full - and it is *not* where codename requirements live.
+The CO-OPS comm messages (ally radio lines) are a 226-record database, reached
+through the same owner object as the mission tables.
+
+| Piece | Address | Role |
+| --- | --- | --- |
+| owner global | `0x14143B738` | header at `+0x220`, rows at `+0x228`, record `i` at `rows + (i << 7)` |
+| accessors | `0x140255E90` / `0x140255ED0` | record by index (bounds-checked) / count |
+| eligibility | `0x14039C110` | walks all 226, sets bit `4` from Heroism (`stat 0x77`) vs `record+0x1C` |
 
 Records are `0x80` bytes:
 
 | offset | type | meaning |
 | ---: | --- | --- |
-| `+0x04` | `u32` | sequential record id |
 | `+0x08` | `s16` | config id, `50..289` |
 | `+0x0A` | `u16` | behavior flags |
-| `+0x0C..+0x14` | five `s16` | requirement tuple, one value per tier; axes unresolved |
-| `+0x16` | `s16` | usually `35`; role unresolved |
-| `+0x18` | `s16` | solo / cooperation selector (`0` or `1`) |
-| `+0x1A` | `s16` | record family, `1..8` |
+| `+0x0C..+0x14` | five `s16` | requirement tuple, one per tier |
+| `+0x18` | `s16` | solo / cooperation selector |
 | `+0x1C` | `s32` | Heroism floor; `-1000000` means always available |
 | `+0x20` | `char[]` | asset name, `v909_NNN_spr_sna_1` |
-| `+0x40` | `char[]` | the message text, e.g. `GO! GO! GO!`, `Grenade!` |
+| `+0x40` | `char[]` | message text, e.g. `GO! GO! GO!` |
 
-Native access path:
-
-| step | detail |
-| --- | --- |
-| owner global | `0x14143B738`, a pointer; null until the database loads |
-| header | `owner+0x220`, record count as `s32` at `header+8` |
-| rows | `owner+0x228`, record `i` at `rows + (i << 7)` |
-| accessors | `0x140255E90` (record by index, bounds-checked), `0x140255ED0` (count) |
-
-Save-side state, all one flat index space over the same 226 records:
+Save-side state, one flat index space over the same 226 records:
 
 | offset | meaning |
 | --- | --- |
-| `save+0x18334` | `u8[226]` state, in a block cleared to `0x180` bytes by `0x14015CEB0` |
+| `save+0x18334` | `u8[226]` state, in a `0x180`-byte block cleared by `0x14015CEB0` |
 | `save+0x182E4` | packed nibbles, read `& 0xF` and `>> 4 & 0xF` |
 | `save+0x184B4` | 18 equipped slots, `{seq u32, id s16, flags u16}`, stride `0x18` |
 
 State bits are `1` registered, `2` default-unlocked, `4` Heroism floor met, so
-`7` is a free message, `5` a Heroism-gated one now earned, and `0` never
-activated. `0x14039C110` maintains bit `4`: it walks all 226 records, skips
-those without bit `1`, reads Heroism through `0x1400E3950` (stat id `0x77`),
-and compares against `record+0x1C`.
+`7` is a free message, `5` a Heroism-gated one now earned, `0` never activated.
 
 None of these accessors appears in `.pdata` - they are leaf functions with no
-unwind data. `--disasm` and `--find-imm` cannot see them, which is why early
-searches for `0x18334` and `0x182E4` returned zero hits while the code using
-those displacements sat in plain sight. Use `pwdis.py --raw VA` here, and read
-a zero result from the `.pdata`-driven commands as "not covered", never as
-"absent".
-
-Codenames use the evaluator documented below. Localization gives their
-descriptions at index `24 + codename_index`: `FOXHOUND` is index 13,
-description 37, all weapon types / cooperation / non-lethal force;
-`BUTTERFLY` is index 20, description 44, short-range / solo / non-lethal.
+unwind data, invisible to `--disasm` and `--find-imm`. Use `pwdis.py --raw VA`
+here, and read a zero result from the `.pdata`-driven commands as "not
+covered", never as "absent".
 
 ### Title system wiring
 
@@ -629,7 +555,7 @@ stable name a command has, so this table is the entry point for any "what does
 the script call here" question.
 
 Read the stride as 8 bytes and every pairing shifts by one record while still
-looking plausible; see "Retracted and corrected". Pairings that matter here:
+looking plausible; see "Corrections worth keeping". Pairings that matter here:
 
 | command hash | native function | role |
 | --- | --- | --- |
@@ -736,44 +662,33 @@ indices:
 | short range | lethal | SCORPION (`20`) / BEE (`3`) |
 | short range | non-lethal | BUTTERFLY (`4`) / ANT (`1`) |
 
-Four all-weapons pairs are HOUND (`13`) / DOBERMAN (`7`) for lethal and FOX
-(`9`) / FOXHOUND (`10`) for non-lethal, again solo / cooperation. Their spread
-predicate is exact and unlike old tracker guess. Game computes
-`average = total / 11.0` and requires every
-one of twelve slot totals to satisfy
-`abs(slot - average) <= average * 0.1`. A zero-total profile passes this spread
-test internally, but other grade conditions prevent a useful award.
+The all-weapons pairs are HOUND (`13`) / DOBERMAN (`7`) lethal and FOX (`9`) /
+FOXHOUND (`10`) non-lethal, again solo / cooperation. Their spread predicate is
+`average = total / 11.0`, with every one of the twelve slot totals required to
+satisfy `abs(slot - average) <= average * 0.1`. A zero-total profile passes the
+spread test but fails the grade conditions.
 
-Cooperation grade input is `result+0x24 / result+0x20` when denominator is
-positive, otherwise zero. Ratio gates are `> 0.05`, `> 0.5`, and `>= 1.0`. The asymmetry is real, not a
-transcription slip: the evaluator holds the constants in registers and branches
-`comiss xmm9, xmm10` / `jb` against `1.0` but `jbe` against `0.5` and `0.05`,
-so only the top gate admits equality.
-Result block is persistent inside Player Data object at `object+0x43D0`;
-object pointer is `*0x14143A8D8`. Builder `0x1401E7210` reads script variable
-`numMis`, stores `2*numMis - 27` at `+0x20`, walks mission records, and stores
-counted records at `+0x24`. It initializes flags `+0x28/+0x29` true, clears
-them according to stored rank values, then clears both unless counted records
-reach required count. `+0x2A` marks completed builder result. Evaluator uses
-`+0x28` for grade 5 and `+0x29` for grade 4. Probe reads these native fields;
-it does not duplicate mission-record filtering.
+Grades run 1..5, and the evaluator calls the granter only when the candidate
+exceeds the stored grade, so grades never decrease. Each gate below is
+confirmed from the branch, not inferred:
 
-Second axis is camaraderie aggregate at snapshot `+0x30`, built by
-`0x140544D20`. It calls `0x140367FB0` for online table at
-`*0x140EA4870 + 0x5008`, reads count at table start, and sums the dword at
-`table + 0x110*(i+1)` for every entry. Ordinary low-camaraderie ids use
-`<= 10k/50k/100k/200k/500k`;
-high ids use strict `>` at same steps. Both confirmed from the branches: the
-low variant skips on `jg` against the step, the high variant on `jle`. Grade 4 and 5 additionally require
-result flags `+0x29` and `+0x28`; grades 3-5 require cooperation ratio at least
-1, grade 2 requires over 0.5, grade 1 over 0.05.
+| Gate | Rule | Evidence |
+| --- | --- | --- |
+| cooperation ratio | `> 0.05`, `> 0.5`, `>= 1.0` for grades 1, 2, 3-5 | `jb` against the `1.0` constant, `jbe` against `0.5` and `0.05` |
+| camaraderie | solo `<=` step, cooperation `>` step, steps `10k/50k/100k/200k/500k` | solo skips on `jg`, cooperation on `jle` |
+| Heroism (all-weapons only) | strictly `>` floors `10k/50k/100k/150k/250k` | skips on `jle`, so exactly `10000` earns nothing |
+| result flags | grade 5 needs `+0x28`, grade 4 needs `+0x29` | `cmp byte ptr [rax+0x29]` ahead of the camaraderie compare |
 
-All-weapons grades add Heroism (`stat 0x77`) floors of `10k`, `50k`, `100k`,
-`150k`, and `250k`. The floor is **strictly greater**: the evaluator skips the
-grade on `jle` against it, so exactly `10000` Heroism does not earn grade 1. Low-camaraderie variants require camaraderie at or below
-their matching normal threshold; high variants require it above. Evaluator
-only calls `0x140544B20` when candidate grade exceeds stored grade, so grades
-never decrease.
+Cooperation ratio is `result+0x24 / result+0x20`, or zero when the denominator
+is not positive. The result block lives at `object+0x43D0` of the Player Data
+object at `*0x14143A8D8`. Builder `0x1401E7210` reads script variable `numMis`,
+stores `2*numMis - 27` at `+0x20`, walks mission records and stores the counted
+ones at `+0x24`, sets flags `+0x28`/`+0x29` and clears them by stored rank,
+clearing both unless the count is reached; `+0x2A` marks the block complete.
+
+Camaraderie is the aggregate at snapshot `+0x30`, built by `0x140544D20`: it
+takes the online table at `*0x140EA4870 + 0x5008`, reads the count at the table
+start, and sums the dword at `table + 0x110*(i+1)` per entry.
 
 ## Insignia system
 
@@ -884,8 +799,8 @@ the retracted weapon-XP multiplier below was invented.
 
 ## In-game Mission Stats screen
 
-The historic-data screen unlocks partway through the campaign and labels
-several counters outright. Matched against a live read:
+The historic-data screen labels several counters outright, which is how they
+were named. Matched against a live read:
 
 | Screen line | Value | Id |
 | --- | ---: | --- |
@@ -899,168 +814,84 @@ several counters outright. Matched against a live read:
 | Heroism | 1029 | `0x4420077` |
 | missions cleared | 39 | `save+0x656C` |
 
-Further screens (Player Overview, the rest of Mission Stats, VS Stats,
-Insignias) add context rather than ids: Total Level of Camaraderie, all
-CO-OP lines and every VS line read `0`, which plausibly accounts for a large
-share of the ~180 descriptor ids that sit at zero. No screen lists per-weapon
-takedowns, so the game keeps those internally and the run-per-weapon method
-remains the only way to name them.
+No screen lists per-weapon takedowns, so single-weapon runs remain the only way
+to name those. Every CO-OP and VS line reads `0` on a solo profile, which
+accounts for much of the ~180 descriptor ids sitting at zero.
 
-Insignia thresholds are strict: the no-alert insignia reads "over 25
-missions without being spotted" and did **not** fire at 25, only at 26. The
-same holds for Headshot Master, which sat unfired at exactly 100 headshots.
+Insignias award Heroism, so a run's Heroism delta mixes the mission award with
+any insignia crossed during it - `save+0x64EC` mixes both, and a single run's
+figure is not a pure mission result.
 
-**Insignias award heroism**, so a run's heroism delta mixes the mission
-award with any insignia crossed during it and cannot be read as a pure
-mission result. "Headshot Master" grants `+500` for passing 100
-headshots; a second insignia produced `522`, i.e. `22` for the clean
-clear plus the award. `save+0x64EC` mixes both.
+## Validation and unknowns
 
-Insignia state is at `save+0x1C009 + index` - see "Insignia system". The
-earlier hunt missed it because the byte that moved in the whole-block diff,
-`save+0x18372`, is comm-message index 62 crossing its Heroism floor, and
-because the search assumed an 84-entry array rather than 110 one-byte slots.
+Live-validated against quantified runs: the save-block layout, per-mission rank
+and best-time arrays, stat descriptors and their direct indexing, the takedown
+counters, the achievement predicate map, archive decryption, the comm-message
+database, and insignia ownership with its thresholds. The codename evaluator's
+constants are confirmed against the branches in the binary; no codename has
+been awarded on the research profile, so the ladder has never been observed
+producing a real grade.
 
-## Open items
+The mission rank formula is the one award system still unsolved. Thresholds are
+per mission and data-driven; story missions carry no score field at all, so
+their letter comes from the run. Observation constrains it only loosely - time
+dominates and alerts cost a grade:
 
-- **Cheapest controlled codename transition on the current research profile.**
-  Live values are 145 tranq-weapon takedowns, 26 CQC takedowns and 40 kills;
-  handgun is already the dominant exact weapon type (142 non-lethal, 3
-  lethal). Under the reported `sleep + stun + incapacitation - 2*kills`
-  classifier, at least 46 additional lethal handgun takedowns would cross the
-  known-input balance from positive to non-positive while leaving short range
-  dominant, making the solo short-range lethal codename the cheapest likely
-  new award. This is only a lower bound because the still-unmapped
-  incapacitation input may be nonzero. Raising another weapon type above the
-  handgun count costs at least 123 assault-rifle kills, 117 CQC takedowns or
-  about 141 uses for an almost-unused type, so those are worse breakpoint
-  triggers. FOXHOUND itself is not a practical trigger yet: Heroism is 2,036
-  against the reported first-tier requirement above 10,000, before its CO-OPS
-  Camaraderie gate.
+| mission | time | alerts | rank |
+| ---: | ---: | ---: | --- |
+| 52 | ~32 s | 0 | S |
+| 52 | 26.23 s | some | A |
+| 52 | slow | 0 | C |
+| 2 | 195.45 s | 0 | S |
+| 6 | 343.82 s | ? | A |
+| 7 | 345.93 s | ? | S |
 
-- **Rank formula.** Thresholds live in the encrypted script data, not in
-  code, so only observation constrains it. Story missions carry no score
-  field at all (it reads `0`), so their letter comes from the run itself.
-  Time dominates, with alerts costing a grade:
+Missions 6 and 7 scored differently at nearly identical times.
 
-  | mission | time | alerts | rank |
-  | ---: | ---: | ---: | --- |
-  | 52 | ~32 s | 0 | S |
-  | 52 | 26.23 s | some | A |
-  | 52 | slow | 0 | C |
-  | 2 | 195.45 s | 0 | S |
-  | 2 | 584.90 s | ? | A |
-  | 6 | 343.82 s | ? | A |
-  | 7 | 345.93 s | ? | S |
+Open items:
 
-  Missions 6 and 7 scored differently at nearly identical times, so the
-  thresholds are per mission.
-- **The `+0x278` / `+0x250` twins** look like per-mission best scores for
-  score-attack missions, but that is one test short of confirmed. Every
-  observation fits: they moved `4758` -> `6000` when a `6000` run scored S on
-  Marksmanship Challenge, and they did **not** move on a later `3300` run on
-  the same mission, which is exactly best-score behaviour. Confirm by beating
-  `6000` there and watching `+0x278` follow. The `6000` value colliding with
-  the Mk22 level-1 XP cost is a coincidence.
-- **Score thresholds.** `3300` scored A and `6000` scored S on Marksmanship
-  Challenge, so that mission's S line is at most `6000`. The `+0x420` config
-  block (`9999`, `8000` x3, `6000` x3, `1000` x8, `100`) is the obvious place
-  for per-rank or per-target values but has not been tied to a rank yet.
-- **`0x20106`** moved `+1` on the LAV boss and `+1` on the T-72U tank battle,
-  so armored-vehicle bosses defeated fits. `0x420080` came off zero by `+2`
-  on the tank mission and is unexplained.
-- **The unclaimed bank slots.** Index 6 is most likely SMG and 10 the other
-  placed type (claymore/mine); this profile owns neither. Indices 0, 1 and
-  12+ are unclaimed, as is the non-lethal bank beyond pistol, sniper and
-  CQC. Each unused type reads `0`, so a run using one type for 2-3
-  takedowns lights up exactly one slot.
-- **`0x442002E` scope.** CQC takedowns never touch it (three runs now,
-  including a story mission where 6 pistol takedowns moved both it and the
-  pistol counter by exactly 6 while a CQC takedown moved neither), so it
-  counts tranq-weapon takedowns rather than all non-lethal ones. The LAV
-  run's `+7` against a pistol `+6` is most likely a miscounted seventh
-  pistol takedown rather than CQC feeding the total.
-- **`0x2002F` vs `0x200ED`** both moved `+3` on the body-shot run and are so
-  far indistinguishable.
-- **`save+0x22` and global `0x1415969F4`** (achievement id 11, threshold 50)
-  incremented on a dirty run and reset to `0` on the next mission, so they are
-  mission-scoped; the event at `0x14017084E` is unidentified.
-- **Alert tally.** The `0x420002` career value is confirmed, but that record's
-  `+0x18` sequence did not line up with the reported alert counts, so only the
-  career reading is trusted.
-- **`char+0x32C`** fell once on damage and then stayed put; unidentified.
-- **`save+0x130`** (reads `229`, static through Fulton uses) is not Fulton
-  stock and remains unidentified. `save+0xB550` (`150` against a displayed
-  food `151%`) is likewise unexplained.
-- **Rank array length** and the id-to-name mapping beyond ids 1, 2, 4, 52.
-- **`usersv`** structure, and whether `KeyConfigSsvIO` is really its role.
-- **Who writes the grade bytes during play.** `0x14039C190` only installs the
-  defaults; nothing is yet known to update `save+0x140CE..+0x140DC` or the
-  `+0x182E4` nibbles afterwards. A write watchpoint on that block across a
-  mission result is the next trace, and it is the most direct lead left.
-- **What consumes the `+0x0C..+0x14` requirement tuple.** The five `s16`
-  values scale per tier, so something compares them against play statistics.
-  Find that reader and the same shape probably explains codename scoring.
-- **Codename grade presentation** is done: `codename::pw_grade` mirrors the
-  native ladder (cooperation ratio, camaraderie step, Heroism floor for
-  all-weapons titles, result flags for grades 4 and 5) and the panel shows the
-  candidate grade plus the single gate holding back the next one. Unvalidated
-  against a real award, since the research profile holds no codename yet.
+- axis labels in "Codename system" disagree with live ids: `0x200F9` (tranq
+  handgun, `145`) and `0x20104` (CQC, `28`) sit at axis 2 slot 2 and axis 3
+  slot 0, so the `sleeps`/`stuns` ranges as written cannot both be right;
+- `+0x278` / `+0x250` twins behave exactly like per-mission best scores but are
+  one test short: beat `6000` on Marksmanship Challenge and watch `+0x278`;
+- score thresholds - `3300` scored A and `6000` scored S on that mission, and
+  the `+0x420` config block is the obvious home for per-rank values;
+- `0x20106` fits armoured-vehicle bosses defeated on two observations;
+  `0x420080` moved `+2` on the tank mission and is unexplained;
+- `0x2002F` and `0x200ED` both moved `+3` on the body-shot run and remain
+  indistinguishable;
+- `0x442002E` counts tranq-weapon takedowns, not all non-lethal ones; CQC never
+  touches it across three runs;
+- unclaimed takedown slots: `6` is most likely SMG and `10` the other placed
+  type, neither owned on this profile;
+- `save+0x22` and global `0x1415969F4` are mission-scoped; the event at
+  `0x14017084E` is unidentified;
+- `save+0x130` (`229`, static through Fulton uses) and `save+0xB550` (`150`
+  against a displayed food `151%`) are unexplained;
+- `usersv` structure, and whether `KeyConfigSsvIO` is really its role;
+- who writes the grade bytes during play - `0x14039C190` only installs defaults;
+- what consumes the comm-message requirement tuple at `+0x0C..+0x14`.
 
-## Retracted and corrected
+## Corrections worth keeping
 
-Kept deliberately: each of these was believed once and cost time.
+Each of these was believed once and cost real time; the failure modes
+generalise.
 
-- **Rank letters as ASCII near `save+0x140CF`** - identified instead as grade
-  bytes, see "Grade bytes". A packed field with a high bit set reads as
-  plausible text for free.
-- **`save+0x18334` as a codename array with insignias at `+0x1834C`** - it is
-  one 226-entry comm-message array. Both systems index from zero, so the join
-  looked clean, and every "insignia" reading landed 24 entries off: the
-  controlled no-alert unlock that appeared to move insignia 38 actually moved
-  message index 62 as career Heroism passed its floor of 1,000. Cost several
-  sessions of watchpoints. Check a record's text field before trusting an
-  index join between two zero-based tables.
-- **FOXHOUND at 40,000 Heroism, BUTTERFLY at 6,000** - both retracted with the
-  above; they are message-unlock floors. No codename requirement figure is
-  known.
-- **Title activation as script command `0x28A553`** - retracted. Dispatch
-  records are 16 bytes, not 8, so an 8-byte read at `0x140EDAD88` paired
-  `0x14039BC70` with the next record's hash. Activation is `0x26DF41`;
-  `0x28A553` is a save-flag setter.
-- **Weapon-XP S-multiplier / first-S bonus** - retracted. The `+871` was two
-  missions, an unreported one plus Side Ops 5; XP applies exactly as displayed
-  in every clean sample.
-- **`0x2008E` disproven as Fulton** - wrong, and now reversed. It is Fulton
-  recoveries: `+1` on each of three separate 1-Fulton runs and `+8` on a main
-  op where the results screen itself showed 8 extractions. The original
-  "disproven" call rested on a profile number that counted something else.
-- **`save+0x130` as Fulton stock** - disproven, static across Fulton uses.
-- **`char+0x8A0` as player health** - disproven. It reads `393216000` as a
-  dword, and the probe's `u16` view of it was a constant `0` in game.
-- **`save+0x278` as the mission score** - withdrawn. Regular missions show no
-  score on the results screen, so whatever these twins hold, it is not the
-  number the rank is scored from. The overlay row was pulled back into
-  Forensics under its raw offset.
-- **`save+0xB4EC` as the Headshot Hero counter** - disproven. It reads `5`
-  while career headshots are 71 and the achievement (threshold 50) is already
-  unlocked; it is a narrower takedown counter.
-- **"Nothing ticks live mid-mission except the clocks"** - corrected. The
-  career value settles at the results tally, but the descriptor's `+0x18`
-  tally ticks live: sampled every 2 s through a 6-kill run it stepped
-  `0,1,0,1,2,4,5,6` while the career value made one `8 -> 14` jump at settle.
-  The overlay no longer needs client-side baseline latching.
-- **`save+0x32B4`/`+0x46F4` as item development levels** - corrected. They are
-  the per-mission rank arrays; the achievement predicates that "check level
-  `<= 3`" are checking that a mission is cleared with any rank.
-- **`save+0x2A84` as a lone Side Ops 10 slot** - superseded. It is
-  `0x29B4 + 4*52`, an entry in the per-mission best-time array.
-- **`+0x1C1E4`** ruled out early as a non-monotonic staging transient, and an
-  early "sleep ID" set (`0x442006E` and friends) was retracted as hex misreads
-  of the same three ids.
-- **`save+0x9084` as the S-rank count** - disproven. It read `3` while three
-  S ranks were held, then `260` against 39 clears and 5 S ranks. S counts come
-  from the per-mission rank array.
-- **Vehicle-boss escort counter at RVA `0x158CC48`** - the surrounding block
-  turned out to be HUD/camera state written by the reset routine
-  `0x140564260`, not a mission-stat accumulator.
+- A packed field with a high bit set reads as plausible text. `ECEDFGCCCCA` at
+  `save+0x140CF` is eleven grade bytes of `0x40 | value`, not a rank string.
+- An index join between two zero-based tables looks clean and can be entirely
+  wrong. `save+0x18334` is 226 comm messages, not 24 codenames followed by 84
+  insignias, and every "insignia" reading off it landed 24 entries out.
+- Record strides must come from the code that indexes them, not from the data.
+  Descriptors are `0x28` bytes; the `999999` seen `0x28` later belongs to the
+  next record, and reading the pair as one frame invented a 48-byte record and
+  forced a linear scan.
+- Dispatch records are 16 bytes. An 8-byte read at `0x140EDAD88` paired
+  `0x14039BC70` with the next record's hash and produced a precise, wrong
+  claim about which script command activates a title.
+- Ownership can be a bitfield. Insignia state resisted several byte-array
+  scans because `0x140544C00` tests one bit per insignia.
+- Tests written from the same reading as the implementation only catch typos.
+  The Heroism floor shipped as `>=` with a test asserting the same mistake; the
+  binary says `jle`, so it is strictly greater.
