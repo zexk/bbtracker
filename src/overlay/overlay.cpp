@@ -1357,6 +1357,39 @@ void draw_mgspw_codename(const GameStats& stats)
     ImGui::Spacing();
     ImGui::TextDisabled("FOX and FOXHOUND share these axes; the co-op half is");
     ImGui::TextDisabled("not measured, so the solo name is shown.");
+
+    // Ground truth: what the game has actually awarded, from save+0x1BFF0.
+    if (!stats.pw_codename_state_ok) {
+        return;
+    }
+    int owned = 0;
+    for (int id = 1; id <= 24; ++id) {
+        owned += stats.pw_codename_state[id] & 1;
+    }
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("awarded  %d / 24", owned);
+    if (!owned) {
+        ImGui::TextDisabled("none yet - codenames are granted at a result screen");
+        return;
+    }
+    if (ImGui::BeginTable("pw_titles", 2, ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("codename", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("grade", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+        for (int id = 1; id <= 24; ++id) {
+            const uint8_t state = stats.pw_codename_state[id];
+            if (!(state & 1)) {
+                continue;
+            }
+            const int grade = (state >> 2) & 7;
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(codename::pw_title_name(id));
+            ImGui::TableNextColumn();
+            ImGui::Text("%d", grade ? grade : 1);
+        }
+        ImGui::EndTable();
+    }
 }
 
 void draw_panel()

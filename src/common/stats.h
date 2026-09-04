@@ -173,6 +173,12 @@ struct GameStats {
     // Native codename evaluator axes, [kills/sleeps/stuns/incapacitations][slot].
     int pw_codename_axes[4][12] = {};
     bool pw_codename_axes_ok = false;
+    // Codename ownership, save+0x1BFF0 + id for evaluator ids 1..24:
+    // bit 0 owned, bit 1 seen, bits 2..4 grade. Index 0 is unused so the id
+    // indexes directly. Grade reads 0 while owned on the oldest awards; the
+    // game reports those as grade 1.
+    uint8_t pw_codename_state[25] = {};
+    bool pw_codename_state_ok = false;
     int pw_camaraderie = -1;        // native codename snapshot +0x30 aggregate
     int pw_codename_missions_required = -1; // result+0x20
     int pw_codename_missions_counted = -1;  // result+0x24

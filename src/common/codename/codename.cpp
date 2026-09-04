@@ -450,6 +450,17 @@ PwProfile pw_profile(const GameStats& s)
 
 } // namespace
 
+const char* pw_title_name(int id)
+{
+    // Evaluator id order, from the 24-way switch in 0x140543E40. Alphabetical
+    // except EEL, which trails the list rather than sorting under E.
+    static constexpr const char* kNames[] = {
+        "ANT", "BEAR", "BEE", "BUTTERFLY", "CAT", "DEER", "DOBERMAN", "FIREFLY",
+        "FOX", "FOXHOUND", "GULL", "HAWK", "HOUND", "KANGAROO", "OCTOPUS", "ORCA",
+        "PIRANHA", "PUMA", "RAVEN", "SCORPION", "SWALLOW", "WHALE", "WOLF", "EEL"};
+    return id >= 1 && id <= 24 ? kNames[id - 1] : "?";
+}
+
 std::optional<Match> evaluate_mgspw(const GameStats& s)
 {
     const PwProfile p = pw_profile(s);

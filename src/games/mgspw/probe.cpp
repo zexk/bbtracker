@@ -270,6 +270,22 @@ void read_stat_families(uintptr_t block, GameStats& out)
     }
 }
 
+// save+0x1BFF0 + id, ids 1..24; see 0x1405448C0 (grade) and 0x140544B20 (grant).
+constexpr uintptr_t kCodenameStateOff = 0x1BFF0;
+
+void read_codename_state(uintptr_t block, GameStats& out)
+{
+    const uintptr_t base = block + kCodenameStateOff;
+    if (!range_readable(base, sizeof(out.pw_codename_state))) {
+        return;
+    }
+    for (size_t id = 1; id < std::size(out.pw_codename_state); ++id) {
+        out.pw_codename_state[id] =
+            *reinterpret_cast<volatile const uint8_t*>(base + id);
+    }
+    out.pw_codename_state_ok = true;
+}
+
 void read_codename_axes(GameStats& out)
 {
     if (!g_stat_array || !range_readable(g_stat_array, sizeof(uintptr_t))) return;
@@ -537,6 +553,7 @@ bool poll_stats(GameStats& out)
         }
         read_stat_families(save_block, out);
         read_codename_axes(out);
+        read_codename_state(save_block, out);
         static uintptr_t last_dump_block = 0;
         if (save_block != last_dump_block
             && range_readable(save_block + 0x40, 0x60)) {

@@ -155,6 +155,11 @@ inline std::vector<ReqStatus> requirements_from_rows(const GameStats& s,
 
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);
 
+// Name for an evaluator title id (1..24). These ids are the game's own and
+// are NOT the localization indices used by kPwTitles - FOXHOUND is id 10 but
+// localization index 13.
+const char* pw_title_name(int id);
+
 std::optional<Match> evaluate_mgspw(const GameStats& s);
 
 std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s);
