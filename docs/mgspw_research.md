@@ -68,7 +68,7 @@ image base `0x140000000`.
 (`0x140215D10`) is a getter returning `saveroot+0xBD3C`. `PW_MISSIONID` is the
 current mission id, set to `-1` at mission start by `0x1401674B2` and then
 loaded from script variable `0x49`; mirrors exist at `0x141140398`,
-`0x14121F004` (`u16`, from name hash `0x8815F5`) and at `save+0x5244`,
+`0x14121F004` (`u16`, from script variable `number`, hash `0x8815F5`) and at `save+0x5244`,
 `+0x1D6E4`, `+0x24BC0`.
 
 Other globals worth keeping:
@@ -899,6 +899,14 @@ Open items:
   against a displayed food `151%`) are unexplained;
 - who writes the grade bytes during play - `0x14039C190` only installs defaults;
 - what consumes the comm-message requirement tuple at `+0x0C..+0x14`.
+  `0x14015CF80` reads all five values and is the best candidate, but it selects
+  its inputs through script variables whose hashes (`0xB38B13`, `0x38E11D`,
+  `0x2EF082`, `0xBD8E4D`) match no string in the decrypted archive and are too
+  short to invert uniquely against a 24-bit hash;
+- the rank reader `0x140707870` has no direct caller, no script-command
+  registration and no pointer in `.data`, so it is reached by a computed call;
+- `0x14017084E` is inside a ten-case jump table on `[rcx+0x9C]`, not an event
+  handler, so `save+0x22` needs a live write watchpoint rather than static work.
 
 ## Corrections worth keeping
 
