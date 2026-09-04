@@ -206,10 +206,16 @@ stun rod included - plus lethal and non-lethal totals. `0x442002E` and
 is used, which is why only a handful are ever non-zero.
 
 Two are pinned by player-reported runs: a 7-takedown mission (6 pistol,
-1 CQC) moved the non-lethal total `+7` and `0x200F9` `+6`, and three
-single-weapon assault-rifle runs moved `0x2007C` `+3` each. Ids `0x200F7`
-and `0x20106` both went `0 -> 1` on the run containing the single CQC
-takedown, so one of them is CQC and the other is boss/vehicle related.
+1 CQC) moved the total `+7` and `0x200F9` `+6`, and three single-weapon
+assault-rifle runs moved `0x2007C` `+3` each.
+
+A later CQC/stun run moved **only** `0x20104` (`5 -> 6`) and left
+`0x442002E` untouched, so `0x442002E` is not a catch-all non-lethal total
+and `0x20104` is the CQC/stun-side counter. That contradicts the LAV run
+above unless CQC variants land in different counters, which is plausible:
+CQC in this game can hold, slam or slit a throat. `0x200F7` and `0x20106`
+stayed flat on the CQC run, so neither is CQC - both belong to the LAV
+mission (vehicle destroyed, boss defeated).
 
 Headshots are stored as one total, so the lethal/tranq split is a
 subtraction:
@@ -464,10 +470,15 @@ the retracted weapon-XP multiplier below was invented.
   `+4945` on a dirty replay), so it is not a plain cumulative score.
 - **The other nine weapon types.** Only pistol (`0x200F9`) and assault rifle
   (`0x2007C`) are identified. Each unused type reads `0`, so a run using one
-  type for 2-3 takedowns lights up exactly one slot.
-- **CQC vs boss counter.** `0x200F7` and `0x20106` both moved `0 -> 1` on the
-  run that contained one CQC takedown and one destroyed vehicle; a single CQC
-  takedown in any other mission separates them.
+  type for 2-3 takedowns lights up exactly one slot. This is the next thing to
+  work through: SMG, sniper, shotgun, LMG and the rest, one short run each,
+  diffing `--idmap` before and after.
+- **CQC accounting.** `0x20104` moves on a CQC/stun run while `0x442002E`
+  does not, yet a run with 6 pistol plus 1 CQC moved `0x442002E` by 7. The
+  likely explanation is that CQC hold, slam and throat-slit land in different
+  counters; untangling it needs one run per CQC variant and is parked.
+- **`0x442007B`** read `1` in the live tally *during* a Side Op, so it is not
+  a main-op clear counter as first guessed.
 - **`0x2002F` vs `0x200ED`** both moved `+3` on the body-shot run and are so
   far indistinguishable.
 - **`0x200F9`** tracked `0x442002E` for three runs, then diverged (`+6` vs
