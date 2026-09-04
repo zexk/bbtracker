@@ -745,7 +745,10 @@ one of twelve slot totals to satisfy
 test internally, but other grade conditions prevent a useful award.
 
 Cooperation grade input is `result+0x24 / result+0x20` when denominator is
-positive, otherwise zero. Ratio gates are `> 0.05`, `> 0.5`, and `>= 1.0`.
+positive, otherwise zero. Ratio gates are `> 0.05`, `> 0.5`, and `>= 1.0`. The asymmetry is real, not a
+transcription slip: the evaluator holds the constants in registers and branches
+`comiss xmm9, xmm10` / `jb` against `1.0` but `jbe` against `0.5` and `0.05`,
+so only the top gate admits equality.
 Result block is persistent inside Player Data object at `object+0x43D0`;
 object pointer is `*0x14143A8D8`. Builder `0x1401E7210` reads script variable
 `numMis`, stores `2*numMis - 27` at `+0x20`, walks mission records, and stores

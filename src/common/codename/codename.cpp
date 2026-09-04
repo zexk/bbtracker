@@ -498,6 +498,8 @@ PwGrade pw_grade(const GameStats& s)
     for (int grade = 1; grade <= 5; ++grade) {
         const int i = grade - 1;
         // Grade 3 and up need the ratio to reach 1.0, so it is >= not >.
+        // Confirmed in the evaluator: jb against the 1.0 constant, jbe
+        // against 0.5 and 0.05.
         const bool ratio_ok = grade >= 3 ? ratio >= kPwCoopRatioGate[i]
                                          : ratio > kPwCoopRatioGate[i];
         const bool cam_ok = coop ? s.pw_camaraderie > kPwCamaraderieStep[i]
