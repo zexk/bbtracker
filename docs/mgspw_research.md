@@ -200,6 +200,8 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x442002E` | non-lethal takedowns, total (body shots count, misses do not) |
 | `0x200DF` | per-type takedowns: pistol, lethal |
 | `0x200F9` | per-type takedowns: pistol, non-lethal |
+| `0x20104` | per-type takedowns: CQC (non-lethal bank index 13), chokes and slams alike |
+| `0x442007B` | CQC uses (career), more than one per takedown |
 | `0x4420031` | headshots |
 | `0x4420077` | heroism (equals `save+0x64F4`) |
 | `0x2008E` | Fulton recoveries |
@@ -233,10 +235,15 @@ Pistol confirms the alignment: lethal `0x200DF` is index 2, non-lethal
 | 4 | sniper rifle | `0x200E1` | `0x200FB` (predicted) |
 | 7 | shotgun | `0x200E4` | `0x200FE` (predicted) |
 
-The non-lethal predictions are untested. The CQC/stun counters seen so far
-sit in the non-lethal bank at indices 0 (`0x200F7`), 13 (`0x20104`) and 15
-(`0x20106`), consistent with CQC hold, CQC slam and stun rod being separate
-types.
+The non-lethal predictions are untested; the Mosin Nagant (the only tranq
+weapon besides the Mk22, dropped after Main Op 7) would settle them.
+
+A 3-takedown CQC run (2 chokes, 1 slam) moved `0x20104` by `+3`, so index
+13 is CQC as a type, with choke and slam sharing it - there is no lethal
+CQC in this game. `0x442007B` moved `+4` on that run, so it counts CQC
+*uses* rather than takedowns. `0x2006B` came off zero by `+1`, matching the
+single slam, and `0x200F7`/`0x20106` stayed flat, so those two belong to the
+LAV mission after all.
 
 Three are pinned by player-reported runs: a 7-takedown mission (6 pistol,
 1 CQC) moved the total `+7` and `0x200F9` `+6`; three single-weapon
@@ -525,12 +532,13 @@ the retracted weapon-XP multiplier below was invented.
 - **`0x2007C`** spans weapon types (`+3` from assault-rifle and shotgun runs
   alike, `+2` from a mixed 6-kill run), so it is not one class; firearm kills
   as distinct from explosives and CQC is the current guess.
-- **CQC accounting.** `0x20104` moves on a CQC/stun run while `0x442002E`
-  does not, yet a run with 6 pistol plus 1 CQC moved `0x442002E` by 7. The
-  likely explanation is that CQC hold, slam and throat-slit land in different
-  counters; untangling it needs one run per CQC variant and is parked.
-- **`0x442007B`** read `1` in the live tally *during* a Side Op, so it is not
-  a main-op clear counter as first guessed.
+- **`0x442002E` scope.** CQC takedowns never touch it (two runs), so it
+  counts tranq-weapon takedowns rather than all non-lethal ones. That leaves
+  the LAV run unexplained: 6 pistol plus 1 CQC moved it `+7` while the pistol
+  counter moved `+6`.
+- **`0x2006B`** came off zero by `+1` on a run with exactly one CQC slam;
+  single observation, so slam-specific is a guess.
+
 - **`0x2002F` vs `0x200ED`** both moved `+3` on the body-shot run and are so
   far indistinguishable.
 - **`0x200F9`** tracked `0x442002E` for three runs, then diverged (`+6` vs
