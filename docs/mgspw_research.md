@@ -192,6 +192,7 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x200E4` | per-type takedowns: shotgun, lethal |
 | `0x420002` | alerts |
 | `0x442002E` | non-lethal takedowns, total (body shots count, misses do not) |
+| `0x200DF` | per-type takedowns: pistol, lethal |
 | `0x200F9` | per-type takedowns: pistol, non-lethal |
 | `0x4420031` | headshots |
 | `0x4420077` | heroism (equals `save+0x64F4`) |
@@ -206,6 +207,30 @@ stun rod included - plus lethal and non-lethal totals. `0x442002E` and
 `0x420008` are those totals; the per-type counters live in the sparse block
 `0x200DD..0x20110` plus strays like `0x2007C`, and a type reads `0` until it
 is used, which is why only a handful are ever non-zero.
+
+### Two banks, 26 slots each
+
+A lethal pistol run put `0x200DF` on the board, and it fixes the block's
+shape. The sparse range is `0x200DD..0x20110` - exactly 52 ids - and splits
+into two 26-slot banks:
+
+    lethal      base 0x200DD, index = weapon type
+    non-lethal  base 0x200F7, same indexing
+
+Pistol confirms the alignment: lethal `0x200DF` is index 2, non-lethal
+`0x200F9` is `0x200F7 + 2`, the same index. Known indices:
+
+| index | type | lethal | non-lethal |
+| ---: | --- | --- | --- |
+| 2 | pistol | `0x200DF` | `0x200F9` |
+| 3 | assault rifle | `0x200E0` | `0x200FA` (predicted) |
+| 4 | sniper rifle | `0x200E1` | `0x200FB` (predicted) |
+| 7 | shotgun | `0x200E4` | `0x200FE` (predicted) |
+
+The non-lethal predictions are untested. The CQC/stun counters seen so far
+sit in the non-lethal bank at indices 0 (`0x200F7`), 13 (`0x20104`) and 15
+(`0x20106`), consistent with CQC hold, CQC slam and stun rod being separate
+types.
 
 Three are pinned by player-reported runs: a 7-takedown mission (6 pistol,
 1 CQC) moved the total `+7` and `0x200F9` `+6`; three single-weapon
