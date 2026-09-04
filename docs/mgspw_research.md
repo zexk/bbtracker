@@ -365,10 +365,24 @@ Weapon XP thresholds follow from the `NEXT` line: level 2 ends at
 **12000** (`4440` held + `7560` remaining), level 1 at **6000**. Same
 arithmetic on an earlier run (`2261` held + `9739` remaining) agrees.
 
-Unmapped fields in the same record: `+0x3C990` = `10`, `+0x3C998` = `1`,
-`+0x3C9B4` = `12`, `+0x3C9E8`/`+0x3C9F8` = `2`, `+0x3CA08` = `1`,
-`+0x3CA10` = `456`, `+0x3CA18` = `83`, and three `999`s from `+0x3CA28`.
-The screen shows no line for any of them.
+A second capture, on a story mission (Main Op 5, 6 pistol tranq takedowns
+plus 1 CQC, 0 kills, 0 alerts, 0 near-deaths), fills in more of it:
+
+| Field | Story run | Score run | Reading |
+| --- | ---: | ---: | --- |
+| `+0x3C980` | `61870` | `15930` | this run's time |
+| `+0x3C9A8` | `0` | `3300` | score - zero on story missions |
+| `+0x3CA00` | `7` | - | takedowns this run (6 pistol + 1 CQC) |
+| `+0x3CA08` | `1` | `1` | matches the single CQC takedown |
+| `+0x3CA20` | `9720000` | `17085` | previous best; `9720000` = 9:00:00 is the "no record" sentinel |
+| `+0x3CA18` | `90` | `83` | moves between runs, meaning unknown |
+| `+0x3CA10` | `456` | `456` | constant so far |
+
+Story missions carry no score, so whatever drives their rank is not the
+score field that score-attack missions use. Kills, alerts and near-deaths
+were all zero on the captured story run, so the fields holding them are
+still indistinguishable from the record's other zeros - that needs a
+deliberately messy story run.
 
 ## Player character
 
@@ -556,8 +570,10 @@ the retracted weapon-XP multiplier below was invented.
   counts tranq-weapon takedowns rather than all non-lethal ones. The LAV
   run's `+7` against a pistol `+6` is most likely a miscounted seventh
   pistol takedown rather than CQC feeding the total.
-- **`0x2008F` and `0x4420030`** each moved `+1` on a story mission that also
-  had one CQC takedown and six Fultons; both are still unidentified.
+- **`0x2008F` and `0x4420030`** each moved `+1` on a story mission with one
+  CQC takedown and six Fultons, and every CQC there was followed by a Fulton,
+  so the two cannot be separated yet. A run with CQC takedowns left
+  un-extracted would split them.
 - **`0x2006B`** is settled as ineffective CQC, not slam takedowns: it moved
   `+1` on the run with one failed slam and stayed flat through a run of two
   clean slams.
