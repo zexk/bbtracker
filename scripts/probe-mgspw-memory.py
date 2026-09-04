@@ -198,7 +198,6 @@ def snapshot(memory, resolved):
                     "last_best_a": struct.unpack("<I", read_mem(memory, block + 0x586C, 4))[0],
                     "last_best_b": struct.unpack("<I", read_mem(memory, block + 0x5874, 4))[0],
                     "clears": struct.unpack("<i", read_mem(memory, block + 0x656C, 4))[0],
-                    "s_count": struct.unpack("<i", read_mem(memory, block + 0x9084, 4))[0],
                     "fulton": struct.unpack("<i", read_mem(memory, block + 0x130, 4))[0],
                     # achievement-id-10 counter (see docs: Headshot Hero candidate)
                     "ach10_ctr": struct.unpack("<I", read_mem(memory, block + 0xB4EC, 4))[0],

@@ -1141,10 +1141,6 @@ void draw_mgspw_global(const GameStats& stats)
             snprintf(buf, sizeof(buf), "%d", stats.pw_clears);
             row("clears", buf);
         }
-        if (stats.pw_s_count >= 0) {
-            snprintf(buf, sizeof(buf), "%d", stats.pw_s_count);
-            row("S-ranks", buf);
-        }
         if (stats.pw_unique_cleared >= 0) {
             snprintf(buf, sizeof(buf), "%d (S %d)", stats.pw_unique_cleared,
                      stats.pw_s_missions);
@@ -1189,10 +1185,12 @@ void draw_mgspw_global(const GameStats& stats)
             row("Fulton", buf);
         }
         if (stats.pw_nokill_clears >= 0) {
-            snprintf(buf, sizeof(buf), "%d", stats.pw_nokill_clears);
-            row("no-kill clears", buf);
-            snprintf(buf, sizeof(buf), "%d", stats.pw_noalert_clears);
-            row("no-alert clears", buf);
+            snprintf(buf, sizeof(buf), "%d no-kill  %d no-alert  %d no-item",
+                     stats.pw_nokill_clears, stats.pw_noalert_clears,
+                     stats.pw_noitem_clears);
+            row("clean clears", buf);
+            snprintf(buf, sizeof(buf), "%d", stats.pw_holdups);
+            row("hold-ups", buf);
         }
         if (stats.pw_headshots >= 0 && stats.pw_kills >= 0 && stats.pw_tranq >= 0) {
             // Draft lethal/non-lethal score: sleep+stun+incap - 2*kills,

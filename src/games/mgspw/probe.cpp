@@ -101,7 +101,8 @@ constexpr uint32_t kShotgunIds[] = {0x200E4}; // lethal, shotgun
 constexpr uint32_t kSniperIds[] = {0x200E1};  // lethal, sniper rifle
 constexpr uint32_t kFultonIds[] = {0x2008E};    // Fulton: enemies
 constexpr uint32_t kPrisonerIds[] = {0x2008F};  // Fulton: prisoners
-constexpr uint32_t kClearCounterIds[] = {0x44200DC};
+constexpr uint32_t kNoItemClearIds[] = {0x44200DC};  // "no recovery items used"
+constexpr uint32_t kHoldUpIds[] = {0x4420030};       // "Total Hold-ups"
 constexpr uint32_t kNoAlertClearIds[] = {0x442011E};
 constexpr uint32_t kNoKillClearIds[] = {0x442011F};
 constexpr uint32_t kAlertIds[] = {0x420002};
@@ -134,7 +135,8 @@ void read_stat_families(uintptr_t block, GameStats& out)
         {kStealthKillIds, std::size(kStealthKillIds), &out.pw_stealth_kills, nullptr},
         {kFultonIds, std::size(kFultonIds), &out.pw_fulton_recoveries, nullptr},
         {kPrisonerIds, std::size(kPrisonerIds), &out.pw_prisoner_extractions, nullptr},
-        {kClearCounterIds, std::size(kClearCounterIds), &out.pw_clear_counter, nullptr},
+        {kNoItemClearIds, std::size(kNoItemClearIds), &out.pw_noitem_clears, nullptr},
+        {kHoldUpIds, std::size(kHoldUpIds), &out.pw_holdups, nullptr},
         {kNoAlertClearIds, std::size(kNoAlertClearIds), &out.pw_noalert_clears, nullptr},
         {kNoKillClearIds, std::size(kNoKillClearIds), &out.pw_nokill_clears, nullptr},
     };
@@ -346,7 +348,6 @@ bool poll_stats(GameStats& out)
         constexpr size_t kLastBestAOff = 0x586C;
         constexpr size_t kLastBestBOff = 0x5874;
         constexpr size_t kClearsOff = 0x656C;
-        constexpr size_t kSCountOff = 0x9084;
         constexpr size_t kFultonOff = 0x130;
         constexpr size_t kLastScoreOff = 0x278;
         if (range_readable(save_block + kHeroismDeltaOff, 8)) {
@@ -368,10 +369,6 @@ bool poll_stats(GameStats& out)
         if (range_readable(save_block + kClearsOff, 4)) {
             out.pw_clears =
                 *reinterpret_cast<volatile const int32_t*>(save_block + kClearsOff);
-        }
-        if (range_readable(save_block + kSCountOff, 4)) {
-            out.pw_s_count =
-                *reinterpret_cast<volatile const int32_t*>(save_block + kSCountOff);
         }
         if (range_readable(save_block + kLastScoreOff, 4)) {
             out.pw_last_score =

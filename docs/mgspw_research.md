@@ -106,7 +106,6 @@ Timers are 300 Hz ticks unless stated.
 | `+0x64EC` | `i32` | heroism, last-mission delta |
 | `+0x64F4` | `i32` | heroism |
 | `+0x656C` | `i32` | clear count; replays count |
-| `+0x9084` | `i32` | S-rank count, unique missions |
 | `+0xB4EC` | `u32` | narrow takedown counter feeding achievement id 10 (threshold 50) |
 | `+0xB52C` | `u32` | GMP |
 | `+0xBD3C` | record[] | weapon records, stride `0x1C` |
@@ -212,9 +211,11 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x4420077` | heroism (equals `save+0x64F4`) |
 | `0x2008E` | Fulton extractions: enemies |
 | `0x2008F` | Fulton extractions: prisoners |
-| `0x442011E` | clears with no alert |
-| `0x442011F` | clears with no kill |
-| `0x44200DC` | clear counter, subset of `save+0x656C` |
+| `0x442011E` | missions cleared with no alerts |
+| `0x442011F` | missions cleared with no kills |
+| `0x442007B` | total CQC count (uses, not takedowns) |
+| `0x44200DC` | missions cleared with no recovery items used |
+| `0x4420030` | total hold-ups |
 | `0x200ED`, `0x2002F` | non-headshot (body) kills |
 
 The game keeps a takedown counter per weapon type - 11 of them, CQC and
@@ -535,6 +536,28 @@ Snapshot immediately before and after each reported mission. Sessions-apart
 baselines let an unreported mission slip into the delta, which is exactly how
 the retracted weapon-XP multiplier below was invented.
 
+## In-game Mission Stats screen
+
+The historic-data screen unlocks partway through the campaign and labels
+several counters outright. Matched against a live read:
+
+| Screen line | Value | Id |
+| --- | ---: | --- |
+| Missions Cleared with No Alerts | 23 | `0x442011E` |
+| Missions Cleared with No Kills | 22 | `0x442011F` |
+| Missions Cleared with No Recovery Items Used | 33 | `0x44200DC` |
+| Total CQC Count | 23 | `0x442007B` |
+| Fulton Extractions | 73 | `0x2008E` (71 enemies) + `0x2008F` (2 prisoners) |
+| Total Hold-ups | 6 | `0x4420030` |
+| Total Headshots | 115 | `0x4420031` |
+| Heroism | 1029 | `0x4420077` |
+| missions cleared | 39 | `save+0x656C` |
+
+Two labels were wrong before this: `0x44200DC` is the no-recovery-item
+clear count rather than a general clear counter, and `0x4420030` is
+hold-ups rather than anything prisoner-related. The Fulton line also
+confirms the enemy/prisoner split, since the screen shows their sum.
+
 ## Open items
 
 - **Rank formula.** Rank is scored and the score path resolves everything
@@ -571,9 +594,6 @@ the retracted weapon-XP multiplier below was invented.
   counts tranq-weapon takedowns rather than all non-lethal ones. The LAV
   run's `+7` against a pistol `+6` is most likely a miscounted seventh
   pistol takedown rather than CQC feeding the total.
-- **`0x4420030`** moved `+1` for the first time all session on the run that
-  rescued a prisoner, so it is prisoner-linked, but it reads `6` against
-  `0x2008F`'s `2` and therefore counts something broader.
 - **`0x2006B`** is settled as ineffective CQC, not slam takedowns: it moved
   `+1` on the run with one failed slam and stayed flat through a run of two
   clean slams.
@@ -592,6 +612,9 @@ the retracted weapon-XP multiplier below was invented.
   `+0x18` sequence did not line up with the reported alert counts, so only the
   career reading is trusted.
 - **`char+0x32C`** fell once on damage and then stayed put; unidentified.
+- **`save+0x9084` was never the S-rank count.** It read `3` while three S
+  ranks were held, then `260` against 39 clears and 5 S ranks. S counts come
+  from the per-mission rank array instead.
 - **`save+0x130`** (reads `229`, static through Fulton uses) is not Fulton
   stock and remains unidentified. `save+0xB550` (`150` against a displayed
   food `151%`) and `save+0xB520` (`131079`) are likewise unexplained.

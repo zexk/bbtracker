@@ -101,7 +101,8 @@ struct GameStats {
     uint32_t pw_last_best_a = 0;      // [SAVEROOT+0x586C] last-mission best twin slot A
     uint32_t pw_last_best_b = 0;      // [SAVEROOT+0x5874] last-mission best twin slot B
     int pw_clears = -1;               // [SAVEROOT+0x656C] validated global clear count (replays count)
-    int pw_s_count = -1;              // [SAVEROOT+0x9084] validated lifetime S-rank count
+    // S ranks come from the per-mission array below, not from a scalar: the
+    // offset once read as an S count turned out to be unrelated.
     int pw_fulton = -1;               // [SAVEROOT+0x130] contested: Fulton stock or inspected-weapon XP-to-next
     // FOXHOUND lifetime inputs, resolved by descriptor ID (table moves).
     // -1 = unresolved. Confirmed by quantified missions: headshots +1
@@ -121,7 +122,8 @@ struct GameStats {
     // Confirmed over three quantified runs (clean / 6-kill+alert /
     // 0-kill+alert): 0x442011E only moves when the run had no alert,
     // 0x442011F only when it had no kill. 0x44200DC moves on every clear.
-    int pw_clear_counter = -1;   // id 0x44200DC
+    int pw_noitem_clears = -1;   // id 0x44200DC, "no recovery items used"
+    int pw_holdups = -1;         // id 0x4420030, "Total Hold-ups"
     int pw_noalert_clears = -1;  // id 0x442011E
     int pw_nokill_clears = -1;   // id 0x442011F
     // Per-mission rank array (save+0x32B4, u16 by mission id): 0 = S,
