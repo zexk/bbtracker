@@ -19,11 +19,28 @@ Token encoding, taken from that function and its dispatch tables:
                          9,10,13  s32   (4 bytes)
                          14       u16 index into the pooled-string table
                          15       u64   (8 bytes)
-  otherwise            structural token; only the high nibble dispatches
-                       (0x10..0x90 via the tables at 0x1400A5198/0x1400A517C),
-                       and those handlers are not fully reversed - they are
-                       reported as STRUCT so a caller can see them without the
-                       reader pretending to understand them.
+  otherwise            structural token, dispatched on the high nibble via the
+                       tables at 0x1400A5198/0x1400A517C:
+                         0x30,0x50,0x80  block. The low nibble picks an operand
+                                         width (0xD u8, 0xE u16, 0xF u24, else
+                                         the nibble is the value) and that
+                                         operand is a byte length; the body
+                                         starts 4 bytes past the operand and the
+                                         cursor advances by the length.
+                         0x90            slot reference, index = low nibble
+                         0x40            object reference, one or two bytes
+                         0x10,0x20       sub-expression; the handler recurses
+                                         into 0x1400A3C00 and is left opaque
+
+Block lengths are `cursor = operand_start + length`, with the body four bytes
+in, exactly as the tail at 0x1400A5110 computes it.
+
+Scope: this decodes tokens from a given offset. It does not parse the .rlc
+container, and a `.rlc` is not one long stream - decoding from offset 0 hits a
+terminator almost immediately, and the 26 activation calls in result.rlc are
+18-byte table entries rather than consecutive statements, so walking forward
+from one does not reach the next. Start it at an offset you already have (a
+hash hit from --hashes, say) and read that entry.
 
 24-bit values are worth attention: script command names and variable names are
 both 24-bit hashes, so a u24 token is usually one of those.
@@ -64,10 +81,41 @@ def decode(data, pos=0, limit=None):
             yield Token(start, tag, "imm", (tag & 0x3F) - 1)
             pos += 1
             continue
-        if tag & 0xF0:
-            # Structural token; the high nibble selects a handler we have not
-            # fully reversed, so consume one byte and report it as-is.
-            yield Token(start, tag, "STRUCT", None)
+        high, low = tag & 0xF0, tag & 0x0F
+        if high and high in (0x30, 0x50, 0x80):
+            # Length-prefixed block: operand width from the low nibble.
+            at = pos + 1
+            if low == 0xD:
+                if at >= n: return
+                length, body = data[at], at + 1
+            elif low == 0xE:
+                if at + 2 > n: return
+                length, body = struct.unpack_from("<H", data, at)[0], at + 2
+            elif low == 0xF:
+                if at + 3 > n: return
+                length = data[at] | data[at+1] << 8 | data[at+2] << 16
+                body = at + 3
+            else:
+                length, body = low, at
+            tok = Token(start, tag, "block", length)
+            tok.raw = data[body + 4:body + max(length, 4)]
+            yield tok
+            nxt = body + length
+            pos = nxt if nxt > pos else pos + 1
+            continue
+        if high and high == 0x90:
+            yield Token(start, tag, "slot", low)
+            pos += 1
+            continue
+        if high and high == 0x40:
+            width = 2 if low == 0xF else 1
+            yield Token(start, tag, "ref", data[pos + 1] if width == 2 and pos + 1 < n else low)
+            pos += width
+            continue
+        if high:
+            # 0x10/0x20 recurse into a sub-expression parser we have not
+            # reversed; consume the tag and keep going.
+            yield Token(start, tag, "expr", None)
             pos += 1
             continue
         pos += 1

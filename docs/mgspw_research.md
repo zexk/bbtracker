@@ -875,7 +875,11 @@ the loaded script stream (`0x1400A52E0` over the registry at `0x1410A63E8`,
 matching a three-byte name hash at `[cursor-3]`), so the namespace is hashed
 and carries no plaintext names. Recovering the formula now means reading the
 results script - `STAGEDAT/0175_result.rlc` is extracted already - rather than
-more disassembly.
+more disassembly. `scripts/pwgcl.py` decodes the token layer; what is still
+missing is the `.rlc` container, since a script is not one flat stream. The
+26 activation calls in that file are 18-byte table entries the VM indexes
+into, not consecutive statements, so a forward walk from one does not reach the
+next.
 
 Two earlier approaches are ruled out. Nothing in `.text` writes the rank array: every
 reference to displacement `0x32B4` is a read, a staging `memcpy`, or a
