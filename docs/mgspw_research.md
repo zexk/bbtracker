@@ -109,7 +109,11 @@ Timers are 300 Hz ticks unless stated.
 | `+0xB4EC` | `u32` | narrow takedown counter feeding achievement id 10 (threshold 50) |
 | `+0xB52C` | `u32` | GMP |
 | `+0xBD3C` | record[] | weapon records, stride `0x1C` |
-| `+0x18334` | - | titles block; earned slots read `07` |
+| `+0xB520` | `u32[]` | bitfield block; `0x1400F9810` sets bit `0x200` in the first two dwords |
+| `+0x140CF..+0x140D9` | `u8[11]` | grade bytes, `0x40 \| value`; defaults `5 3 5 4 6 7 3 3 3 3 1` |
+| `+0x18334` | `u8[226]` | comm-message state; `0` locked, `5` Heroism-gated and earned, `7` free (block sized `0x180`) |
+| `+0x182E4` | nibbles | packed comm-message field, read `& 0xF` and `>> 4 & 0xF` |
+| `+0x184B4` | record[18] | equipped comm messages, stride `0x18`, `{seq u32, id s16, flags u16}` |
 | `+0x1C098` | `char[]` | ASCII codename of the soldier in use (e.g. `ALLIGATOR`) |
 
 Stat descriptors also live in this block (observed around `+0x5200..+0x8000`),
@@ -224,7 +228,6 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x2008F` | Fulton extractions: prisoners |
 | `0x442011E` | missions cleared with no alerts |
 | `0x442011F` | missions cleared with no kills |
-| `0x442007B` | total CQC count (uses, not takedowns) |
 | `0x44200DC` | missions cleared with no recovery items used |
 | `0x4420030` | total hold-ups |
 | `0x200ED`, `0x2002F` | non-headshot (body) kills |
@@ -237,15 +240,11 @@ is used, which is why only a handful are ever non-zero.
 
 ### Two banks, 26 slots each
 
-A lethal pistol run put `0x200DF` on the board, and it fixes the block's
-shape. The sparse range is `0x200DD..0x20110` - exactly 52 ids - and splits
-into two 26-slot banks:
+The sparse range `0x200DD..0x20110` is exactly 52 ids and splits into two
+26-slot banks that share one index:
 
     lethal      base 0x200DD, index = weapon type
     non-lethal  base 0x200F7, same indexing
-
-Pistol confirms the alignment: lethal `0x200DF` is index 2, non-lethal
-`0x200F9` is `0x200F7 + 2`, the same index. Known indices:
 
 | index | type | lethal | non-lethal |
 | ---: | --- | --- | --- |
@@ -261,77 +260,22 @@ Pistol confirms the alignment: lethal `0x200DF` is index 2, non-lethal
 
 **The model is confirmed by prediction.** `0x200FB` was written here as the
 predicted sniper slot before the profile owned a Mosin Nagant; a 2-takedown
-Mosin run later lifted exactly that address off zero. The remaining
-non-lethal predictions follow from the same arithmetic.
+Mosin run later lifted exactly that address off zero. The remaining non-lethal
+predictions follow from the same arithmetic.
 
-That run also moved `0x442002E` by 2, so it is the non-lethal *weapon*
-total across weapons rather than a pistol-only counter, with CQC excluded.
+CQC occupies index 13 with no lethal counterpart - there is no lethal CQC in
+this game. `0x20104` counts CQC takedowns and `0x442007B` counts CQC uses: an
+ineffective slam (an enemy must be choked a little first) is a use with no
+takedown, and a choke-then-slam sequence is a single use. `0x2006B` counts
+ineffective CQC alone.
 
-A CQC run of 2 chokes and 2 slams - one slam ineffective, since an enemy
-must be choked a little before a slam actually stuns - moved `0x20104` by
-`+3` and `0x442007B` by `+4`. That is takedowns against uses: the
-ineffective slam counts as a use and earns no takedown. Index 13 is
-therefore CQC as a weapon type, with chokes and stunning slams sharing it;
-there is no lethal CQC in this game. `0x200F7`/`0x20106` stayed flat, so
-those two belong to the LAV mission after all.
-
-A follow-up run of two clean slams moved takedowns and uses by `+2` each and
-left `0x2006B` alone, which pins `0x2006B` to ineffective CQC and shows a
-choke-then-slam sequence counts as a single use.
-
-Three are pinned by player-reported runs: a 7-takedown mission (6 pistol,
-1 CQC) moved the total `+7` and `0x200F9` `+6`; three single-weapon
-assault-rifle runs moved `0x200E0` `+3` each; a 3-kill shotgun run moved `0x200E4` off zero; and a 3-kill sniper run
-moved `0x200E1` off zero.
-
-A shotgun run (3 lethal takedowns) then corrected the earlier reading:
-`0x200E4` came off zero by `+3` while `0x200E0` stayed put, so `0x200E0` is
-the assault-rifle counter rather than a second copy of the kill total, and
-`0x420008` alone is that total. Since the pistol counter sits at `0x200F9`
-and the two lethal ones at `0x200E0`/`0x200E4`, the block looks like two
-banks: `0x200Ex` lethal by type, `0x200Fx` non-lethal by type.
-
-`0x2007C` moved `+3` on both the assault-rifle and shotgun runs but only
-`+2` on the mixed 6-kill LAV run, so it spans weapon types - most likely
-firearm kills as distinct from explosives and CQC.
-
-A later CQC/stun run moved **only** `0x20104` (`5 -> 6`) and left
-`0x442002E` untouched, so `0x442002E` is not a catch-all non-lethal total
-and `0x20104` is the CQC/stun-side counter. That contradicts the LAV run
-above unless CQC variants land in different counters, which is plausible:
-CQC in this game can hold, slam or slit a throat. `0x200F7` and `0x20106`
-stayed flat on the CQC run, so neither is CQC - both belong to the LAV
-mission (vehicle destroyed, boss defeated).
-
-Headshots are stored as one total, so the lethal/tranq split is a
-subtraction:
+Headshots are stored as one total, so the lethal/tranq split is a subtraction.
+Explosive kills carry no hit location - neither a rocket run nor a grenade run
+moved the headshot or body-kill counters - so they subtract out too:
 
     explosive kills       = grenade (0x200E6) + rocket (0x200E5)
     lethal headshot kills = kills (0x420008) - body kills (0x200ED) - explosive
     tranq headshots       = headshots (0x4420031) - lethal headshot kills
-
-Explosive kills carry no hit location: a 3-kill rocket run left both the
-headshot and the body-kill counters untouched, as did the grenade run, so
-they have to be subtracted as well.
-
-Pinned by three single-weapon runs on the same mission: 3 tranq headshots
-moved `0x4420031` and `0x442002E` only; 3 lethal headshots moved
-`0x4420031`, kills and `0x2007C`; 3 lethal **body** shots with that same
-weapon left `0x4420031` flat and lifted `0x200ED` and `0x2002F` off zero
-for the first time this profile. Career kills stood at 20 with `0x200ED` at
-`0`, i.e. every kill before that run had been a headshot, which matches the
-earlier 6-kill run moving `0x4420031` by 6.
-
-`0x2007C` counts kills on enemies that never spotted the player. It took
-`+3` from every clean single-weapon run regardless of weapon, `+2` from a
-mixed 6-kill boss run, and `+2` from a 3-kill grenade run the player
-described as two stealth kills followed by one after being found.
-
-`0x20023` counts damage taken across the career on the same 0-8000 scale as
-health. A run that left the player at `5070/8000` moved it by `2958`, and it
-stays at zero through clean stealth runs while boss fights and firefights
-add thousands. A GMP reading ruled out the "cumulative GMP earned" theory
-first: `+192` earned moved it not at all.
 
 Heroism responds to both lethality and alerts: `+22` on a clean no-kill
 no-alert clear, `+7` on the same mission with one alert, `+0` with kills.
@@ -340,6 +284,12 @@ Ids are data-driven. Only two code sites embed one as an immediate:
 `0x14037B0B5` posts `0x420001..0x420004` through the event dispatcher
 `0x140079210(ctx, id, valuePtr)` from an alert-state switch, and
 `0x140190152` references `0x420021`.
+
+Two loose ends here. `0x200F7` is the non-lethal bank base but behaves like a
+mission counter, staying flat on CQC runs and moving on the LAV mission
+alongside `0x20106`. And one CQC/stun run moved `0x20104` without moving
+`0x442002E`, while an earlier LAV run moved both; CQC variants may land in
+different counters.
 
 ## Timers
 
@@ -568,9 +518,142 @@ Both are data-driven and neither turned up in the decrypted archive:
   all, and the one promising `.data` table at `0x1033300` is 5-dword records
   carrying typed ids (`0x20000200`-style), i.e. R&D or dialogue triggers.
 
-Next lead is the `.cnf` script data - Chrysalis parses those files and its
-issue #6 asks the same question about `.slot` lines in them, so it is
-unsolved in the community too.
+The `.cnf` script data was the next lead - Chrysalis parses those files, and
+its issue #6 asks the same question about `.slot` lines, so it is unsolved in
+the community too. It does not survive contact with the Master Collection
+data either:
+
+- the 92 files the PDT catalogue names `scenerio.gcx` are DAR archives, not
+  GCL bytecode (`0023_scenerio.gcx` opens on its first DAR row, `ICON0.png`),
+  so the GCX decompiler cannot read them under either spelling;
+- no `data.cnf` exists in any of the 142 QAR archives, and no `.cnf` member in
+  the 837 files extracted from the scenario DARs. Chrysalis uses `data.cnf` as
+  the old STAGEDAT stage index, which the PDT extraction has already passed;
+- no extracted member holds the little-endian float `0.9` or `1.1`, so if the
+  reported balance rule is exact it uses integer arithmetic or an indirect
+  table.
+
+The remaining anchor is runtime code, not another archive pass. The live
+codename text at `save+0x1C098` does not help reach it: searching decrypted
+`.text` for the displacement `0x1C098` yields only instruction-byte
+coincidences, because the save pointer and field address are formed
+indirectly.
+
+### Comm-message database
+
+The CO-OPS comm messages (ally radio lines) are a 226-record database. It was
+mistaken for the codename and insignia tables for a while, so it is documented
+here in full - and it is *not* where codename requirements live.
+
+Records are `0x80` bytes:
+
+| offset | type | meaning |
+| ---: | --- | --- |
+| `+0x04` | `u32` | sequential record id |
+| `+0x08` | `s16` | config id, `50..289` |
+| `+0x0A` | `u16` | behavior flags |
+| `+0x0C..+0x14` | five `s16` | requirement tuple, one value per tier; axes unresolved |
+| `+0x16` | `s16` | usually `35`; role unresolved |
+| `+0x18` | `s16` | solo / cooperation selector (`0` or `1`) |
+| `+0x1A` | `s16` | record family, `1..8` |
+| `+0x1C` | `s32` | Heroism floor; `-1000000` means always available |
+| `+0x20` | `char[]` | asset name, `v909_NNN_spr_sna_1` |
+| `+0x40` | `char[]` | the message text, e.g. `GO! GO! GO!`, `Grenade!` |
+
+Native access path:
+
+| step | detail |
+| --- | --- |
+| owner global | `0x14143B738`, a pointer; null until the database loads |
+| header | `owner+0x220`, record count as `s32` at `header+8` |
+| rows | `owner+0x228`, record `i` at `rows + (i << 7)` |
+| accessors | `0x140255E90` (record by index, bounds-checked), `0x140255ED0` (count) |
+
+Save-side state, all one flat index space over the same 226 records:
+
+| offset | meaning |
+| --- | --- |
+| `save+0x18334` | `u8[226]` state, in a block cleared to `0x180` bytes by `0x14015CEB0` |
+| `save+0x182E4` | packed nibbles, read `& 0xF` and `>> 4 & 0xF` |
+| `save+0x184B4` | 18 equipped slots, `{seq u32, id s16, flags u16}`, stride `0x18` |
+
+State bits are `1` registered, `2` default-unlocked, `4` Heroism floor met, so
+`7` is a free message, `5` a Heroism-gated one now earned, and `0` never
+activated. `0x14039C110` maintains bit `4`: it walks all 226 records, skips
+those without bit `1`, reads Heroism through `0x1400E3950` (stat id `0x77`),
+and compares against `record+0x1C`.
+
+None of these accessors appears in `.pdata` - they are leaf functions with no
+unwind data. `--disasm` and `--find-imm` cannot see them, which is why early
+searches for `0x18334` and `0x182E4` returned zero hits while the code using
+those displacements sat in plain sight. Use `pwdis.py --raw VA` here, and read
+a zero result from the `.pdata`-driven commands as "not covered", never as
+"absent".
+
+Codenames are a separate, still-unmapped system. Localization gives their
+descriptions at index `24 + codename_index`: `FOXHOUND` is index 13,
+description 37, all weapon types / cooperation / non-lethal force;
+`BUTTERFLY` is index 20, description 44, short-range / solo / non-lethal. No
+codename or insignia *requirement* figure has been recovered.
+
+### Title system wiring
+
+GCL scripts reach native code only through dispatch tables in PE `.data`. One
+record is 16 bytes:
+
+| offset | type | meaning |
+| ---: | --- | --- |
+| `+0x00` | `u32` | 24-bit script command hash |
+| `+0x04` | `u32` | always `0` |
+| `+0x08` | `u64` | native function VA |
+
+Records run in tables of strictly ascending hash; `pwdis.py --cmd-tables`
+recovers **80 tables, 28,075 records** from a stock exe. The hash is the only
+stable name a command has, so this table is the entry point for any "what does
+the script call here" question.
+
+Read the stride as 8 bytes and every pairing shifts by one record while still
+looking plausible; see "Retracted and corrected". Pairings that matter here:
+
+| command hash | native function | role |
+| --- | --- | --- |
+| `0x26DF41` | `0x14039BC70` | activation: sets state bit `1` at one index |
+| `0xDEC231` | `0x14039BC10` | bulk activation of `flags & 4` records, `state \|= 3` |
+| `0xF3148A` | `0x14039C190` | writes the grade-byte defaults, below |
+| `0x28A553` | `0x1400F9810` | unrelated: a save-flag setter |
+
+`0x14039BC70` reads argument hash `0x000E2F` (`no`), finds the record whose
+`s16 +0x08` id matches, and ORs state bit `1` at that index. The bound it
+checks is `0x180`, matching the `0x180`-byte state block cleared by
+`0x14015CEB0` - so the array is sized for 384 entries while only 226 are used.
+
+`0x1400F9810` sets bit `0x200` in the dwords at `save+0xB520` and
+`save+0xB524`.
+
+**The activation command is not in the result script.** `STAGEDAT/0175_result.rlc`
+(204,140 B) has zero aligned 32-bit hits for `0x26DF41`. Its one aligned hit,
+at file offset `0x2AC7F`, is `0x28A553` - the save-flag setter. So the result
+script sets a save flag, and nothing pins title activation to it.
+
+### Grade bytes
+
+`0x14039C190` (script command `0xF3148A`) writes a small block of defaults. It
+first zeroes `save+0x140CE..+0x140DC` and the qword at `save+0x182E4`, then
+ORs a value and the constant `0x40` into each byte:
+
+| offset | `+0x140CF` | `D0` | `D1` | `D2` | `D3` | `D4` | `D5` | `D6` | `D7` | `D8` | `D9` |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| value | 5 | 3 | 5 | 4 | 6 | 7 | 3 | 3 | 3 | 3 | 1 |
+
+Each byte is a packed field: low 6 bits carry the value, and a two-bit field
+above them is read back with `sar 2` / `and 3` on `+0x140CE`. `save+0x182E4`
+is a packed nibble array over the same subsystem, read by leaf getters at
+`0x14039C530` (`>> 4 & 0xF`), `0x14039C550` (`& 0xF`) and `0x14039C570`
+(`& 0xF` at `+0x182E6`).
+
+Because every value is 1-7 with `0x40` set, the block reads as the ASCII
+`ECEDFGCCCCA` - the "rank letters" string that sat unexplained for weeks. It
+was never text.
 
 ## Installed data and saves
 
@@ -596,7 +679,7 @@ auditing is therefore not available; live diffing is the method.
 | Script | Purpose |
 | --- | --- |
 | `probe-mgspw-memory.py` | live snapshot, `--idmap` stat table, `--rate`/`--trace`, `--dump-text` |
-| `pwdis.py` | overlays the `.pdata` function map on a runtime `.text` dump, disassembles, xrefs strings and immediates |
+| `pwdis.py` | overlays the `.pdata` function map on a runtime `.text` dump, disassembles, xrefs strings and immediates; `--raw` for functions `.pdata` omits, `--xref-mem` for globals, `--cmd-tables` for the script-command dispatch map |
 | `pwwatch.py` | records which save-block slots move across a session (how the live tallies were found) |
 | `pwach.py` | dumps the achievement metadata and predicate map |
 | `pwhash.py` | name-hash helper for the script-variable lookups |
@@ -610,6 +693,18 @@ python3 scripts/probe-mgspw-memory.py --dump-text /tmp/pw_text.bin
 python3 scripts/pwdis.py --text /tmp/pw_text.bin --xref-string noKill
 python3 scripts/pwwatch.py --seconds 1800 --out /tmp/pw_watch.json
 ```
+
+Script-command lookups need only the on-disk exe, no running game:
+
+```sh
+python3 scripts/pwdis.py --cmd-tables                     # all 28,075 records
+python3 scripts/pwdis.py --cmd-tables --cmd-hash 0x26DF41 # who serves a hash
+python3 scripts/pwdis.py --cmd-tables --cmd-ptr 0x14039BC70  # and the reverse
+python3 scripts/pwdis.py --text /tmp/pw_text.bin --raw 0x14039C190 --raw-len 0x400
+```
+
+`--self-test` checks that the `0x26DF41 -> 0x14039BC70` pairing still
+resolves, which is enough to catch a game update moving the tables.
 
 ## Test protocol
 
@@ -650,26 +745,34 @@ Insignia thresholds are strict: the no-alert insignia reads "over 25
 missions without being spotted" and did **not** fire at 25, only at 26. The
 same holds for Headshot Master, which sat unfired at exactly 100 headshots.
 
-**Insignias award heroism.** "Headshot Master" grants `+500` heroism for
-passing 100 headshots. That retro-explains a spike in the run data: heroism
-moved `428 -> 931` on a 3-kill shotgun run, recorded at the time as an
-unexplained `+503`. Heroism deltas therefore mix per-mission awards with
-insignia bonuses, so a single run's heroism figure cannot be read as a pure
-mission result.
+**Insignias award heroism**, so a run's heroism delta mixes the mission
+award with any insignia crossed during it and cannot be read as a pure
+mission result. "Headshot Master" grants `+500` for passing 100
+headshots; a second insignia produced `522`, i.e. `22` for the clean
+clear plus the award. `save+0x64EC` mixes both.
 
-Earning a second insignia produced a heroism delta of `522` - `22` for the
-clean clear plus the `500` award - so `save+0x64EC` mixes both. A diff of
-the whole `0x40000` save block across that unlock did not reveal an
-84-entry flag array, so the insignia state is stored outside that window or
-in another form; not worth chasing further, since many insignias are VS-only
-and the counters they gate are already named.
-
-Two labels were wrong before this: `0x44200DC` is the no-recovery-item
-clear count rather than a general clear counter, and `0x4420030` is
-hold-ups rather than anything prisoner-related. The Fulton line also
-confirms the enemy/prisoner split, since the screen shows their sum.
+Insignia state is still unlocated. The full `0x40000` before/after
+snapshots did not hold it: the byte that moved, `save+0x18372`, is
+comm-message index 62 crossing its Heroism floor. Menu navigation is
+exhausted as a trigger - the only field that moves on those screens is
+`save+0x3DBE2`, transient UI state.
 
 ## Open items
+
+- **Cheapest controlled codename transition on the current research profile.**
+  Live values are 145 tranq-weapon takedowns, 26 CQC takedowns and 40 kills;
+  handgun is already the dominant exact weapon type (142 non-lethal, 3
+  lethal). Under the reported `sleep + stun + incapacitation - 2*kills`
+  classifier, at least 46 additional lethal handgun takedowns would cross the
+  known-input balance from positive to non-positive while leaving short range
+  dominant, making the solo short-range lethal codename the cheapest likely
+  new award. This is only a lower bound because the still-unmapped
+  incapacitation input may be nonzero. Raising another weapon type above the
+  handgun count costs at least 123 assault-rifle kills, 117 CQC takedowns or
+  about 141 uses for an almost-unused type, so those are worse breakpoint
+  triggers. FOXHOUND itself is not a practical trigger yet: Heroism is 2,036
+  against the reported first-tier requirement above 10,000, before its CO-OPS
+  Camaraderie gate.
 
 - **Rank formula.** Thresholds live in the encrypted script data, not in
   code, so only observation constrains it. Story missions carry no score
@@ -699,41 +802,22 @@ confirms the enemy/prisoner split, since the screen shows their sum.
   Challenge, so that mission's S line is at most `6000`. The `+0x420` config
   block (`9999`, `8000` x3, `6000` x3, `1000` x8, `100`) is the obvious place
   for per-rank or per-target values but has not been tied to a rank yet.
-- (resolved) `0x20023` is career damage taken - see the stat table.
 - **`0x20106`** moved `+1` on the LAV boss and `+1` on the T-72U tank battle,
   so armored-vehicle bosses defeated fits. `0x420080` came off zero by `+2`
   on the tank mission and is unexplained.
-- **The remaining weapon types.** Identified: pistol non-lethal (`0x200F9`),
-  assault rifle lethal (`0x200E0`), sniper lethal (`0x200E1`), shotgun lethal
-  (`0x200E4`). The lethal bank is contiguous from `0x200E0`, so the gaps at
-  `0x200E2`/`0x200E3` are two types not yet used (SMG is one - the profile
-  owns none yet).
-  Each type appears to have both a lethal and a non-lethal slot. Each unused type reads `0`, so a run using one
-  Each unused type reads `0`, so a run using one type for 2-3 takedowns
-  lights up exactly one slot. The lethal bank now runs pistol 2, assault
-  rifle 3, sniper 4, LMG 5, gap 6, shotgun 7, rocket 8, grenade 9, gap 10,
-  placed explosive 11; index 6 is most likely SMG, which this profile does
-  not own, and 10 is probably the other placed type (claymore/mine). Indices
-  0, 1 and 12+ are still unclaimed, as is the non-lethal bank beyond pistol
-  and CQC.
-- (resolved) `0x2007C` is kills on unaware enemies - see the stat table.
+- **The unclaimed bank slots.** Index 6 is most likely SMG and 10 the other
+  placed type (claymore/mine); this profile owns neither. Indices 0, 1 and
+  12+ are unclaimed, as is the non-lethal bank beyond pistol, sniper and
+  CQC. Each unused type reads `0`, so a run using one type for 2-3
+  takedowns lights up exactly one slot.
 - **`0x442002E` scope.** CQC takedowns never touch it (three runs now,
   including a story mission where 6 pistol takedowns moved both it and the
   pistol counter by exactly 6 while a CQC takedown moved neither), so it
   counts tranq-weapon takedowns rather than all non-lethal ones. The LAV
   run's `+7` against a pistol `+6` is most likely a miscounted seventh
   pistol takedown rather than CQC feeding the total.
-- **`0x2006B`** is settled as ineffective CQC, not slam takedowns: it moved
-  `+1` on the run with one failed slam and stayed flat through a run of two
-  clean slams.
-
 - **`0x2002F` vs `0x200ED`** both moved `+3` on the body-shot run and are so
   far indistinguishable.
-- **`0x200F9`** tracked `0x442002E` for three runs, then diverged (`+6` vs
-  `+7`), so the two are not the same counter.
-- **`0x442007B`** moved `+1` on the one main-op clear and on nothing else -
-  main-op or boss clear counter, single observation.
-- **`0x200F7`, `0x20106`** each moved `+1` on the boss clear only.
 - **`save+0x22` and global `0x1415969F4`** (achievement id 11, threshold 50)
   incremented on a dirty run and reset to `0` on the next mission, so they are
   mission-scoped; the event at `0x14017084E` is unidentified.
@@ -741,24 +825,43 @@ confirms the enemy/prisoner split, since the screen shows their sum.
   `+0x18` sequence did not line up with the reported alert counts, so only the
   career reading is trusted.
 - **`char+0x32C`** fell once on damage and then stayed put; unidentified.
-- **`save+0x9084` was never the S-rank count.** It read `3` while three S
-  ranks were held, then `260` against 39 clears and 5 S ranks. S counts come
-  from the per-mission rank array instead.
 - **`save+0x130`** (reads `229`, static through Fulton uses) is not Fulton
   stock and remains unidentified. `save+0xB550` (`150` against a displayed
-  food `151%`) and `save+0xB520` (`131079`) are likewise unexplained.
+  food `151%`) is likewise unexplained.
 - **Rank array length** and the id-to-name mapping beyond ids 1, 2, 4, 52.
 - **`usersv`** structure, and whether `KeyConfigSsvIO` is really its role.
-- **11-char string near `save+0x140CF`** is not ranks (see below) and is still
-  unidentified; it did not change across replays.
+- **Who writes the grade bytes during play.** `0x14039C190` only installs the
+  defaults; nothing is yet known to update `save+0x140CE..+0x140DC` or the
+  `+0x182E4` nibbles afterwards. A write watchpoint on that block across a
+  mission result is the next trace, and it is the most direct lead left.
+- **What consumes the `+0x0C..+0x14` requirement tuple.** The five `s16`
+  values scale per tier, so something compares them against play statistics.
+  Find that reader and the same shape probably explains codename scoring.
+- **Where codename and insignia state actually live.** Not at `save+0x18334`,
+  which is comm messages. The whole-block diff that appeared to find them was
+  reading this array.
 
 ## Retracted and corrected
 
 Kept deliberately: each of these was believed once and cost time.
 
-- **Rank letters as ASCII near `save+0x140CF`** - withdrawn. PW ranks are only
-  S/A/B/C, so `ECEDFGCCCCA` cannot be ranks, and the reported mission 5 = S
-  contradicts position 5 = F.
+- **Rank letters as ASCII near `save+0x140CF`** - identified instead as grade
+  bytes, see "Grade bytes". A packed field with a high bit set reads as
+  plausible text for free.
+- **`save+0x18334` as a codename array with insignias at `+0x1834C`** - it is
+  one 226-entry comm-message array. Both systems index from zero, so the join
+  looked clean, and every "insignia" reading landed 24 entries off: the
+  controlled no-alert unlock that appeared to move insignia 38 actually moved
+  message index 62 as career Heroism passed its floor of 1,000. Cost several
+  sessions of watchpoints. Check a record's text field before trusting an
+  index join between two zero-based tables.
+- **FOXHOUND at 40,000 Heroism, BUTTERFLY at 6,000** - both retracted with the
+  above; they are message-unlock floors. No codename requirement figure is
+  known.
+- **Title activation as script command `0x28A553`** - retracted. Dispatch
+  records are 16 bytes, not 8, so an 8-byte read at `0x140EDAD88` paired
+  `0x14039BC70` with the next record's hash. Activation is `0x26DF41`;
+  `0x28A553` is a save-flag setter.
 - **Weapon-XP S-multiplier / first-S bonus** - retracted. The `+871` was two
   missions, an unreported one plus Side Ops 5; XP applies exactly as displayed
   in every clean sample.
@@ -789,6 +892,9 @@ Kept deliberately: each of these was believed once and cost time.
 - **`+0x1C1E4`** ruled out early as a non-monotonic staging transient, and an
   early "sleep ID" set (`0x442006E` and friends) was retracted as hex misreads
   of the same three ids.
+- **`save+0x9084` as the S-rank count** - disproven. It read `3` while three
+  S ranks were held, then `260` against 39 clears and 5 S ranks. S counts come
+  from the per-mission rank array.
 - **Vehicle-boss escort counter at RVA `0x158CC48`** - the surrounding block
   turned out to be HUD/camera state written by the reset routine
   `0x140564260`, not a mission-stat accumulator.
