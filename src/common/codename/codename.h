@@ -160,6 +160,19 @@ std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);
 // localization index 13.
 const char* pw_title_name(int id);
 
+// Candidate grade 0..5 for the title the profile currently matches, plus the
+// single gate that stops the next grade. Mirrors the native evaluator: see
+// "Codename system" in docs/mgspw_research.md.
+struct PwGrade {
+    int grade = 0;        // 0 = no grade earned yet
+    int next = 0;         // 0 when grade is already 5
+    const char* blocker = nullptr;  // what stops `next`, null when nothing does
+    double have = 0.0;    // current value of the blocking input
+    double need = 0.0;    // value it must reach
+};
+
+PwGrade pw_grade(const GameStats& s);
+
 std::optional<Match> evaluate_mgspw(const GameStats& s);
 
 std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s);

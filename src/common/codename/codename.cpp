@@ -461,6 +461,80 @@ const char* pw_title_name(int id)
     return id >= 1 && id <= 24 ? kNames[id - 1] : "?";
 }
 
+namespace {
+
+// Gates per grade 1..5, from the native evaluator. Camaraderie steps are the
+// same numbers for both variants: a solo (low) title needs camaraderie at or
+// below its step, a cooperation title strictly above it. All-weapons titles
+// add a Heroism floor on top.
+constexpr int kPwCamaraderieStep[] = {10000, 50000, 100000, 200000, 500000};
+constexpr int kPwHeroismFloor[] = {10000, 50000, 100000, 150000, 250000};
+constexpr double kPwCoopRatioGate[] = {0.05, 0.5, 1.0, 1.0, 1.0};
+
+double pw_coop_ratio(const GameStats& s)
+{
+    return s.pw_codename_missions_required > 0
+        ? static_cast<double>(s.pw_codename_missions_counted)
+            / static_cast<double>(s.pw_codename_missions_required)
+        : 0.0;
+}
+
+} // namespace
+
+PwGrade pw_grade(const GameStats& s)
+{
+    PwGrade out;
+    const PwProfile p = pw_profile(s);
+    if (p.total <= 0 || !s.pw_codename_result_ok) {
+        return out;
+    }
+    const bool all_weapons = p.dominant == WeaponClass::All;
+    const bool coop = s.pw_camaraderie > 10000;
+    const double ratio = pw_coop_ratio(s);
+    const int heroism = s.pw_heroism;
+
+    // Highest grade whose every gate passes; grades never decrease natively,
+    // but this is the candidate the evaluator would compute right now.
+    for (int grade = 1; grade <= 5; ++grade) {
+        const int i = grade - 1;
+        // Grade 3 and up need the ratio to reach 1.0, so it is >= not >.
+        const bool ratio_ok = grade >= 3 ? ratio >= kPwCoopRatioGate[i]
+                                         : ratio > kPwCoopRatioGate[i];
+        const bool cam_ok = coop ? s.pw_camaraderie > kPwCamaraderieStep[i]
+                                 : s.pw_camaraderie <= kPwCamaraderieStep[i];
+        const bool flag_ok = grade == 5 ? s.pw_codename_grade5_ok
+            : grade == 4 ? s.pw_codename_grade4_ok : true;
+        const bool heroism_ok = !all_weapons || heroism >= kPwHeroismFloor[i];
+        if (ratio_ok && cam_ok && flag_ok && heroism_ok) {
+            out.grade = grade;
+            continue;
+        }
+        // First failing grade is the one to report a blocker for.
+        if (out.next == 0) {
+            out.next = grade;
+            if (!ratio_ok) {
+                out.blocker = "cooperation ratio";
+                out.have = ratio;
+                out.need = kPwCoopRatioGate[i];
+            } else if (!heroism_ok) {
+                out.blocker = "heroism";
+                out.have = heroism;
+                out.need = kPwHeroismFloor[i];
+            } else if (!cam_ok) {
+                out.blocker = coop ? "camaraderie over" : "camaraderie under";
+                out.have = s.pw_camaraderie;
+                out.need = kPwCamaraderieStep[i];
+            } else {
+                out.blocker = grade == 5 ? "mission ranks (grade 5 flag)"
+                                         : "mission ranks (grade 4 flag)";
+                out.have = 0;
+                out.need = 1;
+            }
+        }
+    }
+    return out;
+}
+
 std::optional<Match> evaluate_mgspw(const GameStats& s)
 {
     const PwProfile p = pw_profile(s);

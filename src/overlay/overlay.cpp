@@ -1320,6 +1320,25 @@ void draw_mgspw_codename(const GameStats& stats)
     ImGui::SetWindowFontScale(2.0f);
     ImGui::TextColored(title_color, "%s", match ? match->name : "---");
     ImGui::SetWindowFontScale(1.0f);
+    const codename::PwGrade grade = codename::pw_grade(stats);
+    if (match) {
+        if (grade.grade > 0) {
+            ImGui::TextDisabled("grade %d", grade.grade);
+        } else {
+            ImGui::TextDisabled("no grade yet");
+        }
+        ImGui::SameLine();
+        if (grade.blocker) {
+            const bool ratio = std::strcmp(grade.blocker, "cooperation ratio") == 0;
+            ImGui::TextDisabled("- grade %d needs %s %s%.*f", grade.next,
+                                grade.blocker,
+                                std::strncmp(grade.blocker, "camaraderie under", 17) == 0
+                                    ? "<= " : ">= ",
+                                ratio ? 2 : 0, grade.need);
+        } else if (grade.grade == 5) {
+            ImGui::TextDisabled("- highest grade");
+        }
+    }
     ImGui::Separator();
     ImGui::Spacing();
 

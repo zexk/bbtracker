@@ -996,10 +996,11 @@ because the search assumed an 84-entry array rather than 110 one-byte slots.
 - **What consumes the `+0x0C..+0x14` requirement tuple.** The five `s16`
   values scale per tier, so something compares them against play statistics.
   Find that reader and the same shape probably explains codename scoring.
-- **NEXT UNKNOWN — Codename grade presentation.** Probe now reads all evaluator inputs:
-  48 career axes, camaraderie aggregate, result cooperation numerator and
-  denominator, and grade-4/5 flags. Overlay still presents title only; add
-  current/candidate grade display if useful.
+- **Codename grade presentation** is done: `codename::pw_grade` mirrors the
+  native ladder (cooperation ratio, camaraderie step, Heroism floor for
+  all-weapons titles, result flags for grades 4 and 5) and the panel shows the
+  candidate grade plus the single gate holding back the next one. Unvalidated
+  against a real award, since the research profile holds no codename yet.
 
 ## Retracted and corrected
 
