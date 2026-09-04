@@ -560,12 +560,23 @@ share of the ~180 descriptor ids that sit at zero. No screen lists per-weapon
 takedowns, so the game keeps those internally and the run-per-weapon method
 remains the only way to name them.
 
+Insignia thresholds are strict: the no-alert insignia reads "over 25
+missions without being spotted" and did **not** fire at 25, only at 26. The
+same holds for Headshot Master, which sat unfired at exactly 100 headshots.
+
 **Insignias award heroism.** "Headshot Master" grants `+500` heroism for
 passing 100 headshots. That retro-explains a spike in the run data: heroism
 moved `428 -> 931` on a 3-kill shotgun run, recorded at the time as an
 unexplained `+503`. Heroism deltas therefore mix per-mission awards with
 insignia bonuses, so a single run's heroism figure cannot be read as a pure
 mission result.
+
+Earning a second insignia produced a heroism delta of `522` - `22` for the
+clean clear plus the `500` award - so `save+0x64EC` mixes both. A diff of
+the whole `0x40000` save block across that unlock did not reveal an
+84-entry flag array, so the insignia state is stored outside that window or
+in another form; not worth chasing further, since many insignias are VS-only
+and the counters they gate are already named.
 
 Two labels were wrong before this: `0x44200DC` is the no-recovery-item
 clear count rather than a general clear counter, and `0x4420030` is
