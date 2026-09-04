@@ -17,6 +17,7 @@ Typical session:
   python3 scripts/pwdis.py --text /tmp/pw_text.bin --xref-string total_play_time
 """
 import argparse
+import io
 import json
 import re
 import struct
@@ -189,6 +190,70 @@ def cmd_disasm(args, secs, funcs, text, exe_data):
         print(line)
 
 
+def cmd_raw(args, secs, funcs, text, exe_data):
+    """Disassemble a raw RVA window (for leaf functions missing from .pdata)."""
+    va = args.raw
+    off = (va - BASE) - TEXT_RVA
+    code = text[off:off + args.raw_len]
+    from capstone import Cs, CS_ARCH_X86, CS_MODE_64
+    md = Cs(CS_ARCH_X86, CS_MODE_64)
+    md.detail = True
+    for insn in md.disasm(code, va):
+        line = f"  {insn.address:#x}  {insn.mnemonic:10} {insn.op_str}"
+        t = rip_mem_target(insn)
+        if t is not None:
+            s = rdata_string_at(exe_data, secs, t)
+            note = t - BASE
+            line += f"   ; -> {t:#x} (rva {note:#x})"
+            if s is not None:
+                line += f' "{s}"'
+        print(line)
+
+
+def cmd_xref_mem(args, secs, funcs, text):
+    """Find RIP-relative references to an absolute VA (global variable)."""
+    hits = xref_va(funcs, text, args.xref_mem, args.limit * 4)
+    print(f"{len(hits)} refs to {args.xref_mem:#x} in "
+          f"{len(set(h[0] for h in hits))} functions")
+    for b, insn in hits[:args.limit]:
+        print(f"  func {BASE + b:#x}  {insn.address:#x}: "
+              f"{insn.mnemonic} {insn.op_str}")
+
+
+def cmd_cmd_tables(args, secs, exe_data):
+    """Dump the script-command dispatch tables that live in .data.
+
+    One record is {hash u32, 0 u32, native ptr u64} = 16 bytes; a table is a
+    run of such records with strictly ascending hashes. Script calls reach
+    native code only through these, so a hash is the only stable name a GCL
+    command has. NB: the records are 16 bytes, not 8 - reading a table at a
+    +8 offset yields a plausible but wrong hash/function pairing.
+    """
+    data = secs[".data"]
+    text_lo = BASE + secs[".text"]["va"]
+    text_hi = text_lo + secs[".text"]["vsz"]
+    off, end = data["raw"], data["raw"] + data["rawsz"]
+    va0 = BASE + data["va"]
+    rows = []
+
+    def flush():
+        if len(rows) >= args.min_table and all(
+                rows[i][1] < rows[i + 1][1] for i in range(len(rows) - 1)):
+            for va, h, ptr in rows:
+                if args.cmd_hash in (None, h) and args.cmd_ptr in (None, ptr):
+                    print(f"{va:#x}\t{h:#08x}\t{ptr:#x}")
+        rows.clear()
+
+    while off + 16 <= end:
+        h, pad, ptr = struct.unpack_from("<IIQ", exe_data, off)
+        if pad == 0 and 0 < h < 0x1000000 and text_lo <= ptr < text_hi:
+            rows.append((va0 + (off - data["raw"]), h, ptr))
+        elif rows:
+            flush()
+        off += 16
+    flush()
+
+
 def cmd_xref_func(args, secs, funcs, text):
     """List callers of a function VA; resolve a literal string loaded into rcx
     right before each call when the target is a string-keyed lookup."""
@@ -214,6 +279,20 @@ def main():
                     help="list call sites targeting this function VA")
     ap.add_argument("--disasm", type=lambda v: int(v, 0),
                     help="disassemble the function containing this VA")
+    ap.add_argument("--raw", type=lambda v: int(v, 0),
+                    help="disassemble a raw window at this VA (ignores .pdata)")
+    ap.add_argument("--raw-len", type=lambda v: int(v, 0), default=0x200,
+                    help="bytes for --raw (default 0x200)")
+    ap.add_argument("--xref-mem", type=lambda v: int(v, 0),
+                    help="find RIP-relative refs to this absolute VA")
+    ap.add_argument("--cmd-tables", action="store_true",
+                    help="dump the script-command hash -> native dispatch tables")
+    ap.add_argument("--cmd-hash", type=lambda v: int(v, 0),
+                    help="restrict --cmd-tables to this command hash")
+    ap.add_argument("--cmd-ptr", type=lambda v: int(v, 0),
+                    help="restrict --cmd-tables to this native function VA")
+    ap.add_argument("--min-table", type=int, default=8,
+                    help="shortest accepted --cmd-tables run (default 8)")
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
 
@@ -226,12 +305,25 @@ def main():
         assert len(funcs) > 30000, f"only {len(funcs)} functions"
         b, e = funcs[0]
         assert 0 < b < e
+        args.cmd_hash, args.cmd_ptr, args.min_table = 0x26DF41, 0x14039BC70, 8
+        rows = io.StringIO()
+        stdout, sys.stdout = sys.stdout, rows
+        try:
+            cmd_cmd_tables(args, secs, exe_data)
+        finally:
+            sys.stdout = stdout
+        assert rows.getvalue().split(), "title activation command pairing missing"
         print(f"self-test ok: {len(funcs)} functions, "
-              f".text {secs['.text']['vsz']:#x}, .rdata {secs['.rdata']['vsz']:#x}")
+              f".text {secs['.text']['vsz']:#x}, .rdata {secs['.rdata']['vsz']:#x}, "
+              f"cmd 0x26df41 -> {rows.getvalue().split()[2]}")
         return
 
     if args.functions:
         cmd_functions(args, secs, funcs)
+        return
+
+    if args.cmd_tables:
+        cmd_cmd_tables(args, secs, exe_data)
         return
 
     if not args.text:
@@ -245,6 +337,10 @@ def main():
         cmd_xref_string(args, secs, funcs, text, exe_data)
     elif args.xref_func is not None:
         cmd_xref_func(args, secs, funcs, text)
+    elif args.raw is not None:
+        cmd_raw(args, secs, funcs, text, exe_data)
+    elif args.xref_mem is not None:
+        cmd_xref_mem(args, secs, funcs, text)
     elif args.disasm is not None:
         cmd_disasm(args, secs, funcs, text, exe_data)
     else:
