@@ -199,6 +199,7 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x200E0` | per-type takedowns: assault rifle, lethal |
 | `0x200E1` | per-type takedowns: sniper rifle, lethal |
 | `0x200E2` | per-type takedowns: LMG, lethal |
+| `0x200FB` | per-type takedowns: sniper rifle, non-lethal (Mosin) |
 | `0x200E4` | per-type takedowns: shotgun, lethal |
 | `0x200E5` | per-type takedowns: rocket launcher, lethal |
 | `0x200E6` | per-type takedowns: grenade, lethal |
@@ -244,7 +245,7 @@ Pistol confirms the alignment: lethal `0x200DF` is index 2, non-lethal
 | ---: | --- | --- | --- |
 | 2 | pistol | `0x200DF` | `0x200F9` |
 | 3 | assault rifle | `0x200E0` | `0x200FA` (predicted) |
-| 4 | sniper rifle | `0x200E1` | `0x200FB` (predicted) |
+| 4 | sniper rifle | `0x200E1` | `0x200FB` |
 | 5 | LMG | `0x200E2` | `0x200FC` (predicted) |
 | 7 | shotgun | `0x200E4` | `0x200FE` (predicted) |
 | 8 | rocket launcher | `0x200E5` | - |
@@ -252,8 +253,13 @@ Pistol confirms the alignment: lethal `0x200DF` is index 2, non-lethal
 | 11 | placed explosive (C4) | `0x200E8` | `0x20102` (predicted) |
 | 13 | CQC | - | `0x20104` |
 
-The non-lethal predictions are untested; the Mosin Nagant (the only tranq
-weapon besides the Mk22, dropped after Main Op 7) would settle them.
+**The model is confirmed by prediction.** `0x200FB` was written here as the
+predicted sniper slot before the profile owned a Mosin Nagant; a 2-takedown
+Mosin run later lifted exactly that address off zero. The remaining
+non-lethal predictions follow from the same arithmetic.
+
+That run also moved `0x442002E` by 2, so it is the non-lethal *weapon*
+total across weapons rather than a pistol-only counter, with CQC excluded.
 
 A CQC run of 2 chokes and 2 slams - one slam ineffective, since an enemy
 must be choked a little before a slam actually stuns - moved `0x20104` by

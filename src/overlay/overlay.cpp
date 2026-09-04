@@ -1156,11 +1156,11 @@ void draw_mgspw_global(const GameStats& stats)
         }
         if (stats.pw_pistol_takedowns >= 0) {
             snprintf(buf, sizeof(buf),
-                     "pistol %d+%d  AR %d  SR %d  LMG %d  SG %d  CQC %d",
+                     "pistol %d+%d  AR %d  SR %d+%d  LMG %d  SG %d  CQC %d",
                      stats.pw_pistol_takedowns, stats.pw_pistol_lethal,
                      stats.pw_ar_takedowns, stats.pw_sniper_takedowns,
-                     stats.pw_lmg_takedowns, stats.pw_shotgun_takedowns,
-                     stats.pw_cqc_takedowns);
+                     stats.pw_sniper_nonlethal, stats.pw_lmg_takedowns,
+                     stats.pw_shotgun_takedowns, stats.pw_cqc_takedowns);
             snprintf(buf, sizeof(buf), "grenade %d  rocket %d  placed %d",
                      stats.pw_grenade_takedowns, stats.pw_rocket_takedowns,
                      stats.pw_placed_takedowns);
