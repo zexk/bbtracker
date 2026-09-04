@@ -1149,6 +1149,12 @@ void draw_mgspw_global(const GameStats& stats)
         snprintf(buf, sizeof(buf), "%d lethal / %d non-lethal", stats.pw_kills,
                  stats.pw_tranq);
         row("takedowns", buf);
+        if (stats.pw_damage_taken >= 0) {
+            // 8000 is a full health bar, so this reads as "bars of damage".
+            snprintf(buf, sizeof(buf), "%d  (%.1f bars)", stats.pw_damage_taken,
+                     stats.pw_damage_taken / 8000.0);
+            row("damage taken", buf);
+        }
         if (stats.pw_stealth_kills >= 0 && stats.pw_kills >= 0) {
             snprintf(buf, sizeof(buf), "%d of %d kills", stats.pw_stealth_kills,
                      stats.pw_kills);

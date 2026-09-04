@@ -205,6 +205,7 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x200E6` | per-type takedowns: grenade, lethal |
 | `0x200E8` | per-type takedowns: placed explosive, lethal |
 | `0x2007C` | kills on enemies that never spotted the player |
+| `0x20023` | career damage taken, same 0-8000 scale as health |
 | `0x420002` | alerts |
 | `0x442002E` | non-lethal takedowns, total (body shots count, misses do not) |
 | `0x200DF` | per-type takedowns: pistol, lethal |
@@ -320,6 +321,12 @@ earlier 6-kill run moving `0x4420031` by 6.
 `+3` from every clean single-weapon run regardless of weapon, `+2` from a
 mixed 6-kill boss run, and `+2` from a 3-kill grenade run the player
 described as two stealth kills followed by one after being found.
+
+`0x20023` counts damage taken across the career on the same 0-8000 scale as
+health. A run that left the player at `5070/8000` moved it by `2958`, and it
+stays at zero through clean stealth runs while boss fights and firefights
+add thousands. A GMP reading ruled out the "cumulative GMP earned" theory
+first: `+192` earned moved it not at all.
 
 Heroism responds to both lethality and alerts: `+22` on a clean no-kill
 no-alert clear, `+7` on the same mission with one alert, `+0` with kills.
@@ -613,14 +620,7 @@ confirms the enemy/prisoner split, since the screen shows their sum.
   Challenge, so that mission's S line is at most `6000`. The `+0x420` config
   block (`9999`, `8000` x3, `6000` x3, `1000` x8, `100`) is the obvious place
   for per-rank or per-target values but has not been tied to a rank yet.
-- **Career id `0x20023`** is cumulative and strictly increasing (`4962` ->
-  `34566` over the session), so it is not a current value such as vehicle
-  health. It moved `+6000` on a first clear, `+4945` on a dirty replay,
-  `+1972` on a lethal pistol run, `+4930` on a grenade run, `+11757` across
-  the two missions ending in the tank battle, and not at all on some clean
-  runs. Cumulative GMP earned fits (the balance falls with R&D spending while
-  this does not); testable by comparing one mission's results-screen GMP
-  against the delta.
+- (resolved) `0x20023` is career damage taken - see the stat table.
 - **`0x20106`** moved `+1` on the LAV boss and `+1` on the T-72U tank battle,
   so armored-vehicle bosses defeated fits. `0x420080` came off zero by `+2`
   on the tank mission and is unexplained.

@@ -97,6 +97,9 @@ constexpr uint32_t kPlacedIds[] = {0x200E8};       // lethal, placed explosive (
 // Kills on enemies that never spotted the player. Confirmed by a run the
 // player reported as 2 stealth kills then 1 after being found: +2.
 constexpr uint32_t kStealthKillIds[] = {0x2007C};
+// Career damage taken, on the same 0-8000 scale as health: a run that ended
+// with the player at 5070/8000 moved it by 2958.
+constexpr uint32_t kDamageTakenIds[] = {0x20023};
 constexpr uint32_t kArIds[] = {0x200E0};      // lethal, assault rifle
 constexpr uint32_t kShotgunIds[] = {0x200E4}; // lethal, shotgun
 constexpr uint32_t kSniperIds[] = {0x200E1};  // lethal, sniper rifle
@@ -139,6 +142,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
         {kRocketIds, std::size(kRocketIds), &out.pw_rocket_takedowns, nullptr},
         {kPlacedIds, std::size(kPlacedIds), &out.pw_placed_takedowns, nullptr},
         {kStealthKillIds, std::size(kStealthKillIds), &out.pw_stealth_kills, nullptr},
+        {kDamageTakenIds, std::size(kDamageTakenIds), &out.pw_damage_taken, nullptr},
         {kFultonIds, std::size(kFultonIds), &out.pw_fulton_recoveries, nullptr},
         {kPrisonerIds, std::size(kPrisonerIds), &out.pw_prisoner_extractions, nullptr},
         {kNoItemClearIds, std::size(kNoItemClearIds), &out.pw_noitem_clears, nullptr},

@@ -169,6 +169,7 @@ struct GameStats {
     int pw_rocket_takedowns = -1;   // id 0x200E5, lethal
     int pw_placed_takedowns = -1;   // id 0x200E8, lethal (C4 and the like)
     int pw_stealth_kills = -1;      // id 0x2007C, kills on unaware enemies
+    int pw_damage_taken = -1;       // id 0x20023, career damage taken (8000 = a full bar)
     // Live per-sortie deltas, differenced client-side at stage change
     // (action careers tick live mid-mission; heroism/XP/GMP settle at
     // results, so their segments only move post-results).
