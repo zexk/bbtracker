@@ -1047,7 +1047,9 @@ void draw_mgspw_current(const GameStats& stats)
         if (stats.pw_cur_best) {
             const unsigned long long best_ms =
                 static_cast<unsigned long long>(stats.pw_cur_best) * 1000ULL / 300ULL;
-            snprintf(head, sizeof(head), "mission %d  best %s  %llu:%02llu.%03llu",
+            // Rank and time are separate bests and may come from different
+            // runs, so they are labelled apart rather than read as one result.
+            snprintf(head, sizeof(head), "mission %d  best rank %s  best time %llu:%02llu.%03llu",
                      stats.pw_mission_id, rank, best_ms / 60000, (best_ms / 1000) % 60,
                      best_ms % 1000);
         } else {
