@@ -72,16 +72,34 @@ uintptr_t g_saveroot_ptr = 0;   // address holding save-block pointer
 uintptr_t g_mission_time = 0;   // address of qword elapsed timer
 uintptr_t g_chararray_ptr = 0;  // address holding character-pointer-array
 uintptr_t g_mission_id = 0;     // address of current mission id (-1 outside a mission)
+uintptr_t g_stat_array = 0;     // address holding the stat descriptor array pointer
 bool g_scanned = false;
 bool g_dumped = false;
 
-// Lifetime-stat descriptor: 48-byte records framing {max,max} around the
-// id, with the value 32 bytes past the record start:
-//   +0x00 u32 max (999999) ... +0x10 u32 id, +0x18 i32 last-delta,
-//   +0x20 i32 value, +0x28 u32 max. The table reallocates between
-// missions, so resolve by id on every poll (cheap linear scan).
+// Lifetime-stat descriptors are one flat array, indexed directly by the low
+// 16 bits of the stat id - the game's own getter (0x1400E3A90) does
+// `record = *PW_STATARRAY - 0x10 + (id & 0xFFFF) * 0x28`. Records are 0x28
+// bytes: +0x10 u32 id, +0x18 i32 this mission's tally, +0x20 i32 career.
+// The 999999 seen at +0x00 and +0x28 is one record's bound plus the next
+// record's, which is what made these look like 48-byte records.
+// The array reallocates between missions, so the pointer is re-read each poll
+// and every record is checked against its expected id before use.
+// Stat-descriptor getter (0x1400E3A90): sub rsp,0x58 / movsx rax,cx /
+// lea rcx,[rax+rax*4] / mov rax,[rip+disp] / movups xmm0,[rax+rcx*8+0x10].
+// The disp lands on the array pointer; +0x10 in that last operand is why the
+// records start one bias below it.
+constexpr uint8_t kStatArrayPat[] = {
+    0x48, 0x83, 0xEC, 0x58, 0x48, 0x0F, 0xBF, 0xC1, 0x48, 0x8D, 0x0C, 0x80,
+    0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x10, 0x44, 0xC8, 0x10};
+constexpr bool kStatArrayWild[] = {
+    false, false, false, false, false, false, false, false, false, false, false, false,
+    false, false, false, true, true, true, true, false, false, false, false, false};
+
 constexpr uint32_t kStatMax = 999999;
 constexpr size_t kStatScanSize = 0x30000;
+constexpr size_t kStatStride = 0x28;
+constexpr uintptr_t kStatArrayBias = 0x10;
+constexpr uint32_t kStatIndexMax = 0x123;  // the getter's own bounds check
 constexpr uint32_t kHeadshotIds[] = {0x4420031};
 constexpr uint32_t kKillIds[] = {0x420008};
 // Non-lethal takedown total. 0x200F9 is the pistol-only subset, so it is
@@ -154,6 +172,47 @@ void read_stat_families(uintptr_t block, GameStats& out)
         *f.field = -1;
         if (f.mission_field) {
             *f.mission_field = -1;
+        }
+    }
+    // Direct index, the way the game's own getter does it. Falls back to the
+    // linear scan below if the array pointer did not resolve.
+    if (g_stat_array && range_readable(g_stat_array, sizeof(uintptr_t))) {
+        const uintptr_t array =
+            *reinterpret_cast<volatile const uintptr_t*>(g_stat_array);
+        if (array > kStatArrayBias) {
+            const uintptr_t records = array - kStatArrayBias;
+            bool all_ok = true;
+            for (const Family& f : families) {
+                for (size_t i = 0; i < f.count; ++i) {
+                    const uint32_t index = f.ids[i] & 0xFFFF;
+                    if (index > kStatIndexMax) {
+                        continue;
+                    }
+                    const uintptr_t rec = records + index * kStatStride;
+                    if (!range_readable(rec, kStatStride)) {
+                        all_ok = false;
+                        continue;
+                    }
+                    const auto* words = reinterpret_cast<volatile const uint32_t*>(rec);
+                    // The index is derived from the id, so a record whose id
+                    // does not match means the array moved or the layout
+                    // changed - never trust the value in that case.
+                    if (words[4] != f.ids[i]) {
+                        all_ok = false;
+                        continue;
+                    }
+                    *f.field = static_cast<int>(words[8]);
+                    const int mission = static_cast<int>(words[6]);
+                    // Only the 0x042/0x442 families keep a real tally here;
+                    // the 0x002 copies leave junk in the slot.
+                    if (f.mission_field && mission >= 0 && mission < 10000) {
+                        *f.mission_field = mission;
+                    }
+                }
+            }
+            if (all_ok) {
+                return;
+            }
         }
     }
     // One linear pass; readability checked per page (the table moves, but
@@ -280,6 +339,8 @@ void ensure_resolved()
                               std::size(kMissionTimePat), kMissionTimeDisp);
     g_chararray_ptr = scan_one(mod, kCharArrayPat, kCharArrayWild,
                                std::size(kCharArrayPat), kCharArrayDisp);
+    g_stat_array = scan_one(mod, kStatArrayPat, kStatArrayWild,
+                            std::size(kStatArrayPat), 15);
     g_mission_id = scan_one(mod, kMissionIdPat, kMissionIdWild,
                             std::size(kMissionIdPat), kMissionIdDisp);
     LOG_INFO("MGSPW resolved save=%llX time=%llX chars=%llX",
@@ -294,6 +355,9 @@ void ensure_resolved()
     }
     if (!g_chararray_ptr) {
         LOG_WARN("MGSPW PW_CHARARRAY pattern not found");
+    }
+    if (!g_stat_array) {
+        LOG_WARN("MGSPW PW_STATARRAY pattern not found; falling back to the id scan");
     }
 }
 

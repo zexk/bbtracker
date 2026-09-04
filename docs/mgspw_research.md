@@ -63,6 +63,7 @@ image base `0x140000000`.
 | `PW_CHARARRAY` | `53 48 83 EC 20 48 8B 05 ?? ?? ?? ?? 48 63 D1 48 8B 0C D0` | 8 | - |
 | `PW_MISSIONTIME` | `48 89 05 ?? ?? ?? ?? 41 0F BA E1 19` | 3 | - |
 | `PW_MISSIONID` | `33 DB BE FF FF FF FF B9 FF FF FF 00 48 89 1D ?? ?? ?? ?? 8B EB 89 35 ?? ?? ?? ??` | 23 | `0x1414F0A00` |
+| `PW_STATARRAY` | `48 83 EC 58 48 0F BF C1 48 8D 0C 80 48 8B 05 ?? ?? ?? ?? 0F 10 44 C8 10` | 15 | `0x14121DFE8` |
 
 `PW_SAVEROOT` holds a pointer to the save block; the matched site
 (`0x140215D10`) is a getter returning `saveroot+0xBD3C`. `PW_MISSIONID` is the
@@ -79,7 +80,7 @@ Other globals worth keeping:
 | `0x14143B738` | mission definition table owner (`+0xB0` header, `+0xB8` rows) |
 | `0x1414C72F0` | mission-record context for `0x140259C10(ctx, missionId)` clear queries |
 | `0x141596A88` | `MGK_IAchievementSystem*` singleton |
-| `0x14121DFE8` | Mother Base roster array, stride `0x28` |
+| `0x14121DFE8` | stat descriptor array pointer; `record = *ptr - 0x10 + (id & 0xFFFF) * 0x28` |
 
 ## Save block layout
 
@@ -117,8 +118,8 @@ Timers are 300 Hz ticks unless stated.
 | `+0x1C098` | `char[]` | ASCII codename of the soldier in use (e.g. `ALLIGATOR`) |
 
 Stat descriptors also live in this block (observed around `+0x5200..+0x8000`),
-but the table is reallocated between missions - always resolve by id, never by
-absolute offset.
+but the table is reallocated between missions - always go through the array
+pointer and the id index, never an absolute offset.
 
 ### Per-mission arrays
 
@@ -187,7 +188,20 @@ missions are played.
 
 ## Stat descriptors
 
-48-byte records, located by the `999999` bounds at both ends.
+One flat array of `0x28`-byte records, indexed directly by the low 16 bits of
+the stat id - the low bits *are* the slot, and the high bits (`0x002`, `0x042`,
+`0x442`) are category. The game's own getter at `0x1400E3A90` does:
+
+```
+record = *(0x14121DFE8) - 0x10 + (id & 0xFFFF) * 0x28
+```
+
+and bounds-checks the index against `0x123`, so the table is 291 records. The
+`-0x10` is because the global points at `record+0x10`; the getter's operand
+carries the `+0x10` instead. Verified against eight known ids - pistol lethal
+and non-lethal, CQC, kills, tranq total, heroism, headshots, no-alert clears -
+each landing on its own record. `PW_STATARRAY` resolves the global by AOB on
+the getter, which matches exactly once.
 
 | Offset | Type | Meaning |
 | ---: | --- | --- |
@@ -195,7 +209,10 @@ missions are played.
 | `+0x10` | `u32` | stat id |
 | `+0x18` | `i32` | this mission's tally - ticks live during play |
 | `+0x20` | `i32` | career value - settles during the results tally |
-| `+0x28` | `u32` | bound, `999999` |
+
+The `999999` that appears `0x28` bytes after a record's own bound is the *next*
+record's bound. Reading the pair as one record's frame is what made these look
+like 48-byte records, and why the probe scanned for them until now.
 
 Category matters: `0x042`/`0x442` ids keep a real tally at `+0x18`; `0x002`
 ids leave junk there (large negative values), so filter to a sane range.
