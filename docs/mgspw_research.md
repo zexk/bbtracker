@@ -198,6 +198,7 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x420008` | lethal takedowns (kills), total |
 | `0x200E0` | per-type takedowns: assault rifle, lethal |
 | `0x200E1` | per-type takedowns: sniper rifle, lethal |
+| `0x200E2` | per-type takedowns: LMG, lethal |
 | `0x200E4` | per-type takedowns: shotgun, lethal |
 | `0x200E5` | per-type takedowns: rocket launcher, lethal |
 | `0x200E6` | per-type takedowns: grenade, lethal |
@@ -243,6 +244,7 @@ Pistol confirms the alignment: lethal `0x200DF` is index 2, non-lethal
 | 2 | pistol | `0x200DF` | `0x200F9` |
 | 3 | assault rifle | `0x200E0` | `0x200FA` (predicted) |
 | 4 | sniper rifle | `0x200E1` | `0x200FB` (predicted) |
+| 5 | LMG | `0x200E2` | `0x200FC` (predicted) |
 | 7 | shotgun | `0x200E4` | `0x200FE` (predicted) |
 | 8 | rocket launcher | `0x200E5` | - |
 | 9 | grenade | `0x200E6` | `0x20100` (predicted) |
@@ -621,8 +623,10 @@ confirms the enemy/prisoner split, since the screen shows their sum.
   owns none yet).
   Each type appears to have both a lethal and a non-lethal slot. Each unused type reads `0`, so a run using one
   Each unused type reads `0`, so a run using one type for 2-3 takedowns
-  lights up exactly one slot. Next: SMG, sniper, LMG, rockets, grenades, plus
-  the non-lethal slots for the types already found.
+  lights up exactly one slot. The lethal bank now runs pistol 2, assault
+  rifle 3, sniper 4, LMG 5, gap 6, shotgun 7, rocket 8, grenade 9; index 6 is
+  most likely SMG, which this profile does not own. Indices 0, 1 and 10+ are
+  still unclaimed, as is the whole non-lethal bank beyond pistol and CQC.
 - (resolved) `0x2007C` is kills on unaware enemies - see the stat table.
 - **`0x442002E` scope.** CQC takedowns never touch it (three runs now,
   including a story mission where 6 pistol takedowns moved both it and the

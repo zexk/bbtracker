@@ -161,6 +161,7 @@ struct GameStats {
     int pw_ar_takedowns = -1;       // id 0x200E0, lethal
     int pw_shotgun_takedowns = -1;  // id 0x200E4, lethal
     int pw_sniper_takedowns = -1;   // id 0x200E1, lethal
+    int pw_lmg_takedowns = -1;      // id 0x200E2, lethal
     int pw_pistol_lethal = -1;      // id 0x200DF, lethal
     int pw_cqc_takedowns = -1;      // id 0x20104, chokes and slams alike
     int pw_grenade_takedowns = -1;  // id 0x200E6, lethal
