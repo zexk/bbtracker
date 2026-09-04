@@ -154,6 +154,35 @@ def decode(data, pos=0, limit=None):
         pos += width
 
 
+HEADER_ENTRIES = 11
+
+
+def header(data):
+    """Parse the .rlc header: magic then 11 {u24 value, u8 tag} entries.
+
+    Evidence: all 92 extracted scripts start with 'oEbN', and read this way
+    970 of 984 entry values land inside the file with tags drawn from
+    {0,1,2,3,4,5,255}. Reading the entries as plain u32 instead produces
+    absurd sizes, which is what the byte-swapped-looking values are.
+
+    What each entry selects is NOT known, and neither is where sections start:
+    "0x30 + entry[10] is the body length" holds for 70 of the 92 files and
+    overruns on the other 22. The game never validates the magic - the four
+    bytes appear nowhere in .text as an immediate - so nothing in code pins
+    the layout either.
+    """
+    if data[:4] != b"oEbN":
+        return None
+    out = []
+    for i in range(HEADER_ENTRIES):
+        off = 4 + i * 4
+        if off + 4 > len(data):
+            break
+        value = data[off] | data[off + 1] << 8 | data[off + 2] << 16
+        out.append((value, data[off + 3]))
+    return out
+
+
 def scan_hashes(data):
     """Every u24 token in the file, which is where command/variable names live."""
     counts = collections.Counter()
@@ -170,6 +199,8 @@ def main():
     ap.add_argument("file", nargs="?")
     ap.add_argument("--offset", type=lambda v: int(v, 0), default=0)
     ap.add_argument("--limit", type=lambda v: int(v, 0), default=None)
+    ap.add_argument("--header", action="store_true",
+                    help="parse the .rlc container header")
     ap.add_argument("--hashes", action="store_true",
                     help="list the 24-bit name hashes the file references")
     ap.add_argument("--json", action="store_true")
@@ -189,12 +220,27 @@ def main():
         toks = list(decode(bytes([7, 3]) + b"abc"))
         assert toks[0].kind == "blob" and toks[0].raw == b"abc", toks
         assert list(decode(bytes([0])))[0].kind == "end"
+        h = header(b"oEbN" + bytes([0x18, 0, 0, 0]) + b"\x00" * 40)
+        assert h and h[0] == (0x18, 0), h
+        assert header(b"nope") is None
         print("self-test ok: immediate, s16, u24 hash, s32, blob, end")
         return
 
     if not args.file:
         ap.error("need a file (or --self-test)")
     data = pathlib.Path(args.file).read_bytes()
+
+    if args.header:
+        entries = header(data)
+        if entries is None:
+            print("not an 'oEbN' container")
+            return
+        print(f"{args.file}: {len(data)} bytes")
+        for i, (value, tag) in enumerate(entries):
+            note = "  (sentinel)" if value == 0xFFFFFF else (
+                "" if value <= len(data) else "  out of bounds")
+            print(f"  [{i:2d}] +0x{4 + i*4:02x}  value {value:#08x}  tag {tag:3d}{note}")
+        return
 
     if args.hashes:
         counts = scan_hashes(data)

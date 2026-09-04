@@ -875,11 +875,20 @@ the loaded script stream (`0x1400A52E0` over the registry at `0x1410A63E8`,
 matching a three-byte name hash at `[cursor-3]`), so the namespace is hashed
 and carries no plaintext names. Recovering the formula now means reading the
 results script - `STAGEDAT/0175_result.rlc` is extracted already - rather than
-more disassembly. `scripts/pwgcl.py` decodes the token layer; what is still
-missing is the `.rlc` container, since a script is not one flat stream. The
-26 activation calls in that file are 18-byte table entries the VM indexes
-into, not consecutive statements, so a forward walk from one does not reach the
-next.
+more disassembly. `scripts/pwgcl.py` decodes the token layer and parses the container header;
+section boundaries are still open. All 92 extracted scripts begin `oEbN`,
+followed by eleven `{u24 value, u8 tag}` entries - read that way 970 of 984
+values land inside the file with tags from `{0,1,2,3,4,5,255}`, whereas plain
+`u32` reads give absurd sizes. Entry 2 is a 24-bit name hash and entries with
+tag `255` are sentinels.
+
+What each entry selects is unknown. "Body length is entry 10, after a `0x30`
+header" holds for 70 of the 92 files and overruns on the other 22, so it is a
+coincidence of the common case rather than the rule. Nothing in code settles it
+either: the magic never appears as an immediate in `.text`, so the game does
+not validate it, and no loader can be found that way. The 26 activation calls
+in `result.rlc` are 18-byte table entries the VM indexes into, so a forward
+walk from one does not reach the next.
 
 Two earlier approaches are ruled out. Nothing in `.text` writes the rank array: every
 reference to displacement `0x32B4` is a read, a staging `memcpy`, or a
