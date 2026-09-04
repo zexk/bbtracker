@@ -155,6 +155,10 @@ inline std::vector<ReqStatus> requirements_from_rows(const GameStats& s,
 
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);
 
+std::optional<Match> evaluate_mgspw(const GameStats& s);
+
+std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s);
+
 std::optional<Match> evaluate_mgs2(const GameStats& s);
 
 std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s);

@@ -301,4 +301,156 @@ std::vector<ReqStatus> elite_requirements_mg2(const GameStats& s)
     return requirements_from_rows(s, kMg2Reqs, true);
 }
 
+// --- Peace Walker -----------------------------------------------------------
+//
+// PW does not score a codename from thresholds the way MGS1-4 do. It
+// classifies career play on three axes and hands out the matching title from a
+// 24-entry table; the table below is the game's own, recovered from
+// localization block slot/001FC/3 (names at 0-23, descriptions at 24+index).
+//
+// The axes are the game's, the cut-offs are ours: PW's own classifier has not
+// been located, so "all weapons" and the lethal/non-lethal balance are read
+// from the career counters with the thresholds documented here. Treat the
+// resulting name as an estimate; the per-axis rows are the real content.
+
+namespace {
+
+enum class WeaponClass : uint8_t { Short, Medium, Long, Explosive, Cqc, Stun, All };
+
+struct PwTitle {
+    const char* name;
+    WeaponClass cls;
+    bool coop;
+    bool nonlethal;
+};
+
+// Index is the game's own title index; FOX (14) is the solo counterpart to
+// FOXHOUND and the only slot whose name string the extraction did not carry.
+constexpr std::array<PwTitle, 24> kPwTitles{{
+    {"WOLF",      WeaponClass::Medium,    true,  false},
+    {"WHALE",     WeaponClass::Explosive, true,  true},
+    {"SWALLOW",   WeaponClass::Long,      false, true},
+    {"SCORPION",  WeaponClass::Short,     false, false},
+    {"RAVEN",     WeaponClass::Long,      true,  false},
+    {"PUMA",      WeaponClass::Medium,    false, false},
+    {"PIRANHA",   WeaponClass::Explosive, true,  false},
+    {"ORCA",      WeaponClass::Explosive, false, false},
+    {"OCTOPUS",   WeaponClass::Explosive, false, true},
+    {"KANGAROO",  WeaponClass::Cqc,       true,  true},
+    {"HOUND",     WeaponClass::All,       false, false},
+    {"HAWK",      WeaponClass::Long,      false, false},
+    {"GULL",      WeaponClass::Long,      true,  true},
+    {"FOXHOUND",  WeaponClass::All,       true,  true},
+    {"FOX",       WeaponClass::All,       false, true},
+    {"FIREFLY",   WeaponClass::Stun,      true,  true},
+    {"EEL",       WeaponClass::Stun,      false, true},
+    {"DOBERMAN",  WeaponClass::All,       true,  false},
+    {"DEER",      WeaponClass::Medium,    true,  true},
+    {"CAT",       WeaponClass::Medium,    false, true},
+    {"BUTTERFLY", WeaponClass::Short,     false, true},
+    {"BEE",       WeaponClass::Short,     true,  false},
+    {"BEAR",      WeaponClass::Cqc,       false, true},
+    {"ANT",       WeaponClass::Short,     true,  true},
+}};
+
+// A counter reads -1 until its descriptor id resolves; treat that as zero so a
+// partially resolved profile still classifies instead of vanishing.
+constexpr int pw_count(int value)
+{
+    return value > 0 ? value : 0;
+}
+
+struct PwProfile {
+    int by_class[6] = {};
+    int total = 0;
+    int top = 0;
+    int classes_used = 0;
+    WeaponClass dominant = WeaponClass::All;
+    int nonlethal = 0;
+    int lethal = 0;
+};
+
+// "All weapons" is the elite branch: no class may hold this share or more of
+// career takedowns, and this many classes must be in use.
+constexpr double kPwSpreadShare = 0.40;
+constexpr int kPwSpreadClasses = 4;
+
+PwProfile pw_profile(const GameStats& s)
+{
+    PwProfile p;
+    p.by_class[static_cast<int>(WeaponClass::Short)] =
+        pw_count(s.pw_pistol_takedowns) + pw_count(s.pw_pistol_lethal)
+        + pw_count(s.pw_shotgun_takedowns);
+    p.by_class[static_cast<int>(WeaponClass::Medium)] =
+        pw_count(s.pw_ar_takedowns) + pw_count(s.pw_lmg_takedowns);
+    p.by_class[static_cast<int>(WeaponClass::Long)] =
+        pw_count(s.pw_sniper_takedowns) + pw_count(s.pw_sniper_nonlethal);
+    p.by_class[static_cast<int>(WeaponClass::Explosive)] =
+        pw_count(s.pw_grenade_takedowns) + pw_count(s.pw_rocket_takedowns)
+        + pw_count(s.pw_placed_takedowns);
+    p.by_class[static_cast<int>(WeaponClass::Cqc)] = pw_count(s.pw_cqc_takedowns);
+    p.by_class[static_cast<int>(WeaponClass::Stun)] = 0; // no stun-rod id yet
+
+    int top_index = 0;
+    for (int i = 0; i < 6; ++i) {
+        p.total += p.by_class[i];
+        if (p.by_class[i] > 0) ++p.classes_used;
+        if (p.by_class[i] > p.top) {
+            p.top = p.by_class[i];
+            top_index = i;
+        }
+    }
+    const bool spread = p.total > 0
+        && p.classes_used >= kPwSpreadClasses
+        && static_cast<double>(p.top) < static_cast<double>(p.total) * kPwSpreadShare;
+    p.dominant = spread ? WeaponClass::All : static_cast<WeaponClass>(top_index);
+    p.nonlethal = pw_count(s.pw_tranq) + pw_count(s.pw_cqc_takedowns);
+    p.lethal = pw_count(s.pw_kills);
+    return p;
+}
+
+} // namespace
+
+std::optional<Match> evaluate_mgspw(const GameStats& s)
+{
+    const PwProfile p = pw_profile(s);
+    if (p.total <= 0) {
+        return std::nullopt;
+    }
+    // Co-op play is not exposed by any resolved counter - every CO-OP line on
+    // the in-game stats screen reads 0 on a solo profile - so the co-op half of
+    // the table is unreachable here and FOXHOUND cannot be claimed.
+    const bool nonlethal = p.nonlethal > p.lethal;
+    for (const PwTitle& t : kPwTitles) {
+        if (t.cls == p.dominant && !t.coop && t.nonlethal == nonlethal) {
+            return Match{t.name, t.cls == WeaponClass::All ? Kind::Elite : Kind::Regular};
+        }
+    }
+    return std::nullopt;
+}
+
+std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s)
+{
+    const PwProfile p = pw_profile(s);
+    const auto row = [](const char* label, bool pass, double current, double limit) {
+        return ReqStatus{label, pass, current, limit,
+                         static_cast<uint8_t>(ReqFmt::Count),
+                         static_cast<uint8_t>(Op::Ge)};
+    };
+    std::vector<ReqStatus> out;
+    // FOX is the solo all-weapons non-lethal title: spread the takedowns, keep
+    // no class dominant, and stay non-lethal.
+    out.push_back(row("weapon classes used", p.classes_used >= kPwSpreadClasses,
+                      p.classes_used, kPwSpreadClasses));
+    const double top_share = p.total > 0 ? 100.0 * p.top / p.total : 0.0;
+    out.push_back(ReqStatus{"top class share %", top_share < kPwSpreadShare * 100.0,
+                            top_share, kPwSpreadShare * 100.0,
+                            static_cast<uint8_t>(ReqFmt::Count),
+                            static_cast<uint8_t>(Op::Le)});
+    out.push_back(row("non-lethal takedowns", p.nonlethal > p.lethal, p.nonlethal,
+                      p.lethal + 1));
+    out.push_back(row("lethal kills", p.lethal < p.nonlethal, p.lethal, 0));
+    return out;
+}
+
 } // namespace bb::codename

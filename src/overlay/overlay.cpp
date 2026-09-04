@@ -808,6 +808,7 @@ IdColors id_colors(Game game)
     case Game::MGS2: return {{0.42f, 0.82f, 0.52f, 1}, {0.92f, 0.70f, 0.24f, 1}, {0.76f, 0.19f, 0.11f, 1}};
     case Game::MGS3: return {{0.66f, 0.78f, 0.42f, 1}, {0.88f, 0.72f, 0.28f, 1}, {0.82f, 0.32f, 0.24f, 1}};
     case Game::MGS4: return {{0.55f, 0.78f, 0.82f, 1}, {0.90f, 0.72f, 0.28f, 1}, {0.88f, 0.30f, 0.24f, 1}};
+    case Game::MGSPW: return {{0.76f, 0.80f, 0.66f, 1}, {0.85f, 0.75f, 0.42f, 1}, {0.89f, 0.13f, 0.15f, 1}};
     }
     return {{0.42f, 0.90f, 0.45f, 1}, {1.0f, 0.82f, 0.25f, 1}, {0.95f, 0.35f, 0.35f, 1}};
 }
@@ -1013,7 +1014,7 @@ constexpr EvaluateFn kEvaluateFns[] = {
     [static_cast<int>(Game::MGS2)] = codename::evaluate_mgs2,
     [static_cast<int>(Game::MGS3)] = codename::evaluate_mgs3,
     [static_cast<int>(Game::MGS4)] = codename::evaluate_mgs4,
-    [static_cast<int>(Game::MGSPW)] = nullptr,
+    [static_cast<int>(Game::MGSPW)] = codename::evaluate_mgspw,
 };
 
 constexpr RequirementsFn kRequirementsFns[] = {
@@ -1023,7 +1024,7 @@ constexpr RequirementsFn kRequirementsFns[] = {
     [static_cast<int>(Game::MGS2)] = codename::elite_requirements_mgs2,
     [static_cast<int>(Game::MGS3)] = codename::elite_requirements_mgs3,
     [static_cast<int>(Game::MGS4)] = codename::elite_requirements_mgs4,
-    [static_cast<int>(Game::MGSPW)] = nullptr,
+    [static_cast<int>(Game::MGSPW)] = codename::elite_requirements_mgspw,
 };
 
 static_assert(std::size(kEvaluateFns) == 7);
@@ -1305,6 +1306,48 @@ void draw_mgspw_global(const GameStats& stats)
     }
 }
 
+void draw_mgspw_codename(const GameStats& stats)
+{
+    // Same grammar as the Summary tab: the title, then the axes it is scored
+    // on. PW classifies career play rather than a single run, so every row is
+    // a lifetime counter.
+    const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
+    const auto match = codename::evaluate_mgspw(stats);
+    const ImVec4 title_color = !match ? ImVec4(1, 1, 1, 0.35f)
+        : std::strcmp(match->name, "FOXHOUND") == 0 || std::strcmp(match->name, "FOX") == 0
+            ? id_green
+            : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::TextColored(title_color, "%s", match ? match->name : "---");
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::TextDisabled("estimated - solo table only");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("toward FOX", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        for (const codename::ReqStatus& r : codename::elite_requirements_mgspw(stats)) {
+            char value[64];
+            if (r.limit == 0) {
+                snprintf(value, sizeof(value), "%.0f", r.current);
+            } else {
+                snprintf(value, sizeof(value), "%.0f / %.0f", r.current, r.limit);
+            }
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(r.label);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(r.pass ? id_green : id_red, "%s", value);
+        }
+        ImGui::EndTable();
+    }
+
+    ImGui::Spacing();
+    ImGui::TextDisabled("FOXHOUND is the co-op title; no co-op counter resolves");
+    ImGui::TextDisabled("on a solo profile, so it cannot be reached here.");
+}
+
 void draw_panel()
 {
     static GameStats stats{};
@@ -1337,7 +1380,7 @@ void draw_panel()
 
     static int selected_tab = 0;
     const int tab_count = g_game == Game::MGS3 ? 3 : g_game == Game::MGS4 ? 2
-        : g_game == Game::MGSPW                                             ? 2
+        : g_game == Game::MGSPW                                             ? 3
                                                                             : 0;
     if (tab_count && key_pressed(kTabKey)) {
         selected_tab = (selected_tab + 1) % tab_count;
@@ -1359,6 +1402,12 @@ void draw_panel()
                         "Global", nullptr,
                         selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
             draw_mgspw_global(stats);
+            ImGui::EndTabItem();
+        }
+        if (tabs && ImGui::BeginTabItem(
+                        "Codename", nullptr,
+                        selected_tab == 2 ? ImGuiTabItemFlags_SetSelected : 0)) {
+            draw_mgspw_codename(stats);
             ImGui::EndTabItem();
         }
         if (tabs) {
