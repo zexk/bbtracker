@@ -201,7 +201,8 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x200DF` | per-type takedowns: pistol, lethal |
 | `0x200F9` | per-type takedowns: pistol, non-lethal |
 | `0x20104` | per-type takedowns: CQC (non-lethal bank index 13), chokes and slams alike |
-| `0x442007B` | CQC uses (career), more than one per takedown |
+| `0x442007B` | CQC uses (career); a choke-then-slam sequence is one use |
+| `0x2006B` | ineffective CQC (a slam that fails to stun) |
 | `0x4420031` | headshots |
 | `0x4420077` | heroism (equals `save+0x64F4`) |
 | `0x2008E` | Fulton recoveries |
@@ -245,6 +246,10 @@ ineffective slam counts as a use and earns no takedown. Index 13 is
 therefore CQC as a weapon type, with chokes and stunning slams sharing it;
 there is no lethal CQC in this game. `0x200F7`/`0x20106` stayed flat, so
 those two belong to the LAV mission after all.
+
+A follow-up run of two clean slams moved takedowns and uses by `+2` each and
+left `0x2006B` alone, which pins `0x2006B` to ineffective CQC and shows a
+choke-then-slam sequence counts as a single use.
 
 Three are pinned by player-reported runs: a 7-takedown mission (6 pistol,
 1 CQC) moved the total `+7` and `0x200F9` `+6`; three single-weapon
@@ -537,10 +542,9 @@ the retracted weapon-XP multiplier below was invented.
   counts tranq-weapon takedowns rather than all non-lethal ones. That leaves
   the LAV run unexplained: 6 pistol plus 1 CQC moved it `+7` while the pistol
   counter moved `+6`.
-- **`0x2006B`** came off zero by `+1` on a run containing two slams, one of
-  which stunned and one of which did not, so it counts exactly one of those
-  two cases. Two clean stunning slams separate them: `+2` means slam
-  takedowns, `0` means ineffective CQC.
+- **`0x2006B`** is settled as ineffective CQC, not slam takedowns: it moved
+  `+1` on the run with one failed slam and stayed flat through a run of two
+  clean slams.
 
 - **`0x2002F` vs `0x200ED`** both moved `+3` on the body-shot run and are so
   far indistinguishable.
