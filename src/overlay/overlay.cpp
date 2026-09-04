@@ -1184,7 +1184,8 @@ void draw_mgspw_global(const GameStats& stats)
             row("headshots", buf);
         }
         if (stats.pw_fulton_recoveries >= 0) {
-            snprintf(buf, sizeof(buf), "%d", stats.pw_fulton_recoveries);
+            snprintf(buf, sizeof(buf), "%d  (+%d POW)", stats.pw_fulton_recoveries,
+                     stats.pw_prisoner_extractions);
             row("Fulton", buf);
         }
         if (stats.pw_nokill_clears >= 0) {

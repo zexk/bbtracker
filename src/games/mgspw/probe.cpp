@@ -99,7 +99,8 @@ constexpr uint32_t kStealthKillIds[] = {0x2007C};
 constexpr uint32_t kArIds[] = {0x200E0};      // lethal, assault rifle
 constexpr uint32_t kShotgunIds[] = {0x200E4}; // lethal, shotgun
 constexpr uint32_t kSniperIds[] = {0x200E1};  // lethal, sniper rifle
-constexpr uint32_t kFultonIds[] = {0x2008E};  // Fulton recoveries (confirmed)
+constexpr uint32_t kFultonIds[] = {0x2008E};    // Fulton: enemies
+constexpr uint32_t kPrisonerIds[] = {0x2008F};  // Fulton: prisoners
 constexpr uint32_t kClearCounterIds[] = {0x44200DC};
 constexpr uint32_t kNoAlertClearIds[] = {0x442011E};
 constexpr uint32_t kNoKillClearIds[] = {0x442011F};
@@ -132,6 +133,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
         {kRocketIds, std::size(kRocketIds), &out.pw_rocket_takedowns, nullptr},
         {kStealthKillIds, std::size(kStealthKillIds), &out.pw_stealth_kills, nullptr},
         {kFultonIds, std::size(kFultonIds), &out.pw_fulton_recoveries, nullptr},
+        {kPrisonerIds, std::size(kPrisonerIds), &out.pw_prisoner_extractions, nullptr},
         {kClearCounterIds, std::size(kClearCounterIds), &out.pw_clear_counter, nullptr},
         {kNoAlertClearIds, std::size(kNoAlertClearIds), &out.pw_noalert_clears, nullptr},
         {kNoKillClearIds, std::size(kNoKillClearIds), &out.pw_nokill_clears, nullptr},

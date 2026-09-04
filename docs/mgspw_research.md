@@ -210,7 +210,8 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x2006B` | ineffective CQC (a slam that fails to stun) |
 | `0x4420031` | headshots |
 | `0x4420077` | heroism (equals `save+0x64F4`) |
-| `0x2008E` | Fulton recoveries |
+| `0x2008E` | Fulton extractions: enemies |
+| `0x2008F` | Fulton extractions: prisoners |
 | `0x442011E` | clears with no alert |
 | `0x442011F` | clears with no kill |
 | `0x44200DC` | clear counter, subset of `save+0x656C` |
@@ -570,10 +571,9 @@ the retracted weapon-XP multiplier below was invented.
   counts tranq-weapon takedowns rather than all non-lethal ones. The LAV
   run's `+7` against a pistol `+6` is most likely a miscounted seventh
   pistol takedown rather than CQC feeding the total.
-- **`0x2008F` and `0x4420030`** each moved `+1` on a story mission with one
-  CQC takedown and six Fultons, and every CQC there was followed by a Fulton,
-  so the two cannot be separated yet. A run with CQC takedowns left
-  un-extracted would split them.
+- **`0x4420030`** moved `+1` for the first time all session on the run that
+  rescued a prisoner, so it is prisoner-linked, but it reads `6` against
+  `0x2008F`'s `2` and therefore counts something broader.
 - **`0x2006B`** is settled as ineffective CQC, not slam takedowns: it moved
   `+1` on the run with one failed slam and stayed flat through a run of two
   clean slams.

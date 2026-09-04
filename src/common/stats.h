@@ -114,6 +114,10 @@ struct GameStats {
     // id 0x2008E: Fulton recoveries. Confirmed over four runs, including an
     // 8-extraction main op where the in-game results screen showed 8.
     int pw_fulton_recoveries = -1;
+    // id 0x2008F: prisoners extracted, counted apart from enemies. A run the
+    // game summarised as "6 enemies extracted and 1 prisoner" moved 0x2008E
+    // by 6 and this by 1.
+    int pw_prisoner_extractions = -1;
     // Confirmed over three quantified runs (clean / 6-kill+alert /
     // 0-kill+alert): 0x442011E only moves when the run had no alert,
     // 0x442011F only when it had no kill. 0x44200DC moves on every clear.
