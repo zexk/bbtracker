@@ -73,6 +73,8 @@ uintptr_t g_mission_time = 0;   // address of qword elapsed timer
 uintptr_t g_chararray_ptr = 0;  // address holding character-pointer-array
 uintptr_t g_mission_id = 0;     // address of current mission id (-1 outside a mission)
 uintptr_t g_stat_array = 0;     // address holding the stat descriptor array pointer
+uintptr_t g_online_root = 0;    // address holding online subsystem base pointer
+uintptr_t g_result_object = 0;  // address holding Player Data/result UI object
 bool g_scanned = false;
 bool g_dumped = false;
 
@@ -94,6 +96,20 @@ constexpr uint8_t kStatArrayPat[] = {
 constexpr bool kStatArrayWild[] = {
     false, false, false, false, false, false, false, false, false, false, false, false,
     false, false, false, true, true, true, true, false, false, false, false, false};
+
+constexpr uint8_t kOnlineRootPat[] = {
+    0x8B, 0xC1, 0x48, 0x69, 0xC8, 0x28, 0x35, 0x00, 0x00,
+    0x48, 0x8B, 0x05, 0, 0, 0, 0, 0x48, 0x05, 0x08, 0x50, 0x00, 0x00};
+constexpr bool kOnlineRootWild[] = {
+    false, false, false, false, false, false, false, false, false,
+    false, false, false, true, true, true, true, false, false, false, false, false, false};
+
+constexpr uint8_t kResultObjectPat[] = {
+    0x40, 0x53, 0x48, 0x83, 0xEC, 0x20, 0x8B, 0x05, 0, 0, 0, 0,
+    0x48, 0x8B, 0x1D, 0, 0, 0, 0, 0x85, 0xC0, 0x75, 0x09};
+constexpr bool kResultObjectWild[] = {
+    false, false, false, false, false, false, false, false, true, true, true, true,
+    false, false, false, true, true, true, true, false, false, false, false};
 
 constexpr uint32_t kStatMax = 999999;
 constexpr size_t kStatScanSize = 0x30000;
@@ -254,6 +270,24 @@ void read_stat_families(uintptr_t block, GameStats& out)
     }
 }
 
+void read_codename_axes(GameStats& out)
+{
+    if (!g_stat_array || !range_readable(g_stat_array, sizeof(uintptr_t))) return;
+    const uintptr_t array = *reinterpret_cast<volatile const uintptr_t*>(g_stat_array);
+    if (array <= kStatArrayBias) return;
+    const uintptr_t records = array - kStatArrayBias;
+    for (int axis = 0; axis < 4; ++axis) {
+        for (int slot = 0; slot < 12; ++slot) {
+            const uint32_t index = 0xDD + axis * 13 + slot;
+            const uintptr_t rec = records + index * kStatStride;
+            if (!range_readable(rec, kStatStride)) return;
+            out.pw_codename_axes[axis][slot] =
+                *reinterpret_cast<volatile const int32_t*>(rec + 0x20);
+        }
+    }
+    out.pw_codename_axes_ok = true;
+}
+
 bool pat_match(const uint8_t* p, const uint8_t* pat, const bool* wild, size_t n, size_t avail)
 {
     if (avail < n) {
@@ -341,6 +375,10 @@ void ensure_resolved()
                                std::size(kCharArrayPat), kCharArrayDisp);
     g_stat_array = scan_one(mod, kStatArrayPat, kStatArrayWild,
                             std::size(kStatArrayPat), 15);
+    g_online_root = scan_one(mod, kOnlineRootPat, kOnlineRootWild,
+                             std::size(kOnlineRootPat), 12);
+    g_result_object = scan_one(mod, kResultObjectPat, kResultObjectWild,
+                               std::size(kResultObjectPat), 15);
     g_mission_id = scan_one(mod, kMissionIdPat, kMissionIdWild,
                             std::size(kMissionIdPat), kMissionIdDisp);
     LOG_INFO("MGSPW resolved save=%llX time=%llX chars=%llX",
@@ -359,6 +397,8 @@ void ensure_resolved()
     if (!g_stat_array) {
         LOG_WARN("MGSPW PW_STATARRAY pattern not found; falling back to the id scan");
     }
+    if (!g_online_root) LOG_WARN("MGSPW online-player table pattern not found");
+    if (!g_result_object) LOG_WARN("MGSPW result object pattern not found");
 }
 
 } // namespace
@@ -496,6 +536,7 @@ bool poll_stats(GameStats& out)
             }
         }
         read_stat_families(save_block, out);
+        read_codename_axes(out);
         static uintptr_t last_dump_block = 0;
         if (save_block != last_dump_block
             && range_readable(save_block + 0x40, 0x60)) {
@@ -512,6 +553,39 @@ bool poll_stats(GameStats& out)
             const uint16_t use =
                 *reinterpret_cast<volatile const uint16_t*>(rec + kWeaponUseOff);
             out.pw_weapon_use[i] = static_cast<int>(use);
+        }
+    }
+
+    if (g_online_root && range_readable(g_online_root, sizeof(uintptr_t))) {
+        const uintptr_t root = *reinterpret_cast<volatile const uintptr_t*>(g_online_root);
+        const uintptr_t table = root ? root + 0x5008 : 0;
+        if (table && range_readable(table, 4)) {
+            const int count = *reinterpret_cast<volatile const int32_t*>(table);
+            if (count >= 0 && count <= 64
+                && range_readable(table, 0x110 * static_cast<size_t>(count + 1))) {
+                out.pw_camaraderie = 0;
+                for (int i = 0; i < count; ++i) {
+                    out.pw_camaraderie += *reinterpret_cast<volatile const int32_t*>(
+                        table + 0x110 * static_cast<size_t>(i + 1));
+                }
+            }
+        }
+    }
+
+    if (g_result_object && range_readable(g_result_object, sizeof(uintptr_t))) {
+        const uintptr_t object = *reinterpret_cast<volatile const uintptr_t*>(g_result_object);
+        constexpr size_t kResultOff = 0x43D0;
+        if (object && range_readable(object + kResultOff, 0x2B)) {
+            out.pw_codename_missions_required =
+                *reinterpret_cast<volatile const int32_t*>(object + kResultOff + 0x20);
+            out.pw_codename_missions_counted =
+                *reinterpret_cast<volatile const int32_t*>(object + kResultOff + 0x24);
+            out.pw_codename_grade5_ok =
+                *reinterpret_cast<volatile const uint8_t*>(object + kResultOff + 0x28) != 0;
+            out.pw_codename_grade4_ok =
+                *reinterpret_cast<volatile const uint8_t*>(object + kResultOff + 0x29) != 0;
+            out.pw_codename_result_ok =
+                *reinterpret_cast<volatile const uint8_t*>(object + kResultOff + 0x2A) != 0;
         }
     }
 

@@ -170,6 +170,15 @@ struct GameStats {
     int pw_placed_takedowns = -1;   // id 0x200E8, lethal (C4 and the like)
     int pw_stealth_kills = -1;      // id 0x2007C, kills on unaware enemies
     int pw_damage_taken = -1;       // id 0x20023, career damage taken (8000 = a full bar)
+    // Native codename evaluator axes, [kills/sleeps/stuns/incapacitations][slot].
+    int pw_codename_axes[4][12] = {};
+    bool pw_codename_axes_ok = false;
+    int pw_camaraderie = -1;        // native codename snapshot +0x30 aggregate
+    int pw_codename_missions_required = -1; // result+0x20
+    int pw_codename_missions_counted = -1;  // result+0x24
+    bool pw_codename_grade4_ok = false;     // result+0x29
+    bool pw_codename_grade5_ok = false;     // result+0x28
+    bool pw_codename_result_ok = false;
     // Live per-sortie deltas, differenced client-side at stage change
     // (action careers tick live mid-mission; heroism/XP/GMP settle at
     // results, so their segments only move post-results).

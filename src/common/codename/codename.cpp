@@ -308,9 +308,8 @@ std::vector<ReqStatus> elite_requirements_mg2(const GameStats& s)
 // 24-entry table; the table below is the game's own, recovered from
 // localization block slot/001FC/3 (names at 0-23, descriptions at 24+index).
 //
-// The axes are the game's, the cut-offs are ours: PW's own classifier has not
-// been located, so "all weapons" and the lethal/non-lethal balance are read
-// from the career counters with the thresholds documented here.
+// Native evaluator is mapped in docs/mgspw_research.md. Exact axes are used
+// when probe resolves them; older partial counters remain fallback.
 
 namespace {
 
@@ -367,6 +366,7 @@ struct PwProfile {
     WeaponClass dominant = WeaponClass::All;
     int nonlethal = 0;
     int lethal = 0;
+    bool balanced = false;
 };
 
 // "All weapons" is the elite branch: no class may hold this share or more of
@@ -377,6 +377,45 @@ constexpr int kPwSpreadClasses = 4;
 PwProfile pw_profile(const GameStats& s)
 {
     PwProfile p;
+    if (s.pw_codename_axes_ok) {
+        int slots[12]{};
+        for (int slot = 0; slot < 12; ++slot) {
+            for (int axis = 0; axis < 4; ++axis) {
+                slots[slot] += pw_count(s.pw_codename_axes[axis][slot]);
+            }
+            p.total += slots[slot];
+            if (slots[slot] > p.top) p.top = slots[slot];
+            p.lethal += pw_count(s.pw_codename_axes[0][slot]);
+            p.nonlethal += pw_count(s.pw_codename_axes[1][slot])
+                + pw_count(s.pw_codename_axes[2][slot])
+                + pw_count(s.pw_codename_axes[3][slot]);
+        }
+        unsigned dominant_mask = 0;
+        for (int slot = 0; slot < 12; ++slot) {
+            if (slots[slot] == p.top) dominant_mask |= 1u << slot;
+        }
+        constexpr struct { unsigned mask; WeaponClass cls; } groups[] = {
+            {0x002, WeaponClass::Stun}, {0x001, WeaponClass::Cqc},
+            {0x1B00, WeaponClass::Explosive}, {0x010, WeaponClass::Long},
+            {0x028, WeaponClass::Medium}, {0x0C4, WeaponClass::Short},
+        };
+        for (const auto& group : groups) {
+            if (dominant_mask & group.mask) {
+                p.dominant = group.cls;
+                break;
+            }
+        }
+        const double average = static_cast<double>(p.total) / 11.0;
+        p.balanced = true;
+        for (int value : slots) {
+            if (std::abs(static_cast<double>(value) - average) > average * 0.1) {
+                p.balanced = false;
+                break;
+            }
+        }
+        if (p.balanced) p.dominant = WeaponClass::All;
+        return p;
+    }
     p.by_class[static_cast<int>(WeaponClass::Short)] =
         pw_count(s.pw_pistol_takedowns) + pw_count(s.pw_pistol_lethal)
         + pw_count(s.pw_shotgun_takedowns);
@@ -402,6 +441,7 @@ PwProfile pw_profile(const GameStats& s)
     const bool spread = p.total > 0
         && p.classes_used >= kPwSpreadClasses
         && static_cast<double>(p.top) < static_cast<double>(p.total) * kPwSpreadShare;
+    p.balanced = spread;
     p.dominant = spread ? WeaponClass::All : static_cast<WeaponClass>(top_index);
     p.nonlethal = pw_count(s.pw_tranq) + pw_count(s.pw_cqc_takedowns);
     p.lethal = pw_count(s.pw_kills);
@@ -416,13 +456,10 @@ std::optional<Match> evaluate_mgspw(const GameStats& s)
     if (p.total <= 0) {
         return std::nullopt;
     }
-    // No resolved counter distinguishes co-op from solo play, and co-op runs
-    // share the same save, so the axis cannot be read either way. Report the
-    // solo name; the co-op counterpart (FOXHOUND for FOX) sits at the same
-    // weapon-class and force coordinates and stays reachable.
-    const bool nonlethal = p.nonlethal > p.lethal;
+    const bool coop = s.pw_camaraderie > 10000;
+    const bool nonlethal = p.nonlethal > 2 * p.lethal;
     for (const PwTitle& t : kPwTitles) {
-        if (t.cls == p.dominant && !t.coop && t.nonlethal == nonlethal) {
+        if (t.cls == p.dominant && t.coop == coop && t.nonlethal == nonlethal) {
             return Match{t.name, t.cls == WeaponClass::All ? Kind::Elite : Kind::Regular};
         }
     }
@@ -440,16 +477,11 @@ std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s)
     std::vector<ReqStatus> out;
     // FOX is the solo all-weapons non-lethal title: spread the takedowns, keep
     // no class dominant, and stay non-lethal.
-    out.push_back(row("weapon classes used", p.classes_used >= kPwSpreadClasses,
-                      p.classes_used, kPwSpreadClasses));
-    const double top_share = p.total > 0 ? 100.0 * p.top / p.total : 0.0;
-    out.push_back(ReqStatus{"top class share %", top_share < kPwSpreadShare * 100.0,
-                            top_share, kPwSpreadShare * 100.0,
-                            static_cast<uint8_t>(ReqFmt::Count),
-                            static_cast<uint8_t>(Op::Le)});
+    out.push_back(row("all 12 weapon slots balanced", p.balanced,
+                      p.balanced ? 1 : 0, 1));
     // Shown against kills, the value it actually has to beat.
-    out.push_back(row("non-lethal vs kills", p.nonlethal > p.lethal, p.nonlethal,
-                      p.lethal));
+    out.push_back(row("non-lethal vs 2x kills", p.nonlethal > 2 * p.lethal,
+                      p.nonlethal, 2 * p.lethal));
     return out;
 }
 

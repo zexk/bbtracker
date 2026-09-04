@@ -25,4 +25,23 @@ int main()
     assert(rank && std::string_view(rank->name) == "FOX");
     stats.play_time_seconds = 6300;
     assert(!bb::codename::evaluate_mg2(stats));
+
+    bb::GameStats pw{};
+    pw.pw_codename_axes_ok = true;
+    pw.pw_codename_axes[0][3] = 1;
+    assert(std::string_view(bb::codename::evaluate_mgspw(pw)->name) == "PUMA");
+
+    pw = {};
+    pw.pw_codename_axes_ok = true;
+    pw.pw_codename_axes[1][2] = 1;
+    assert(std::string_view(bb::codename::evaluate_mgspw(pw)->name) == "BUTTERFLY");
+    pw.pw_camaraderie = 10001;
+    assert(std::string_view(bb::codename::evaluate_mgspw(pw)->name) == "ANT");
+
+    pw = {};
+    pw.pw_codename_axes_ok = true;
+    for (int slot = 0; slot < 12; ++slot) pw.pw_codename_axes[1][slot] = 10;
+    assert(std::string_view(bb::codename::evaluate_mgspw(pw)->name) == "FOX");
+    pw.pw_camaraderie = 10001;
+    assert(std::string_view(bb::codename::evaluate_mgspw(pw)->name) == "FOXHOUND");
 }
