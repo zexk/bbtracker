@@ -607,11 +607,10 @@ those displacements sat in plain sight. Use `pwdis.py --raw VA` here, and read
 a zero result from the `.pdata`-driven commands as "not covered", never as
 "absent".
 
-Codenames are a separate, still-unmapped system. Localization gives their
+Codenames use the evaluator documented below. Localization gives their
 descriptions at index `24 + codename_index`: `FOXHOUND` is index 13,
 description 37, all weapon types / cooperation / non-lethal force;
-`BUTTERFLY` is index 20, description 44, short-range / solo / non-lethal. No
-codename or insignia *requirement* figure has been recovered.
+`BUTTERFLY` is index 20, description 44, short-range / solo / non-lethal.
 
 ### Title system wiring
 
@@ -671,6 +670,149 @@ is a packed nibble array over the same subsystem, read by leaf getters at
 Because every value is 1-7 with `0x40` set, the block reads as the ASCII
 `ECEDFGCCCCA` - the "rank letters" string that sat unexplained for weeks. It
 was never text.
+
+## Codename system
+
+The evaluator is `0x1401E7F40`. Its only direct caller is `0x1401E6560`, which
+passes an output block at `object+0x56E4` and mission/result data at
+`object+0x43D0`. The evaluator contains 24 direct calls to the codename granter,
+one for each codename id.
+
+| Piece | Address | Role |
+| --- | --- | --- |
+| ownership | `save+0x1BFF0 + id` | one byte per codename, id `1..24`; bit `0` owned, bit `1` seen, bits `2..4` grade |
+| evaluator | `0x1401E7F40` | computes candidate grade for all 24 codenames and returns changed ids/grades |
+| caller | `0x1401E6560` | runs evaluator and sends its output to the result UI |
+| current grade | `0x1405448C0(id)` | returns `0` if unowned, otherwise grade `1..7` |
+| granter | `0x140544B20(id, grade)` | sets ownership and raises stored grade; bounds-checked to 24 ids |
+| owned count | `0x1405446D0` | counts owned codenames `1..24` |
+
+Evaluator input table at `0x140D209F0` is four groups of twelve career-stat
+ids. Same position in every group is one weapon class:
+
+| Axis | Stat ids | Live-profile check |
+| --- | --- | --- |
+| kills | `0xDD..0xE8` | scattered lethal weapon totals |
+| sleeps | `0xEA..0xF5` | handgun slot is `145`, matching tranq takedowns |
+| stuns | `0xF7..0x102` | CQC slot is `28`, matching the observed CQC/stun total |
+| incapacitations | `0x104..0x10F` | all zero on the research profile |
+
+The evaluator sums all four axes per slot and makes a 12-bit mask containing
+every slot tied for the largest total. Five normal weapon predicates consume
+that mask:
+
+| category | dominant-mask bits (zero based) |
+| --- | --- |
+| stun rod | `1` |
+| CQC | `0` |
+| explosive | `8, 9, 11` (`0x1B00`) |
+| long range | `4` |
+| medium range | `3, 5` (`0x28`) |
+| short range | `2, 6, 7` (`0xC4`) |
+
+Stun rod and CQC each have only a non-lethal title pair. Other four categories
+each have lethal and non-lethal pairs. `0x140543E40(id, field)` proves labels:
+its 24-way switch returns localization entity hashes, which join directly to
+the name and description entities in `slot/001FC/3`.
+
+Lethality split is exact. Let `K` be the sum of twelve kill counters and `N`
+the sum of sleeps, stuns, and incapacitations. Non-lethal titles require
+`N > 2*K`; lethal titles require `N <= 2*K`. Ties therefore count as lethal.
+
+Each ordinary predicate has two title ids. First id below uses low camaraderie;
+second uses high camaraderie. These are evaluator ids, not localization
+indices:
+
+| category | force | solo / cooperation title (id) |
+| --- | --- | --- |
+| stun rod | non-lethal | EEL (`24`) / FIREFLY (`8`) |
+| CQC | non-lethal | BEAR (`2`) / KANGAROO (`14`) |
+| explosive | lethal | ORCA (`16`) / PIRANHA (`17`) |
+| explosive | non-lethal | OCTOPUS (`15`) / WHALE (`22`) |
+| long range | lethal | HAWK (`12`) / RAVEN (`19`) |
+| long range | non-lethal | SWALLOW (`21`) / GULL (`11`) |
+| medium range | lethal | PUMA (`18`) / WOLF (`23`) |
+| medium range | non-lethal | CAT (`5`) / DEER (`6`) |
+| short range | lethal | SCORPION (`20`) / BEE (`3`) |
+| short range | non-lethal | BUTTERFLY (`4`) / ANT (`1`) |
+
+Four all-weapons pairs are HOUND (`13`) / DOBERMAN (`7`) for lethal and FOX
+(`9`) / FOXHOUND (`10`) for non-lethal, again solo / cooperation. Their spread
+predicate is exact and unlike old tracker guess. Game computes
+`average = total / 11.0` and requires every
+one of twelve slot totals to satisfy
+`abs(slot - average) <= average * 0.1`. A zero-total profile passes this spread
+test internally, but other grade conditions prevent a useful award.
+
+Cooperation grade input is `result+0x24 / result+0x20` when denominator is
+positive, otherwise zero. Ratio gates are `> 0.05`, `> 0.5`, and `>= 1.0`.
+Result block is persistent inside Player Data object at `object+0x43D0`;
+object pointer is `*0x14143A8D8`. Builder `0x1401E7210` reads script variable
+`numMis`, stores `2*numMis - 27` at `+0x20`, walks mission records, and stores
+counted records at `+0x24`. It initializes flags `+0x28/+0x29` true, clears
+them according to stored rank values, then clears both unless counted records
+reach required count. `+0x2A` marks completed builder result. Evaluator uses
+`+0x28` for grade 5 and `+0x29` for grade 4. Probe reads these native fields;
+it does not duplicate mission-record filtering.
+
+Second axis is camaraderie aggregate at snapshot `+0x30`, built by
+`0x140544D20`. It calls `0x140367FB0` for online table at
+`*0x140EA4870 + 0x5008`, reads count at table start, and sums the dword at
+`table + 0x110*(i+1)` for every entry. Ordinary low-camaraderie ids use
+`<= 10k/50k/100k/200k/500k`;
+high ids use strict `>` at same steps. Grade 4 and 5 additionally require
+result flags `+0x29` and `+0x28`; grades 3-5 require cooperation ratio at least
+1, grade 2 requires over 0.5, grade 1 over 0.05.
+
+All-weapons grades add Heroism (`stat 0x77`) floors of `10k`, `50k`, `100k`,
+`150k`, and `250k`. Low-camaraderie variants require camaraderie at or below
+their matching normal threshold; high variants require it above. Evaluator
+only calls `0x140544B20` when candidate grade exceeds stored grade, so grades
+never decrease.
+
+## Insignia system
+
+There are **84 catalogued insignias**. The evaluator and save format contain
+110 internal insignia ids, but the Player Data source feeding the Insignias
+screen has a fixed 84 rows; its denominator comes directly from that row count.
+The 26 omitted ids are:
+
+`28..31`, `39..41`, `43`, `80..82`, `86..88`, and `96..107`.
+
+These are not reserved slots: the evaluator contains grant paths, thresholds,
+heroism awards and ownership bytes for them. They are hidden from the catalog.
+Whether every hidden id remains obtainable in this port is unknown. Installed
+English localization has labels for 95 ids and holes for 15, further showing
+that the internal 110-id set is not the displayed catalog.
+
+| Piece | Address | Role |
+| --- | --- | --- |
+| ownership | `save+0x1C009 + index` | one byte per insignia, index `1..110`; bit `0` owned, bit `1` seen |
+| evaluator | `0x1401E9BB0` | reads the career counters and evaluates all 110 records; called through `0x1401E65B0` from `0x1401E4AA2` / `0x1401E53D0` |
+| threshold lookup | `0x140543810(index, field)` | `field 0` = threshold, `field 1` = heroism award |
+| already-owned | `0x1405448F0(index)` | non-zero means skip |
+| granter | `0x140544B80(index)` | ORs the ownership bits, bounds-checked to `0x6D` |
+| screen source | runtime Player Data records keyed by `0x2B0C75` | fixed 84-row list; each row maps through the table at `0x140F80600` to an internal id |
+| screen predicate | `0x140544C00(obj, index)` | tests a 14-byte bitfield at `obj+0x22` of the UI object, `bit = index-1` |
+
+The grant test is strict: `value > threshold`, which is why the descriptions
+read "over `$1`" and why 100 headshots does not fire Headshot Master but 101
+does.
+
+Thresholds are data, not code. `0x140543810` builds a `110 x 3` dword table on
+the stack from `.rdata` constants around `0x140D40DF0` and returns
+`arr[(index-1)*3 + field]`. Reconstructing that table by emulating its stores
+recovers every requirement; `scripts/pwinsig.py` does it.
+
+Validated against a live profile: for the 84 records whose stat id is
+recovered, ownership equals `career > threshold` in 83 cases. The four held on
+the research profile line up exactly - no-alert clears `36 > 25`, no-recovery
+`51 > 50`, headshots `145 > 100`, Fulton `104 > 100` - and the no-recovery one
+was watched firing mid-session for `+500` heroism, `+522` total with the clear.
+
+The one disagreement is index 53, stat `0x117`. The 84 stat-mapped records and
+84 screen rows are different sets whose equal counts are coincidental.
+
 
 ## Installed data and saves
 
@@ -768,11 +910,10 @@ mission result. "Headshot Master" grants `+500` for passing 100
 headshots; a second insignia produced `522`, i.e. `22` for the clean
 clear plus the award. `save+0x64EC` mixes both.
 
-Insignia state is still unlocated. The full `0x40000` before/after
-snapshots did not hold it: the byte that moved, `save+0x18372`, is
-comm-message index 62 crossing its Heroism floor. Menu navigation is
-exhausted as a trigger - the only field that moves on those screens is
-`save+0x3DBE2`, transient UI state.
+Insignia state is at `save+0x1C009 + index` - see "Insignia system". The
+earlier hunt missed it because the byte that moved in the whole-block diff,
+`save+0x18372`, is comm-message index 62 crossing its Heroism floor, and
+because the search assumed an 84-entry array rather than 110 one-byte slots.
 
 ## Open items
 
@@ -854,9 +995,10 @@ exhausted as a trigger - the only field that moves on those screens is
 - **What consumes the `+0x0C..+0x14` requirement tuple.** The five `s16`
   values scale per tier, so something compares them against play statistics.
   Find that reader and the same shape probably explains codename scoring.
-- **Where codename and insignia state actually live.** Not at `save+0x18334`,
-  which is comm messages. The whole-block diff that appeared to find them was
-  reading this array.
+- **NEXT UNKNOWN — Codename grade presentation.** Probe now reads all evaluator inputs:
+  48 career axes, camaraderie aggregate, result cooperation numerator and
+  denominator, and grade-4/5 flags. Overlay still presents title only; add
+  current/candidate grade display if useful.
 
 ## Retracted and corrected
 
