@@ -27,7 +27,8 @@ constexpr size_t kPlayerRegionSize = 0x1600;
 constexpr size_t kTitleMenuStatusOffset = 0x158A;
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID2.exe";
 constexpr uint8_t kGametypeTanker = 16;
-constexpr uint8_t kGametypeTP = 32;
+constexpr uint8_t kGametypePlant = 32;
+constexpr uint8_t kGametypeTankerAndPlant = kGametypeTanker | kGametypePlant;
 constexpr uint16_t kStorySelectionMask = 0x0003;
 constexpr uint16_t kStoryTanker = 0x0001;
 constexpr uint16_t kStoryPlant = 0x0002;
@@ -35,12 +36,14 @@ constexpr uint16_t kStoryTankerAndPlant = 0x0003;
 
 constexpr bool ranked_game(uint8_t gametype)
 {
-    return gametype == kGametypeTanker || gametype == kGametypeTP;
+    return gametype != 0 && (gametype & ~kGametypeTankerAndPlant) == 0;
 }
 
 static_assert(ranked_game(kGametypeTanker));
-static_assert(ranked_game(kGametypeTP));
+static_assert(ranked_game(kGametypePlant));
+static_assert(ranked_game(kGametypeTankerAndPlant));
 static_assert(!ranked_game(0));
+static_assert(!ranked_game(0x40));
 
 constexpr int codename_mission(uint16_t title_menu_status)
 {
