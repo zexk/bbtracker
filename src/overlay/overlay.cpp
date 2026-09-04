@@ -1161,8 +1161,9 @@ void draw_mgspw_global(const GameStats& stats)
                      stats.pw_ar_takedowns, stats.pw_sniper_takedowns,
                      stats.pw_lmg_takedowns, stats.pw_shotgun_takedowns,
                      stats.pw_cqc_takedowns);
-            snprintf(buf, sizeof(buf), "grenade %d  rocket %d",
-                     stats.pw_grenade_takedowns, stats.pw_rocket_takedowns);
+            snprintf(buf, sizeof(buf), "grenade %d  rocket %d  placed %d",
+                     stats.pw_grenade_takedowns, stats.pw_rocket_takedowns,
+                     stats.pw_placed_takedowns);
             row("explosives", buf);
             row("by weapon", buf);
         }
