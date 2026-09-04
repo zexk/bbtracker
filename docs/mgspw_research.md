@@ -101,6 +101,7 @@ Timers are 300 Hz ticks unless stated.
 | `+0x29B4 + 4*id` | `u32` | per-mission best time, `0xFFFFFFFF` = none |
 | `+0x32B4 + 2*id` | `u16` | per-mission rank: `0` = S, `1` = A, `2` = B, `3` = C, `0xFFFF` = never cleared |
 | `+0x46F4 + 2*id` | `u16` | second rank array (`0x1440` after the first), all `0xFFFF` on a solo profile |
+| `+0x2E34 + 2*id` | `u16` | third per-mission array, unidentified; `0x1407078D0` copies it into a UI record beside rank and best time |
 | `+0x5244` | `u32` | current mission id mirror |
 | `+0x586C`, `+0x5874` | `u32` | last-mission staging twins (this run's time) |
 | `+0x64EC` | `i32` | heroism, last-mission delta |
@@ -836,7 +837,13 @@ constants are confirmed against the branches in the binary; no codename has
 been awarded on the research profile, so the ladder has never been observed
 producing a real grade.
 
-The mission rank formula is the one award system still unsolved. Thresholds are
+The mission rank formula is the one award system still unsolved. Two
+approaches are ruled out. Nothing in `.text` writes the rank array: every
+reference to displacement `0x32B4` is a read, a staging `memcpy`, or a
+coincidence in unrelated float code, so the writer forms the address through a
+pointer like the rest of this game. And the `list_rank_a_%02d`..`_f_%02d` UI
+strings are not the grade bytes - none of the three functions using them calls
+into the grade accessor bank at all. Thresholds are
 per mission and data-driven; story missions carry no score field at all, so
 their letter comes from the run. Observation constrains it only loosely - time
 dominates and alerts cost a grade:
