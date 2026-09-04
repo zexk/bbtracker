@@ -179,6 +179,11 @@ Known ids:
 | 52 | Side Ops 10 | - |
 | 53 | Extra Ops 011 | - |
 
+Extra Ops numbering does not map onto ids by a single offset: id 52 is Extra
+Ops 010 and id 53 Extra Ops 011, but id 36 is recorded as Extra Ops 005. One of
+those two labels is from a different sub-category, and the 005 one is the less
+certain.
+
 **Mission id equals the Main Op number.** Ids 1, 2 and 4 match the published
 Main Ops order (Main Op 4 is LAV-Type G, Main Op 2 is Sandinista
 Comandante), so the whole Main Ops range can be labelled from the public
@@ -574,10 +579,13 @@ checks is `0x180`, matching the `0x180`-byte state block cleared by
 `0x1400F9810` sets bit `0x200` in the dwords at `save+0xB520` and
 `save+0xB524`.
 
-**The activation command is not in the result script.** `STAGEDAT/0175_result.rlc`
-(204,140 B) has zero aligned 32-bit hits for `0x26DF41`. Its one aligned hit,
-at file offset `0x2AC7F`, is `0x28A553` - the save-flag setter. So the result
-script sets a save flag, and nothing pins title activation to it.
+**The activation command is in the result script**, 26 times. An earlier note
+here said the opposite; that search looked for an aligned 32-bit value, but
+script tokens are a tag byte followed by three, so an aligned scan cannot find
+one. `scripts/pwgcl.py` decodes the stream properly and finds 26 calls at a
+regular 18-byte stride in `STAGEDAT/0175_result.rlc`, each passing a config id
+in the `50..289` range that comm-message records use - so the results script
+registers comm messages, matching the callback's "set state bit 1" behaviour.
 
 ### Grade bytes
 
@@ -781,6 +789,7 @@ auditing is therefore not available; live diffing is the method.
 | `pwwatch.py` | records which save-block slots move across a session (how the live tallies were found) |
 | `pwach.py` | dumps the achievement metadata and predicate map |
 | `pwinsig.py` | reconstructs the insignia requirement table (stat id, threshold, heroism award) |
+| `pwgcl.py` | decodes GCL script token streams; `--hashes` lists the command/variable hashes a script references |
 | `pwhash.py` | name-hash helper for the script-variable lookups |
 | `find-mgspw-counter.py` | Cheat-Engine style snap/diff value scan (how `PW_MISSIONID` was found) |
 | `scan-mgspw-strings.py`, `rtti-mgspw-ach.py` | string and RTTI enumeration |
