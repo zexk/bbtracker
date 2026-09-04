@@ -1154,8 +1154,9 @@ void draw_mgspw_global(const GameStats& stats)
                  stats.pw_tranq);
         row("takedowns", buf);
         if (stats.pw_pistol_takedowns >= 0) {
-            snprintf(buf, sizeof(buf), "pistol %d  AR %d", stats.pw_pistol_takedowns,
-                     stats.pw_ar_takedowns);
+            snprintf(buf, sizeof(buf), "pistol %d  AR %d  SG %d",
+                     stats.pw_pistol_takedowns, stats.pw_ar_takedowns,
+                     stats.pw_shotgun_takedowns);
             row("by weapon", buf);
         }
         snprintf(buf, sizeof(buf), "HS %d  AL %d", stats.pw_headshots, stats.pw_alerts);

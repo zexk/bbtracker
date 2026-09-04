@@ -83,13 +83,14 @@ bool g_dumped = false;
 constexpr uint32_t kStatMax = 999999;
 constexpr size_t kStatScanSize = 0x30000;
 constexpr uint32_t kHeadshotIds[] = {0x4420031};
-constexpr uint32_t kKillIds[] = {0x420008, 0x2007C, 0x200E0};
+constexpr uint32_t kKillIds[] = {0x420008};
 // Non-lethal takedown total. 0x200F9 is the pistol-only subset, so it is
 // tracked separately: on a 7-takedown run (6 pistol, 1 CQC) the total moved
 // +7 and the pistol counter +6.
 constexpr uint32_t kTranqIds[] = {0x442002E};
-constexpr uint32_t kPistolIds[] = {0x200F9};
-constexpr uint32_t kArIds[] = {0x2007C};
+constexpr uint32_t kPistolIds[] = {0x200F9};   // non-lethal, pistol
+constexpr uint32_t kArIds[] = {0x200E0};      // lethal, assault rifle
+constexpr uint32_t kShotgunIds[] = {0x200E4}; // lethal, shotgun
 constexpr uint32_t kFultonIds[] = {0x2008E};  // Fulton recoveries (confirmed)
 constexpr uint32_t kClearCounterIds[] = {0x44200DC};
 constexpr uint32_t kNoAlertClearIds[] = {0x442011E};
@@ -115,6 +116,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
         {kBodyKillIds, std::size(kBodyKillIds), &out.pw_body_kills, &out.pw_m_body_kills},
         {kPistolIds, std::size(kPistolIds), &out.pw_pistol_takedowns, nullptr},
         {kArIds, std::size(kArIds), &out.pw_ar_takedowns, nullptr},
+        {kShotgunIds, std::size(kShotgunIds), &out.pw_shotgun_takedowns, nullptr},
         {kFultonIds, std::size(kFultonIds), &out.pw_fulton_recoveries, nullptr},
         {kClearCounterIds, std::size(kClearCounterIds), &out.pw_clear_counter, nullptr},
         {kNoAlertClearIds, std::size(kNoAlertClearIds), &out.pw_noalert_clears, nullptr},

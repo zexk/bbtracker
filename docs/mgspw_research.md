@@ -186,11 +186,12 @@ Confirmed ids, each pinned by runs with counted actions:
 
 | id | meaning |
 | --- | --- |
-| `0x420008`, `0x200E0` | lethal takedowns (kills), total |
+| `0x420008` | lethal takedowns (kills), total |
+| `0x200E0` | per-type takedowns: assault rifle, lethal |
+| `0x200E4` | per-type takedowns: shotgun, lethal |
 | `0x420002` | alerts |
 | `0x442002E` | non-lethal takedowns, total (body shots count, misses do not) |
-| `0x200F9` | per-type takedowns: pistol |
-| `0x2007C` | per-type takedowns: assault rifle |
+| `0x200F9` | per-type takedowns: pistol, non-lethal |
 | `0x4420031` | headshots |
 | `0x4420077` | heroism (equals `save+0x64F4`) |
 | `0x2008E` | Fulton recoveries |
@@ -205,9 +206,21 @@ stun rod included - plus lethal and non-lethal totals. `0x442002E` and
 `0x200DD..0x20110` plus strays like `0x2007C`, and a type reads `0` until it
 is used, which is why only a handful are ever non-zero.
 
-Two are pinned by player-reported runs: a 7-takedown mission (6 pistol,
-1 CQC) moved the total `+7` and `0x200F9` `+6`, and three single-weapon
-assault-rifle runs moved `0x2007C` `+3` each.
+Three are pinned by player-reported runs: a 7-takedown mission (6 pistol,
+1 CQC) moved the total `+7` and `0x200F9` `+6`; three single-weapon
+assault-rifle runs moved `0x200E0` `+3` each; and a 3-kill shotgun run moved
+`0x200E4` off zero.
+
+A shotgun run (3 lethal takedowns) then corrected the earlier reading:
+`0x200E4` came off zero by `+3` while `0x200E0` stayed put, so `0x200E0` is
+the assault-rifle counter rather than a second copy of the kill total, and
+`0x420008` alone is that total. Since the pistol counter sits at `0x200F9`
+and the two lethal ones at `0x200E0`/`0x200E4`, the block looks like two
+banks: `0x200Ex` lethal by type, `0x200Fx` non-lethal by type.
+
+`0x2007C` moved `+3` on both the assault-rifle and shotgun runs but only
+`+2` on the mixed 6-kill LAV run, so it spans weapon types - most likely
+firearm kills as distinct from explosives and CQC.
 
 A later CQC/stun run moved **only** `0x20104` (`5 -> 6`) and left
 `0x442002E` untouched, so `0x442002E` is not a catch-all non-lethal total
@@ -232,8 +245,8 @@ for the first time this profile. Career kills stood at 20 with `0x200ED` at
 earlier 6-kill run moving `0x4420031` by 6.
 
 `0x2007C` is not headshot-related: it took `+3` from both the headshot run
-and the body run, and only `+2` from an older mixed 6-kill run, so it
-counts kills of one weapon class.
+and the body run. It is not per-type either, since the shotgun run moved it
+as well; see open items.
 
 Heroism responds to both lethality and alerts: `+22` on a clean no-kill
 no-alert clear, `+7` on the same mission with one alert, `+0` with kills.
@@ -468,11 +481,15 @@ the retracted weapon-XP multiplier below was invented.
   for per-rank or per-target values but has not been tied to a rank yet.
 - **Career id `0x20023`** moved on only 2 of 5 runs (`+6000` on a first clear,
   `+4945` on a dirty replay), so it is not a plain cumulative score.
-- **The other nine weapon types.** Only pistol (`0x200F9`) and assault rifle
-  (`0x2007C`) are identified. Each unused type reads `0`, so a run using one
-  type for 2-3 takedowns lights up exactly one slot. This is the next thing to
-  work through: SMG, sniper, shotgun, LMG and the rest, one short run each,
-  diffing `--idmap` before and after.
+- **The other eight weapon types.** Identified: pistol non-lethal
+  (`0x200F9`), assault rifle lethal (`0x200E0`), shotgun lethal (`0x200E4`).
+  Each type appears to have both a lethal and a non-lethal slot. Each unused type reads `0`, so a run using one
+  Each unused type reads `0`, so a run using one type for 2-3 takedowns
+  lights up exactly one slot. Next: SMG, sniper, LMG, rockets, grenades, plus
+  the non-lethal slots for the types already found.
+- **`0x2007C`** spans weapon types (`+3` from assault-rifle and shotgun runs
+  alike, `+2` from a mixed 6-kill run), so it is not one class; firearm kills
+  as distinct from explosives and CQC is the current guess.
 - **CQC accounting.** `0x20104` moves on a CQC/stun run while `0x442002E`
   does not, yet a run with 6 pistol plus 1 CQC moved `0x442002E` by 7. The
   likely explanation is that CQC hold, slam and throat-slit land in different

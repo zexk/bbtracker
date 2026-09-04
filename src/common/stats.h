@@ -149,8 +149,11 @@ struct GameStats {
     // Per-weapon-type takedowns. The game keeps one counter per type (11 of
     // them, CQC and stun rod included); these two are the ones identified so
     // far. pw_tranq/pw_kills are the non-lethal/lethal totals they roll into.
-    int pw_pistol_takedowns = -1;  // id 0x200F9
-    int pw_ar_takedowns = -1;      // id 0x2007C
+    // Counters are per type AND per lethality: 0x200Ex is the lethal bank,
+    // 0x200Fx the non-lethal one.
+    int pw_pistol_takedowns = -1;   // id 0x200F9, non-lethal
+    int pw_ar_takedowns = -1;       // id 0x200E0, lethal
+    int pw_shotgun_takedowns = -1;  // id 0x200E4, lethal
     // Live per-sortie deltas, differenced client-side at stage change
     // (action careers tick live mid-mission; heroism/XP/GMP settle at
     // results, so their segments only move post-results).
