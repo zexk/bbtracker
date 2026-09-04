@@ -123,6 +123,11 @@ on first clear **and** on improvement. Confirmed by watching a first clear
 (id 4: rank `0xFFFF` -> `1`, time `0xFFFFFFFF` -> `218095` = 726.98 s) and a
 rank improvement (id 2: rank `1` -> `0`, time `175470` -> `58635`).
 
+**Rank and best time are independent bests.** On mission 52 the rank slot
+held S while the best-time slot took `26.23 s` from a run that scored only
+A - the game keeps the best of each separately, so the pair must not be
+displayed as though it came from one run.
+
 The probe reads 272 entries; ids past the live list length read as zeros, so
 only entries carrying a rank or a time are reported. The exact length is still
 open (the list object at `0x14141C200` is null outside the mission-select UI).
@@ -604,11 +609,23 @@ confirms the enemy/prisoner split, since the screen shows their sum.
 
 ## Open items
 
-- **Rank formula.** Rank is scored and the score path resolves everything
-  through the script VM by name hash, so the thresholds live in the encrypted
-  archives, not in code. Data points so far: mission 2 S at 195.45 s (0 kills,
-  0 alerts), mission 2 A at 584.90 s, mission 4 A at 726.98 s (0 kills, alerts
-  raised).
+- **Rank formula.** Thresholds live in the encrypted script data, not in
+  code, so only observation constrains it. Story missions carry no score
+  field at all (it reads `0`), so their letter comes from the run itself.
+  Time dominates, with alerts costing a grade:
+
+  | mission | time | alerts | rank |
+  | ---: | ---: | ---: | --- |
+  | 52 | ~32 s | 0 | S |
+  | 52 | 26.23 s | some | A |
+  | 52 | slow | 0 | C |
+  | 2 | 195.45 s | 0 | S |
+  | 2 | 584.90 s | ? | A |
+  | 6 | 343.82 s | ? | A |
+  | 7 | 345.93 s | ? | S |
+
+  Missions 6 and 7 scored differently at nearly identical times, so the
+  thresholds are per mission.
 - **The `+0x278` / `+0x250` twins** look like per-mission best scores for
   score-attack missions, but that is one test short of confirmed. Every
   observation fits: they moved `4758` -> `6000` when a `6000` run scored S on
