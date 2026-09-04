@@ -62,6 +62,19 @@ void test_bb_blocked_by_radar_and_mission()
     CHECK(std::string_view(best(t)) == "Night Owl");
 }
 
+void test_big_boss_requirements_include_story_selection()
+{
+    GameStats s = base(Difficulty::Extreme, 16);
+    s.radar_off = true;
+    const auto requirements = elite_requirements_mgs2(s);
+    CHECK(requirements.size() == 11);
+    CHECK(std::string_view(requirements.front().label) == "story (Tanker + Plant)");
+    CHECK(!requirements.front().pass);
+
+    s.mission = 32;
+    CHECK(elite_requirements_mgs2(s).front().pass);
+}
+
 void test_fox_extreme_loose()
 {
     GameStats s = base(Difficulty::Extreme, 32);
@@ -262,6 +275,8 @@ int main()
     constexpr TestEntry tests[] = {
         {"big_boss_exact", test_big_boss_exact},
         {"bb_blocked_by_radar_and_mission", test_bb_blocked_by_radar_and_mission},
+        {"big_boss_requirements_include_story_selection",
+         test_big_boss_requirements_include_story_selection},
         {"fox_extreme_loose", test_fox_extreme_loose},
         {"euro_extreme_matches_extreme", test_euro_extreme_matches_extreme},
         {"elite_ladder_by_difficulty", test_elite_ladder_by_difficulty},

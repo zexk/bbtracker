@@ -24,9 +24,14 @@ constexpr size_t kClearingEscapesOffset = 0x1592;
 constexpr size_t kSpecialItemsOffset = 0x1596;
 constexpr size_t kTimesSeenOffset = 0x1594;
 constexpr size_t kPlayerRegionSize = 0x1600;
+constexpr size_t kTitleMenuStatusOffset = 0x158A;
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID2.exe";
 constexpr uint8_t kGametypeTanker = 16;
 constexpr uint8_t kGametypeTP = 32;
+constexpr uint16_t kStorySelectionMask = 0x0003;
+constexpr uint16_t kStoryTanker = 0x0001;
+constexpr uint16_t kStoryPlant = 0x0002;
+constexpr uint16_t kStoryTankerAndPlant = 0x0003;
 
 constexpr bool ranked_game(uint8_t gametype)
 {
@@ -36,6 +41,20 @@ constexpr bool ranked_game(uint8_t gametype)
 static_assert(ranked_game(kGametypeTanker));
 static_assert(ranked_game(kGametypeTP));
 static_assert(!ranked_game(0));
+
+constexpr int codename_mission(uint16_t title_menu_status)
+{
+    switch (title_menu_status & kStorySelectionMask) {
+    case kStoryTanker: return 16;
+    case kStoryTankerAndPlant: return 32;
+    case kStoryPlant:
+    default: return 0;
+    }
+}
+
+static_assert(codename_mission(kStoryTanker) == 16);
+static_assert(codename_mission(kStoryPlant) == 0);
+static_assert(codename_mission(kStoryTankerAndPlant) == 32);
 
 struct GameStateOffsets {
     constexpr static size_t kRadarType = 0x06;
@@ -225,11 +244,7 @@ bool poll_stats(GameStats& out)
                  ranked_game(gametype) ? 1 : 0, out.difficulty_raw);
         last_gametype = gametype;
     }
-    switch (gametype) {
-    case kGametypeTanker: out.mission = 16; break;
-    case kGametypeTP: out.mission = 32; break;
-    default: out.mission = 0; break;
-    }
+    out.mission = codename_mission(read_at<uint16_t>(player, kTitleMenuStatusOffset));
 
     char area[8]{};
     std::memcpy(area, reinterpret_cast<const uint8_t*>(player) + StatOffsets::kAreaCode, 4);
