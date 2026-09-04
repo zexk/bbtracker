@@ -553,6 +553,20 @@ several counters outright. Matched against a live read:
 | Heroism | 1029 | `0x4420077` |
 | missions cleared | 39 | `save+0x656C` |
 
+Further screens (Player Overview, the rest of Mission Stats, VS Stats,
+Insignias) add context rather than ids: Total Level of Camaraderie, all
+CO-OP lines and every VS line read `0`, which plausibly accounts for a large
+share of the ~180 descriptor ids that sit at zero. No screen lists per-weapon
+takedowns, so the game keeps those internally and the run-per-weapon method
+remains the only way to name them.
+
+**Insignias award heroism.** "Headshot Master" grants `+500` heroism for
+passing 100 headshots. That retro-explains a spike in the run data: heroism
+moved `428 -> 931` on a 3-kill shotgun run, recorded at the time as an
+unexplained `+503`. Heroism deltas therefore mix per-mission awards with
+insignia bonuses, so a single run's heroism figure cannot be read as a pure
+mission result.
+
 Two labels were wrong before this: `0x44200DC` is the no-recovery-item
 clear count rather than a general clear counter, and `0x4420030` is
 hold-ups rather than anything prisoner-related. The Fulton line also
