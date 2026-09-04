@@ -177,6 +177,7 @@ Known ids:
 | 36 | Extra Ops 005: Marksmanship Challenge | - |
 | 37 | Extra Op, unidentified | - |
 | 52 | Side Ops 10 | - |
+| 53 | Extra Ops 011 | - |
 
 **Mission id equals the Main Op number.** Ids 1, 2 and 4 match the published
 Main Ops order (Main Op 4 is LAV-Type G, Main Op 2 is Sandinista
@@ -850,8 +851,24 @@ constants are confirmed against the branches in the binary; no codename has
 been awarded on the research profile, so the ladder has never been observed
 producing a real grade.
 
-The mission rank formula is the one award system still unsolved. Two
-approaches are ruled out. Nothing in `.text` writes the rank array: every
+**The mission rank is written by GCL script, not by native code.** A write
+watchpoint on the rank array caught the store on a first clear of mission 53
+(`0xFFFF -> 0x0000`, S). The storing instruction is
+`mov word ptr [r11 + rax*2], r10w` at `0x1400A4530`, inside the script VM's
+typed-store dispatcher `0x1400A44C0` - a jump table over store widths, reached
+from the variable-assignment path at `0x1400A415C` that first checks the
+`0xF0000000` type tag. `r11` is the array base, `r8d` the mission id, `r10` the
+value.
+
+That explains every failed static search: there is no native writer to find,
+and the formula lives in script bytecode. The VM resolves variables by walking
+the loaded script stream (`0x1400A52E0` over the registry at `0x1410A63E8`,
+matching a three-byte name hash at `[cursor-3]`), so the namespace is hashed
+and carries no plaintext names. Recovering the formula now means reading the
+results script - `STAGEDAT/0175_result.rlc` is extracted already - rather than
+more disassembly.
+
+Two earlier approaches are ruled out. Nothing in `.text` writes the rank array: every
 reference to displacement `0x32B4` is a read, a staging `memcpy`, or a
 coincidence in unrelated float code, so the writer forms the address through a
 pointer like the rest of this game. And the `list_rank_a_%02d`..`_f_%02d` UI
