@@ -748,6 +748,58 @@ The one disagreement is index 53, stat `0x117`. The 84 stat-mapped records and
 84 screen rows are different sets whose equal counts are coincidental.
 
 
+## Networking
+
+VS Ops and CO-OPS work in this build. The PSP ad-hoc stack is gone and Steam
+replaces it: the game requests lobby and P2P interfaces and lets the Steam
+client carry the traffic.
+
+| Interface | Role |
+| --- | --- |
+| `SteamMatchMaking009` | lobbies - the VS Ops host menu is a lobby, and SET PASSWORD is lobby metadata |
+| `SteamNetworkingSockets012` | P2P connections |
+| `SteamNetworkingMessages002` | message-oriented P2P |
+| `SteamNetworkingUtils004` | relay selection and ping |
+| `SteamFriends017`, `SteamUser023`, `SteamUtils010`, `SteamInput006` | identity, overlay, input |
+| `STEAMSCREENSHOTS_003`, `STEAMREMOTESTORAGE_016`, `STEAMAPPS_008`, `STEAMUSERSTATS_012` | the four `*_INTERFACE_VERSION`-style interfaces |
+
+The executable has no socket layer of its own. It imports 12 DLLs and none is
+a networking one - no `ws2_32`, `winhttp` or `wininet` - and `.rdata` holds no
+winsock symbols. `ws2_32` *is* mapped into the process, but alongside
+`steamclient64.dll` and `lsteamclient.dll`: networking runs inside the Steam
+client and the game reaches it over local IPC. A live check while sitting in
+the VS host menu found exactly one established TCP connection,
+`127.0.0.1 -> 127.0.0.1`, and no remote peer.
+
+The PSP networking modules are declared and empty. `.data 0x140F4D0E0` is a
+module table of `{name pointer, handler pointer}` pairs; `pspnet`,
+`pspnet_adhoc`, `pspnet_adhoc_auth`, `pspnet_adhocctl`,
+`pspnet_adhoc_matching`, `pspnet_inet`, `pspnet_apctl`, `kjnet` and `memab` all
+have a **null handler**. The `konamionline.com` URLs that survive are policy
+and manual pages, not a session service, so no Konami backend is in the loop.
+
+The Unity launcher bundles the whole Steamworks.NET binding - all 158
+`SteamAPI_ISteamMatchmaking*`/`ISteamNetworking*` flat functions - but carries
+no PW-specific session or packet types, and it exits once the game starts. Its
+binding proves nothing about who does the networking; the game exe does.
+
+**Feasibility of a private server.** Sessions are host-authoritative peer to
+peer with Steam providing discovery and relay, so there is no session server to
+reimplement. The practical open-source route is a Steam API reimplementation
+(the Goldberg approach): implement `SteamMatchMaking009` plus
+`SteamNetworkingSockets012`/`Messages002` faithfully and the game's own netcode
+does the rest, which also gives LAN play with no Steam at all. Both ends run
+the same binary, so the wire format never has to be understood. The open
+question is how much `sdkencryptedappticket64.dll` matters - encrypted app
+tickets imply an identity step worth checking before assuming a clean-room
+shim works.
+
+**Correction.** An earlier pass concluded this build had no networking at all.
+That came from grepping only for the `STEAM*_INTERFACE_VERSION` naming
+convention, which the versioned interfaces above do not use. The null `pspnet`
+handlers and the missing `ws2_32` import were real; they meant the ad-hoc stack
+was replaced, not that multiplayer was removed.
+
 ## Installed data and saves
 
 Main directory holds the executable, `steam_api64.dll`,
