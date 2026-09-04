@@ -25,12 +25,15 @@ Requires Ultimate ASI Loader. Recommended setup:
 
 - MGS1: install [MGSM2Fix](https://github.com/nuggslet/MGSM2Fix/releases).
 - MGS2/MGS3: install [MGSHDFix](https://github.com/ShizCalev/MGSHDFix/releases).
-- MGS4: install Ultimate ASI Loader as `MGS4/winmm.dll`. Under Proton, set
-  Steam launch options to `WINEDLLOVERRIDES="winmm=n,b" %command%`. Both
-  Direct3D 11 and Direct3D 12 are supported.
-- Peace Walker (FOXHOUND probe): copy Ultimate ASI Loader as
-  `MGS_PW/mgspw/winmm.dll` (same binary as MGS4). Under Proton, set
-  Steam launch options to `WINEDLLOVERRIDES="winmm=n,b" %command%`.
+- MGS4 and Peace Walker: install
+  [MGSPatriotFix](https://github.com/ShizCalev/MGSPatriotFix/releases) - one
+  zip per game, extracted into `METAL GEAR SOLID 4` or `MGS_PW`. It ships
+  Ultimate ASI Loader as `MGS4/winmm.dll` and `mgspw/winmm.dll`, so no
+  separate loader is needed. Under Proton, set Steam launch options to
+  `WINEDLLOVERRIDES="winmm=n,b" %command%`. MGS4 supports both Direct3D 11
+  and Direct3D 12.
+  Without the fix, install Ultimate ASI Loader under those same names by
+  hand.
 
 Those fixes provide ASI-loading setup. Then download matching bbtracker release and
 copy ASI into game directory:
