@@ -158,11 +158,17 @@ Known ids:
 
 | id | mission | stage |
 | ---: | --- | --- |
-| 1 | first main op | `w00s01a` |
-| 2 | Sandinista Comandante | `w01s04a` |
-| 4 | Armored Vehicle Battle: LAV-Type G | - |
+| 1 | Main Op 1 | `w00s01a` |
+| 2 | Main Op 2: Contact the Sandinista Comandante | `w01s04a` |
+| 3 | Main Op 3: Pursue Amanda (inferred) | - |
+| 4 | Main Op 4: Armored Vehicle Battle: LAV-Type G | - |
 | 36 | Extra Ops 005: Marksmanship Challenge | - |
 | 52 | Side Ops 10 | - |
+
+**Mission id equals the Main Op number.** Ids 1, 2 and 4 match the published
+Main Ops order (Main Op 4 is LAV-Type G, Main Op 2 is Sandinista
+Comandante), so the whole Main Ops range can be labelled from the public
+mission list without playing each one. Extra Ops use a different id range.
 
 The probe prints the id and the stage string together, so this table grows as
 missions are played.
