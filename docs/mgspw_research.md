@@ -229,7 +229,7 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x442011F` | missions cleared with no kills |
 | `0x44200DC` | missions cleared with no recovery items used |
 | `0x4420030` | total hold-ups |
-| `0x200ED`, `0x2002F` | non-headshot (body) kills |
+| `0x200ED`, `0x2002F` | provisionally non-headshot (body) kills; `0x200ED` is axis 1 slot 3 and the label is disputed - see "Validation and unknowns" |
 
 Per-type counters live in the sparse block `0x200DD..0x20110` and are listed
 under "Takedown counters"; a type reads `0` until used, so only a handful are
@@ -614,14 +614,18 @@ one for each codename id.
 | owned count | `0x1405446D0` | counts owned codenames `1..24` |
 
 Evaluator input table at `0x140D209F0` is four groups of twelve career-stat
-ids. Same position in every group is one weapon class:
+ids, matching `0xDD + axis*13 + slot` exactly (the thirteenth id of each group
+is unused). The same slot in every group is one weapon class.
 
-| Axis | Stat ids | Live-profile check |
-| --- | --- | --- |
-| kills | `0xDD..0xE8` | scattered lethal weapon totals |
-| sleeps | `0xEA..0xF5` | handgun slot is `145`, matching tranq takedowns |
-| stuns | `0xF7..0x102` | CQC slot is `28`, matching the observed CQC/stun total |
-| incapacitations | `0x104..0x10F` | all zero on the research profile |
+| Axis | Stat ids | Contents on the research profile |
+| ---: | --- | --- |
+| 0 | `0xDD..0xE8` | lethal kills: every known per-weapon lethal id sits here at its class slot |
+| 1 | `0xEA..0xF5` | unidentified; only slot 3 is non-zero (`0x200ED`, reads `3`) |
+| 2 | `0xF7..0x102` | sleeps: slot 2 is the tranq handgun (`0x200F9`, `145`), slot 4 the Mosin (`0x200FB`, `2`) |
+| 3 | `0x104..0x10F` | stuns: slot 0 is CQC (`0x20104`, `28`) |
+
+Axis 0 is the `K` of the lethality split and axes 1-3 sum to `N`, so the
+unidentified axis still contributes correctly even unnamed.
 
 The evaluator sums all four axes per slot and makes a 12-bit mask containing
 every slot tied for the largest total. Five normal weapon predicates consume
@@ -850,9 +854,13 @@ Missions 6 and 7 scored differently at nearly identical times.
 
 Open items:
 
-- axis labels in "Codename system" disagree with live ids: `0x200F9` (tranq
-  handgun, `145`) and `0x20104` (CQC, `28`) sit at axis 2 slot 2 and axis 3
-  slot 0, so the `sleeps`/`stuns` ranges as written cannot both be right;
+- axis 1 of the codename input table (`0xEA..0xF5`) is unidentified: it reads
+  zero on a solo profile except slot 3;
+- `0x200ED` is labelled body kills from a run of three body shots with a
+  **pistol**, but it is axis 1 slot **3**, the assault-rifle slot, not slot 2.
+  Either that label is wrong or the same-slot-is-one-class rule does not hold
+  for axis 1. `0x2002F` moved identically on the same run and has the same
+  doubt over it;
 - `+0x278` / `+0x250` twins behave exactly like per-mission best scores but are
   one test short: beat `6000` on Marksmanship Challenge and watch `+0x278`;
 - score thresholds - `3300` scored A and `6000` scored S on that mission, and
