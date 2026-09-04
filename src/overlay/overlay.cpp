@@ -1163,16 +1163,22 @@ void draw_mgspw_global(const GameStats& stats)
                      stats.pw_pistol_takedowns, stats.pw_pistol_lethal,
                      stats.pw_ar_takedowns, stats.pw_shotgun_takedowns,
                      stats.pw_sniper_takedowns, stats.pw_cqc_takedowns);
-            snprintf(buf, sizeof(buf), "%d", stats.pw_grenade_takedowns);
-            row("grenade", buf);
+            snprintf(buf, sizeof(buf), "grenade %d  rocket %d",
+                     stats.pw_grenade_takedowns, stats.pw_rocket_takedowns);
+            row("explosives", buf);
             row("by weapon", buf);
         }
         snprintf(buf, sizeof(buf), "HS %d  AL %d", stats.pw_headshots, stats.pw_alerts);
         row("lifetime", buf);
-        if (stats.pw_body_kills >= 0 && stats.pw_kills >= 0 && stats.pw_headshots >= 0) {
-            // The game stores total headshots and non-headshot kills, so the
-            // lethal/tranq split of the headshots is a subtraction.
-            const int lethal_hs = stats.pw_kills - stats.pw_body_kills;
+        if (stats.pw_body_kills >= 0 && stats.pw_kills >= 0 && stats.pw_headshots >= 0
+            && stats.pw_grenade_takedowns >= 0 && stats.pw_rocket_takedowns >= 0) {
+            // Headshots are stored as one total and non-headshot kills
+            // separately, so the lethal/tranq split is a subtraction. Explosive
+            // kills carry no hit location and count as neither, so they have to
+            // come out too - a rocket run moved kills by 3 while both the
+            // headshot and body counters stayed put.
+            const int explosive = stats.pw_grenade_takedowns + stats.pw_rocket_takedowns;
+            const int lethal_hs = stats.pw_kills - stats.pw_body_kills - explosive;
             snprintf(buf, sizeof(buf), "%d lethal / %d tranq", lethal_hs,
                      stats.pw_headshots - lethal_hs);
             row("headshots", buf);

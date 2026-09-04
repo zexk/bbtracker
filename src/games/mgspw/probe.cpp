@@ -92,6 +92,7 @@ constexpr uint32_t kPistolIds[] = {0x200F9};      // non-lethal, pistol
 constexpr uint32_t kPistolLethalIds[] = {0x200DF}; // lethal, pistol
 constexpr uint32_t kCqcIds[] = {0x20104};          // CQC takedowns, any variant
 constexpr uint32_t kGrenadeIds[] = {0x200E6};      // lethal, grenade
+constexpr uint32_t kRocketIds[] = {0x200E5};       // lethal, rocket launcher
 // Kills on enemies that never spotted the player. Confirmed by a run the
 // player reported as 2 stealth kills then 1 after being found: +2.
 constexpr uint32_t kStealthKillIds[] = {0x2007C};
@@ -128,6 +129,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
         {kPistolLethalIds, std::size(kPistolLethalIds), &out.pw_pistol_lethal, nullptr},
         {kCqcIds, std::size(kCqcIds), &out.pw_cqc_takedowns, nullptr},
         {kGrenadeIds, std::size(kGrenadeIds), &out.pw_grenade_takedowns, nullptr},
+        {kRocketIds, std::size(kRocketIds), &out.pw_rocket_takedowns, nullptr},
         {kStealthKillIds, std::size(kStealthKillIds), &out.pw_stealth_kills, nullptr},
         {kFultonIds, std::size(kFultonIds), &out.pw_fulton_recoveries, nullptr},
         {kClearCounterIds, std::size(kClearCounterIds), &out.pw_clear_counter, nullptr},

@@ -196,6 +196,7 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x200E0` | per-type takedowns: assault rifle, lethal |
 | `0x200E1` | per-type takedowns: sniper rifle, lethal |
 | `0x200E4` | per-type takedowns: shotgun, lethal |
+| `0x200E5` | per-type takedowns: rocket launcher, lethal |
 | `0x200E6` | per-type takedowns: grenade, lethal |
 | `0x2007C` | kills on enemies that never spotted the player |
 | `0x420002` | alerts |
@@ -237,6 +238,7 @@ Pistol confirms the alignment: lethal `0x200DF` is index 2, non-lethal
 | 3 | assault rifle | `0x200E0` | `0x200FA` (predicted) |
 | 4 | sniper rifle | `0x200E1` | `0x200FB` (predicted) |
 | 7 | shotgun | `0x200E4` | `0x200FE` (predicted) |
+| 8 | rocket launcher | `0x200E5` | - |
 | 9 | grenade | `0x200E6` | `0x20100` (predicted) |
 | 13 | CQC | - | `0x20104` |
 
@@ -282,8 +284,13 @@ mission (vehicle destroyed, boss defeated).
 Headshots are stored as one total, so the lethal/tranq split is a
 subtraction:
 
-    lethal headshot kills = kills (0x200E0) - body kills (0x200ED)
+    explosive kills       = grenade (0x200E6) + rocket (0x200E5)
+    lethal headshot kills = kills (0x420008) - body kills (0x200ED) - explosive
     tranq headshots       = headshots (0x4420031) - lethal headshot kills
+
+Explosive kills carry no hit location: a 3-kill rocket run left both the
+headshot and the body-kill counters untouched, as did the grenade run, so
+they have to be subtracted as well.
 
 Pinned by three single-weapon runs on the same mission: 3 tranq headshots
 moved `0x4420031` and `0x442002E` only; 3 lethal headshots moved
