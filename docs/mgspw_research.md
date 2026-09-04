@@ -162,7 +162,9 @@ Known ids:
 | 2 | Main Op 2: Contact the Sandinista Comandante | `w01s04a` |
 | 3 | Main Op 3: Pursue Amanda (inferred) | - |
 | 4 | Main Op 4: Armored Vehicle Battle: LAV-Type G | - |
+| 5 | Main Op 5: Rescue Chico | - |
 | 36 | Extra Ops 005: Marksmanship Challenge | - |
+| 37 | Extra Op, unidentified | - |
 | 52 | Side Ops 10 | - |
 
 **Mission id equals the Main Op number.** Ids 1, 2 and 4 match the published
@@ -548,10 +550,14 @@ the retracted weapon-XP multiplier below was invented.
   lights up exactly one slot. Next: SMG, sniper, LMG, rockets, grenades, plus
   the non-lethal slots for the types already found.
 - (resolved) `0x2007C` is kills on unaware enemies - see the stat table.
-- **`0x442002E` scope.** CQC takedowns never touch it (two runs), so it
-  counts tranq-weapon takedowns rather than all non-lethal ones. That leaves
-  the LAV run unexplained: 6 pistol plus 1 CQC moved it `+7` while the pistol
-  counter moved `+6`.
+- **`0x442002E` scope.** CQC takedowns never touch it (three runs now,
+  including a story mission where 6 pistol takedowns moved both it and the
+  pistol counter by exactly 6 while a CQC takedown moved neither), so it
+  counts tranq-weapon takedowns rather than all non-lethal ones. The LAV
+  run's `+7` against a pistol `+6` is most likely a miscounted seventh
+  pistol takedown rather than CQC feeding the total.
+- **`0x2008F` and `0x4420030`** each moved `+1` on a story mission that also
+  had one CQC takedown and six Fultons; both are still unidentified.
 - **`0x2006B`** is settled as ineffective CQC, not slam takedowns: it moved
   `+1` on the run with one failed slam and stayed flat through a run of two
   clean slams.
