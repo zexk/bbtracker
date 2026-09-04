@@ -447,9 +447,9 @@ std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s)
                             top_share, kPwSpreadShare * 100.0,
                             static_cast<uint8_t>(ReqFmt::Count),
                             static_cast<uint8_t>(Op::Le)});
-    out.push_back(row("non-lethal takedowns", p.nonlethal > p.lethal, p.nonlethal,
-                      p.lethal + 1));
-    out.push_back(row("lethal kills", p.lethal < p.nonlethal, p.lethal, 0));
+    // Shown against kills, the value it actually has to beat.
+    out.push_back(row("non-lethal vs kills", p.nonlethal > p.lethal, p.nonlethal,
+                      p.lethal));
     return out;
 }
 

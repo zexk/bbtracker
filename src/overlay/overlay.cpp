@@ -1339,6 +1339,18 @@ void draw_mgspw_codename(const GameStats& stats)
             ImGui::TableNextColumn();
             ImGui::TextColored(r.pass ? id_green : id_red, "%s", value);
         }
+        // Context, not a requirement: the counters the axes are read from.
+        const auto plain = [](const char* key, int value) {
+            char buf[24];
+            snprintf(buf, sizeof(buf), "%d", value);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextDisabled("%s", key);
+            ImGui::TableNextColumn();
+            ImGui::TextDisabled("%s", buf);
+        };
+        plain("lethal kills", stats.pw_kills > 0 ? stats.pw_kills : 0);
+        plain("CQC takedowns", stats.pw_cqc_takedowns > 0 ? stats.pw_cqc_takedowns : 0);
         ImGui::EndTable();
     }
 
