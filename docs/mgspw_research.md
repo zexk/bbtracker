@@ -871,9 +871,14 @@ value.
 
 That explains every failed static search: there is no native writer to find,
 and the formula lives in script bytecode. The VM resolves variables by walking
-the loaded script stream (`0x1400A52E0` over the registry at `0x1410A63E8`,
-matching a three-byte name hash at `[cursor-3]`), so the namespace is hashed
-and carries no plaintext names. Recovering the formula now means reading the
+the loaded script stream (`0x1400A52E0`, matching a three-byte name hash at
+`[cursor-3]`), so the namespace is hashed and carries no plaintext names.
+
+`0x1410A63E8` is the VM's data-stack pointer, not a script registry: the code
+at `0x1400A55C0` stores through it and bumps it by 8, which is a push. A second
+stack lives at `0x1410A64F0`. A write watchpoint on the first fired 17,130
+times in one play session from that single instruction, which is what a program
+counter looks like - and it stalls the game, so it is not a usable trap. Recovering the formula now means reading the
 results script - `STAGEDAT/0175_result.rlc` is extracted already - rather than
 more disassembly. `scripts/pwgcl.py` decodes the token layer and parses the container header;
 section boundaries are still open. All 92 extracted scripts begin `oEbN`,
