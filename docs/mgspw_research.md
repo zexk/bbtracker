@@ -162,6 +162,8 @@ Known ids:
 | 3 | Main Op 3: Pursue Amanda (inferred) | - |
 | 4 | Main Op 4: Armored Vehicle Battle: LAV-Type G | - |
 | 5 | Main Op 5: Rescue Chico | - |
+| 6 | Main Op 6: Pursue the Jungle Train | - |
+| 7 | Main Op 7: Tank Battle: T-72U | - |
 | 36 | Extra Ops 005: Marksmanship Challenge | - |
 | 37 | Extra Op, unidentified | - |
 | 52 | Side Ops 10 | - |
@@ -601,8 +603,17 @@ confirms the enemy/prisoner split, since the screen shows their sum.
   Challenge, so that mission's S line is at most `6000`. The `+0x420` config
   block (`9999`, `8000` x3, `6000` x3, `1000` x8, `100`) is the obvious place
   for per-rank or per-target values but has not been tied to a rank yet.
-- **Career id `0x20023`** moved on only 2 of 5 runs (`+6000` on a first clear,
-  `+4945` on a dirty replay), so it is not a plain cumulative score.
+- **Career id `0x20023`** is cumulative and strictly increasing (`4962` ->
+  `34566` over the session), so it is not a current value such as vehicle
+  health. It moved `+6000` on a first clear, `+4945` on a dirty replay,
+  `+1972` on a lethal pistol run, `+4930` on a grenade run, `+11757` across
+  the two missions ending in the tank battle, and not at all on some clean
+  runs. Cumulative GMP earned fits (the balance falls with R&D spending while
+  this does not); testable by comparing one mission's results-screen GMP
+  against the delta.
+- **`0x20106`** moved `+1` on the LAV boss and `+1` on the T-72U tank battle,
+  so armored-vehicle bosses defeated fits. `0x420080` came off zero by `+2`
+  on the tank mission and is unexplained.
 - **The remaining weapon types.** Identified: pistol non-lethal (`0x200F9`),
   assault rifle lethal (`0x200E0`), sniper lethal (`0x200E1`), shotgun lethal
   (`0x200E4`). The lethal bank is contiguous from `0x200E0`, so the gaps at
