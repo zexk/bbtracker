@@ -188,6 +188,7 @@ Confirmed ids, each pinned by runs with counted actions:
 | --- | --- |
 | `0x420008` | lethal takedowns (kills), total |
 | `0x200E0` | per-type takedowns: assault rifle, lethal |
+| `0x200E1` | per-type takedowns: sniper rifle, lethal |
 | `0x200E4` | per-type takedowns: shotgun, lethal |
 | `0x420002` | alerts |
 | `0x442002E` | non-lethal takedowns, total (body shots count, misses do not) |
@@ -208,8 +209,8 @@ is used, which is why only a handful are ever non-zero.
 
 Three are pinned by player-reported runs: a 7-takedown mission (6 pistol,
 1 CQC) moved the total `+7` and `0x200F9` `+6`; three single-weapon
-assault-rifle runs moved `0x200E0` `+3` each; and a 3-kill shotgun run moved
-`0x200E4` off zero.
+assault-rifle runs moved `0x200E0` `+3` each; a 3-kill shotgun run moved `0x200E4` off zero; and a 3-kill sniper run
+moved `0x200E1` off zero.
 
 A shotgun run (3 lethal takedowns) then corrected the earlier reading:
 `0x200E4` came off zero by `+3` while `0x200E0` stayed put, so `0x200E0` is
@@ -481,8 +482,11 @@ the retracted weapon-XP multiplier below was invented.
   for per-rank or per-target values but has not been tied to a rank yet.
 - **Career id `0x20023`** moved on only 2 of 5 runs (`+6000` on a first clear,
   `+4945` on a dirty replay), so it is not a plain cumulative score.
-- **The other eight weapon types.** Identified: pistol non-lethal
-  (`0x200F9`), assault rifle lethal (`0x200E0`), shotgun lethal (`0x200E4`).
+- **The remaining weapon types.** Identified: pistol non-lethal (`0x200F9`),
+  assault rifle lethal (`0x200E0`), sniper lethal (`0x200E1`), shotgun lethal
+  (`0x200E4`). The lethal bank is contiguous from `0x200E0`, so the gaps at
+  `0x200E2`/`0x200E3` are two types not yet used (SMG is one - the profile
+  owns none yet).
   Each type appears to have both a lethal and a non-lethal slot. Each unused type reads `0`, so a run using one
   Each unused type reads `0`, so a run using one type for 2-3 takedowns
   lights up exactly one slot. Next: SMG, sniper, LMG, rockets, grenades, plus
