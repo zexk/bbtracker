@@ -552,6 +552,26 @@ therefore need separate rules; why the offset resets is not yet understood.
 
 `scripts/pwtext.py` drives the extraction end to end.
 
+### Rank thresholds and insignia tiers: searched, not found
+
+Both are data-driven and neither turned up in the decrypted archive:
+
+- element types across all 2137 blocks are `olang`, `mdb`, `txp`, `mtar`,
+  `mtsq`, `sep`, `eft`, `la3`, `ypk`, `vrd`, `bin`, `mdpe`, `lt2`, `vcp`,
+  `dcd`, `ohd`, `geom`, `vlm`, `eqp`, `nav`; the small parameter-ish ones
+  (`bin`, `eqp`, `dcd`, `vlm`, `nav`, 409 elements) contain no 25/50/100
+  tier pattern;
+- the insignia block `001FC` holds only `olang` text plus `ypk`/`ohd`;
+- insignia descriptions are templates - "over `$1` headshots (Heroism
+  increases by `$2`)" - so the numbers live in a table elsewhere;
+- the executable has no `insignia`, `emblem`, `medal` or `award` strings at
+  all, and the one promising `.data` table at `0x1033300` is 5-dword records
+  carrying typed ids (`0x20000200`-style), i.e. R&D or dialogue triggers.
+
+Next lead is the `.cnf` script data - Chrysalis parses those files and its
+issue #6 asks the same question about `.slot` lines in them, so it is
+unsolved in the community too.
+
 ## Installed data and saves
 
 Main directory holds the executable, `steam_api64.dll`,
