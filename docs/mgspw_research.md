@@ -238,12 +238,13 @@ Pistol confirms the alignment: lethal `0x200DF` is index 2, non-lethal
 The non-lethal predictions are untested; the Mosin Nagant (the only tranq
 weapon besides the Mk22, dropped after Main Op 7) would settle them.
 
-A 3-takedown CQC run (2 chokes, 1 slam) moved `0x20104` by `+3`, so index
-13 is CQC as a type, with choke and slam sharing it - there is no lethal
-CQC in this game. `0x442007B` moved `+4` on that run, so it counts CQC
-*uses* rather than takedowns. `0x2006B` came off zero by `+1`, matching the
-single slam, and `0x200F7`/`0x20106` stayed flat, so those two belong to the
-LAV mission after all.
+A CQC run of 2 chokes and 2 slams - one slam ineffective, since an enemy
+must be choked a little before a slam actually stuns - moved `0x20104` by
+`+3` and `0x442007B` by `+4`. That is takedowns against uses: the
+ineffective slam counts as a use and earns no takedown. Index 13 is
+therefore CQC as a weapon type, with chokes and stunning slams sharing it;
+there is no lethal CQC in this game. `0x200F7`/`0x20106` stayed flat, so
+those two belong to the LAV mission after all.
 
 Three are pinned by player-reported runs: a 7-takedown mission (6 pistol,
 1 CQC) moved the total `+7` and `0x200F9` `+6`; three single-weapon
@@ -536,8 +537,10 @@ the retracted weapon-XP multiplier below was invented.
   counts tranq-weapon takedowns rather than all non-lethal ones. That leaves
   the LAV run unexplained: 6 pistol plus 1 CQC moved it `+7` while the pistol
   counter moved `+6`.
-- **`0x2006B`** came off zero by `+1` on a run with exactly one CQC slam;
-  single observation, so slam-specific is a guess.
+- **`0x2006B`** came off zero by `+1` on a run containing two slams, one of
+  which stunned and one of which did not, so it counts exactly one of those
+  two cases. Two clean stunning slams separate them: `+2` means slam
+  takedowns, `0` means ineffective CQC.
 
 - **`0x2002F` vs `0x200ED`** both moved `+3` on the body-shot run and are so
   far indistinguishable.
