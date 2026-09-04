@@ -750,9 +750,22 @@ Data archives are named by a 24-bit hash: `MLG/disc0_rel/*.PDT|.DAT|.KEY`,
 `MLG/Text/*.olang`, `Text/*.txp`. They look like noise on disk (entropy ~7.96
 bits/byte) but the encryption is broken - see "Archive encryption".
 
-The per-user save directory holds `usersv` (exactly `0x1000` bytes,
-first 256 bytes encrypted or obfuscated, no `MGSS` magic) and
-`steam_autocloud.vdf`. The run save `STW00000092e301` (325,968 B) is fully
+The per-user save directory holds `usersv` (exactly `0x1000` bytes) and
+`steam_autocloud.vdf`.
+
+`usersv` is the launcher config in the shared Master Collection format that
+`docs/mgs4_research.md` documents: `MGSS` magic, CRC-16/IBM at `+0x04` over
+`[0x010,0x1000)`, and 256 signed `int32` settings at `+0x010`, all recovered by
+XORing the record against the file's own tail (`C[i] ^ C[0x800+i]`, and
+`C[0x804+i]` for the first twelve bytes). Verified on PW, MGS4, MGS2 and MG1/2:
+magic and CRC check out on all four. The earlier "no `MGSS` magic" reading was
+of the obfuscated bytes.
+
+PW shares MGS4's field positions - `[4]`/`[5]` are the resolution, `1280`/`720`
+here - while MGS2 and MG1/2 reuse the container with different field meanings.
+Only ten PW fields are non-zero, and they track the launcher's own options, not
+in-game settings, which is consistent with in-game options never appearing in
+the save block. The run save `STW00000092e301` (325,968 B) is fully
 encrypted: no dword of any known live value appears anywhere in it. Disk-side
 auditing is therefore not available; live diffing is the method.
 
@@ -884,7 +897,6 @@ Open items:
   `0x14017084E` is unidentified;
 - `save+0x130` (`229`, static through Fulton uses) and `save+0xB550` (`150`
   against a displayed food `151%`) are unexplained;
-- `usersv` structure, and whether `KeyConfigSsvIO` is really its role;
 - who writes the grade bytes during play - `0x14039C190` only installs defaults;
 - what consumes the comm-message requirement tuple at `+0x0C..+0x14`.
 
