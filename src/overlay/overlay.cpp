@@ -1153,6 +1153,11 @@ void draw_mgspw_global(const GameStats& stats)
         snprintf(buf, sizeof(buf), "%d lethal / %d non-lethal", stats.pw_kills,
                  stats.pw_tranq);
         row("takedowns", buf);
+        if (stats.pw_stealth_kills >= 0 && stats.pw_kills >= 0) {
+            snprintf(buf, sizeof(buf), "%d of %d kills", stats.pw_stealth_kills,
+                     stats.pw_kills);
+            row("unseen", buf);
+        }
         if (stats.pw_pistol_takedowns >= 0) {
             snprintf(buf, sizeof(buf), "pistol %d+%d  AR %d  SG %d  SR %d  CQC %d",
                      stats.pw_pistol_takedowns, stats.pw_pistol_lethal,

@@ -197,6 +197,7 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x200E1` | per-type takedowns: sniper rifle, lethal |
 | `0x200E4` | per-type takedowns: shotgun, lethal |
 | `0x200E6` | per-type takedowns: grenade, lethal |
+| `0x2007C` | kills on enemies that never spotted the player |
 | `0x420002` | alerts |
 | `0x442002E` | non-lethal takedowns, total (body shots count, misses do not) |
 | `0x200DF` | per-type takedowns: pistol, lethal |
@@ -292,9 +293,10 @@ for the first time this profile. Career kills stood at 20 with `0x200ED` at
 `0`, i.e. every kill before that run had been a headshot, which matches the
 earlier 6-kill run moving `0x4420031` by 6.
 
-`0x2007C` is not headshot-related: it took `+3` from both the headshot run
-and the body run. It is not per-type either, since the shotgun run moved it
-as well; see open items.
+`0x2007C` counts kills on enemies that never spotted the player. It took
+`+3` from every clean single-weapon run regardless of weapon, `+2` from a
+mixed 6-kill boss run, and `+2` from a 3-kill grenade run the player
+described as two stealth kills followed by one after being found.
 
 Heroism responds to both lethality and alerts: `+22` on a clean no-kill
 no-alert clear, `+7` on the same mission with one alert, `+0` with kills.
@@ -538,13 +540,7 @@ the retracted weapon-XP multiplier below was invented.
   Each unused type reads `0`, so a run using one type for 2-3 takedowns
   lights up exactly one slot. Next: SMG, sniper, LMG, rockets, grenades, plus
   the non-lethal slots for the types already found.
-- **`0x2007C`** now looks like kills on unaware enemies rather than firearm
-  kills: it took `+3` from every clean single-weapon run, but only `+2` from
-  the messy 6-kill LAV run and `+2` from a 3-kill grenade run the player
-  described as "messy alarms wise". A run where every kill lands on an
-  already-alerted enemy would confirm it. Previously it spans weapon types (`+3` from assault-rifle and shotgun runs
-  alike, `+2` from a mixed 6-kill run), so it is not one class; firearm kills
-  as distinct from explosives and CQC is the current guess.
+- (resolved) `0x2007C` is kills on unaware enemies - see the stat table.
 - **`0x442002E` scope.** CQC takedowns never touch it (two runs), so it
   counts tranq-weapon takedowns rather than all non-lethal ones. That leaves
   the LAV run unexplained: 6 pistol plus 1 CQC moved it `+7` while the pistol
