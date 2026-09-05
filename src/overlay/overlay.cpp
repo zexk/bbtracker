@@ -13,6 +13,7 @@
 #include <MinHook.h>
 
 #include <cstdlib>
+#include <cfloat>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -1077,11 +1078,11 @@ void draw_mgspw_summary(const GameStats& stats)
                 static_cast<unsigned long long>(stats.pw_cur_best) * 1000ULL / 300ULL;
             // Rank and time are separate bests and may come from different
             // runs, so they are labelled apart rather than read as one result.
-            ImGui::TextDisabled("m%d  best %s  %llu:%02llu.%03llu", stats.pw_mission_id,
-                                rank, best_ms / 60000, (best_ms / 1000) % 60,
+            ImGui::TextDisabled("Mission %d | Best rank %s", stats.pw_mission_id, rank);
+            ImGui::TextDisabled("Best time %llu:%02llu.%03llu", best_ms / 60000, (best_ms / 1000) % 60,
                                 best_ms % 1000);
         } else {
-            ImGui::TextDisabled("m%d  new", stats.pw_mission_id);
+            ImGui::TextDisabled("Mission %d | No time recorded", stats.pw_mission_id);
         }
     }
     // Current sortie: segment deltas land at the results tally (actions) or at
@@ -1089,7 +1090,7 @@ void draw_mgspw_summary(const GameStats& stats)
     if (ImGui::BeginTable("pw_current", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("this run", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 150.0f);
         ImGui::TableHeadersRow();
         const auto row = [&](const char* k, const char* v) {
             ImGui::TableNextRow();
@@ -1106,7 +1107,7 @@ void draw_mgspw_summary(const GameStats& stats)
             if (mission_value >= 0) {
                 snprintf(buf, sizeof(buf), "%d", mission_value);
             } else {
-                snprintf(buf, sizeof(buf), "%+d (seg)", seg);
+                snprintf(buf, sizeof(buf), "%+d (area)", seg);
             }
             row(k, buf);
         };
@@ -1126,15 +1127,20 @@ void draw_mgspw_summary(const GameStats& stats)
         };
         clean_row("kills", stats.pw_m_kills, stats.seg_kills);
         stat_row("headshots", stats.pw_m_headshots, stats.seg_headshots);
-        clean_row("alerts", stats.pw_m_alerts, 0);
+        if (stats.pw_m_alerts < 0) row("alerts", "-");
+        else clean_row("alerts", stats.pw_m_alerts, 0);
         stat_row("tranq", stats.pw_m_tranq, stats.seg_tranq);
         snprintf(buf, sizeof(buf), "%+d", stats.seg_heroism);
-        row("heroism", buf);
+        row("heroism (area)", buf);
         // Full health is the deployed soldier's own maximum, not a constant.
-        const int max_hp = stats.pw_player_max_hp > 0 ? stats.pw_player_max_hp : 8000;
-        snprintf(buf, sizeof(buf), "%d%% (%d/%d)", stats.pw_player_hp * 100 / max_hp,
-                 stats.pw_player_hp, max_hp);
-        row("HP", buf);
+        if (stats.pw_player_max_hp > 0) {
+            snprintf(buf, sizeof(buf), "%d%% (%d/%d)",
+                     stats.pw_player_hp * 100 / stats.pw_player_max_hp,
+                     stats.pw_player_hp, stats.pw_player_max_hp);
+            row("HP", buf);
+        } else {
+            row("HP", "-");
+        }
         ImGui::EndTable();
     }
 
@@ -1175,136 +1181,95 @@ void draw_mgspw_summary(const GameStats& stats)
     ImGui::Spacing();
     ImGui::PushTextWrapPos(0.0f);
     if (name) {
-        ImGui::TextDisabled("%s (%s)", name, stage);
+        ImGui::TextDisabled("%s", name);
     } else {
         ImGui::TextDisabled("%s", stage);
     }
     ImGui::PopTextWrapPos();
 }
 
-void draw_mgspw_global(const GameStats& stats)
+void draw_mgspw_global(const GameStats& stats, int scroll)
 {
-    // Career totals. Clocks render from validated units; raw values live
-    // under Forensics.
-    char total_clock[32];
-    snprintf(total_clock, sizeof(total_clock), "%u:%02u:%02u", stats.pw_total_play / 3600,
-             (stats.pw_total_play / 60) % 60, stats.pw_total_play % 60);
+    ImGui::BeginChild("pw_career_scroll", ImVec2(0, 420));
+    if (scroll != 0) {
+        ImGui::SetScrollY(ImGui::GetScrollY() + scroll * ImGui::GetTextLineHeightWithSpacing() * 8);
+    }
+    char buf[64];
     if (ImGui::BeginTable("pw_global", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("career", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+        ImGui::TableSetupColumn("total", ImGuiTableColumnFlags_WidthFixed, 150.0f);
         ImGui::TableHeadersRow();
-        const auto row = [&](const char* k, const char* v) {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(k);
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(v);
+        const auto count = [&](const char* label, int value) {
+            if (value < 0) {
+                stat_row(label, "-");
+            } else {
+                snprintf(buf, sizeof(buf), "%d", value);
+                stat_row(label, buf);
+            }
         };
-        char buf[64];
+        snprintf(buf, sizeof(buf), "%u:%02u:%02u", stats.pw_total_play / 3600,
+                 (stats.pw_total_play / 60) % 60, stats.pw_total_play % 60);
+        stat_row("play time", buf);
         snprintf(buf, sizeof(buf), "%d (%+d last)", stats.pw_heroism,
                  stats.pw_heroism_delta);
-        row("heroism", buf);
+        stat_row("heroism", buf);
         snprintf(buf, sizeof(buf), "%u", stats.pw_gmp);
-        row("GMP", buf);
-        if (stats.pw_clears >= 0) {
-            snprintf(buf, sizeof(buf), "%d", stats.pw_clears);
-            row("clears", buf);
-        }
-        if (stats.pw_unique_cleared >= 0) {
-            snprintf(buf, sizeof(buf), "%d (S %d)", stats.pw_unique_cleared,
-                     stats.pw_s_missions);
-            row("missions cleared", buf);
-        }
-        snprintf(buf, sizeof(buf), "%d   %d lethal / %d non-lethal",
-                 stats.pw_kills + stats.pw_tranq, stats.pw_kills, stats.pw_tranq);
-        row("kills", buf);
-        if (stats.pw_body_kills >= 0 && stats.pw_kills >= 0 && stats.pw_headshots >= 0
-            && stats.pw_grenade_takedowns >= 0 && stats.pw_rocket_takedowns >= 0) {
-            // Headshots are stored as one total and non-headshot kills
-            // separately, so the lethal/tranq split is a subtraction. Explosive
-            // kills carry no hit location and count as neither, so they have to
-            // come out too - a rocket run moved kills by 3 while both the
-            // headshot and body counters stayed put.
-            const int explosive = stats.pw_grenade_takedowns + stats.pw_rocket_takedowns;
-            const int lethal_hs = stats.pw_kills - stats.pw_body_kills - explosive;
-            snprintf(buf, sizeof(buf), "%d   %d lethal / %d tranq", stats.pw_headshots,
-                     lethal_hs, stats.pw_headshots - lethal_hs);
-        } else {
-            snprintf(buf, sizeof(buf), "%d", stats.pw_headshots);
-        }
-        row("headshots", buf);
-        snprintf(buf, sizeof(buf), "%d", stats.pw_alerts);
-        row("alerts", buf);
+        stat_row("GMP", buf);
+        count("camaraderie", stats.pw_camaraderie);
+        count("clears (with replays)", stats.pw_clears);
+        count("unique missions", stats.pw_unique_cleared);
+        count("S-ranked missions", stats.pw_s_missions);
+        count("kills", stats.pw_kills);
+        count("non-lethal takedowns", stats.pw_tranq);
+        count("headshots", stats.pw_headshots);
+        count("alerts", stats.pw_alerts);
+        count("unseen kills", stats.pw_stealth_kills);
+        count("enemy Fultons", stats.pw_fulton_recoveries);
+        count("prisoners extracted", stats.pw_prisoner_extractions);
+        count("hold-ups", stats.pw_holdups);
+        count("no-kill clears", stats.pw_nokill_clears);
+        count("no-alert clears", stats.pw_noalert_clears);
+        count("no-recovery-item clears", stats.pw_noitem_clears);
         if (stats.pw_damage_taken >= 0) {
-            // 8000 is Snake's bar, and the scale the counter is kept on
-            // whoever was deployed, so this reads as nominal bars.
-            snprintf(buf, sizeof(buf), "%d  (%.1f bars)", stats.pw_damage_taken,
+            snprintf(buf, sizeof(buf), "%d (%.1f bars)", stats.pw_damage_taken,
                      stats.pw_damage_taken / 8000.0);
-            row("damage taken", buf);
+            stat_row("damage taken", buf);
+        } else {
+            stat_row("damage taken", "-");
         }
-        if (stats.pw_stealth_kills >= 0 && stats.pw_kills >= 0) {
-            snprintf(buf, sizeof(buf), "%d of %d kills", stats.pw_stealth_kills,
-                     stats.pw_kills);
-            row("unseen", buf);
-        }
-        if (stats.pw_pistol_takedowns >= 0) {
-            snprintf(buf, sizeof(buf),
-                     "pistol %d+%d  AR %d  SR %d+%d  LMG %d  SG %d  CQC %d",
-                     stats.pw_pistol_takedowns, stats.pw_pistol_lethal,
-                     stats.pw_ar_takedowns, stats.pw_sniper_takedowns,
-                     stats.pw_sniper_nonlethal, stats.pw_lmg_takedowns,
-                     stats.pw_shotgun_takedowns, stats.pw_cqc_takedowns);
-            row("by weapon", buf);
-            snprintf(buf, sizeof(buf), "grenade %d  rocket %d  placed %d",
-                     stats.pw_grenade_takedowns, stats.pw_rocket_takedowns,
-                     stats.pw_placed_takedowns);
-            row("explosives", buf);
-        }
-        if (stats.pw_fulton_recoveries >= 0) {
-            snprintf(buf, sizeof(buf), "%d  (+%d POW)", stats.pw_fulton_recoveries,
-                     stats.pw_prisoner_extractions);
-            row("Fulton", buf);
-        }
-        if (stats.pw_nokill_clears >= 0) {
-            snprintf(buf, sizeof(buf), "%d no-kill  %d no-alert  %d no-item",
-                     stats.pw_nokill_clears, stats.pw_noalert_clears,
-                     stats.pw_noitem_clears);
-            row("clean clears", buf);
-            snprintf(buf, sizeof(buf), "%d", stats.pw_holdups);
-            row("hold-ups", buf);
-        }
-        if (stats.pw_headshots >= 0 && stats.pw_kills >= 0 && stats.pw_tranq >= 0) {
-            // Draft lethal/non-lethal score: sleep+stun+incap - 2*kills,
-            // with tranq takedowns as the combined non-lethal input.
-            // Provisional until stun/incap split out.
-            snprintf(buf, sizeof(buf), "%d", stats.pw_tranq - 2 * stats.pw_kills);
-            row("lethal score", buf);
-        }
-        row("total play", total_clock);
         ImGui::EndTable();
     }
     ImGui::Spacing();
-    ImGui::TextDisabled("weapon XP");
-    bool any_weapon = false;
-    for (int i = 0; i < 16; ++i) {
-        if (stats.pw_weapon_use[i] > 0) {
-            any_weapon = true;
-            break;
-        }
-    }
-    if (any_weapon && ImGui::BeginTable("pw_weap", 4, ImGuiTableFlags_RowBg)) {
-        for (int i = 0; i < 16; ++i) {
-            if (stats.pw_weapon_use[i] <= 0) {
-                continue;
-            }
+    if (ImGui::BeginTable("pw_weapons", 3,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("takedowns", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("lethal", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+        ImGui::TableSetupColumn("non-lethal", ImGuiTableColumnFlags_WidthFixed, 85.0f);
+        ImGui::TableHeadersRow();
+        const auto weapon = [](const char* label, int lethal, int nonlethal) {
+            ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::Text("id%02d %d", i + 1, stats.pw_weapon_use[i]);
-        }
+            ImGui::TextUnformatted(label);
+            for (int value : {lethal, nonlethal}) {
+                ImGui::TableNextColumn();
+                if (value < 0) ImGui::TextDisabled("-");
+                else ImGui::Text("%d", value);
+            }
+        };
+        weapon("handguns", stats.pw_pistol_lethal, stats.pw_pistol_takedowns);
+        weapon("assault rifles", stats.pw_ar_takedowns, -1);
+        weapon("sniper rifles", stats.pw_sniper_takedowns, stats.pw_sniper_nonlethal);
+        weapon("machine guns", stats.pw_lmg_takedowns, -1);
+        weapon("shotguns", stats.pw_shotgun_takedowns, -1);
+        weapon("CQC", -1, stats.pw_cqc_takedowns);
+        weapon("grenades", stats.pw_grenade_takedowns, -1);
+        weapon("rockets", stats.pw_rocket_takedowns, -1);
+        weapon("placed explosives", stats.pw_placed_takedowns, -1);
         ImGui::EndTable();
-    } else if (!any_weapon) {
-        ImGui::TextDisabled("-");
     }
+    ImGui::TextDisabled("- = unavailable");
+    ImGui::EndChild();
 }
 
 void draw_mgspw_insignia(const GameStats& stats)
@@ -1321,7 +1286,7 @@ void draw_mgspw_insignia(const GameStats& stats)
     };
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     if (stats.pw_insignias >= 0) {
-        ImGui::Text("%d / 110", stats.pw_insignias);
+        ImGui::Text("%d / 110 insignias earned", stats.pw_insignias);
     }
     if (ImGui::BeginTable("pw_insignia_stats", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
@@ -1349,7 +1314,7 @@ void draw_mgspw_insignia(const GameStats& stats)
             if (have < 0) {
                 ImGui::TextColored(pending, "-");
             } else if (target < 0) {
-                ImGui::TextColored(id_green, "%d", have);
+                ImGui::TextColored(id_green, "%d  done", have);
             } else {
                 ImGui::TextColored(have * 4 >= target * 3 ? id_yellow : pending, "%d / %d",
                                    have, target);
@@ -1372,6 +1337,8 @@ void draw_mgspw_codenames(const GameStats& stats)
             ? id_green
             : ImGui::GetStyleColorVec4(ImGuiCol_Text);
     ImGui::TextColored(title_color, "%s", match ? match->name : "---");
+    ImGui::SameLine();
+    ImGui::TextDisabled("projected");
     if (stats.pw_codename_state_ok) {
         int owned = 0;
         for (int id = 1; id <= 24; ++id) {
@@ -1380,13 +1347,15 @@ void draw_mgspw_codenames(const GameStats& stats)
         ImGui::SameLine();
         ImGui::TextDisabled("- %d / 24 earned", owned);
     }
+    if (!axes.native) ImGui::TextDisabled("Estimated from available counters");
     if (ImGui::BeginTable("pw_class", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("takedowns", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50.0f);
         ImGui::TableSetupColumn("share", ImGuiTableColumnFlags_WidthFixed, 50.0f);
         ImGui::TableHeadersRow();
-        const auto share_row = [&](const char* label, int value, const ImVec4& share_color) {
-            const double share = axes.total > 0 ? 100.0 * value / axes.total : 0.0;
+        const auto share_row = [&](const char* label, int value, int total,
+                                   const ImVec4& share_color) {
+            const double share = total > 0 ? 100.0 * value / total : 0.0;
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextColored(value > 0 ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : pending,
@@ -1394,12 +1363,12 @@ void draw_mgspw_codenames(const GameStats& stats)
             ImGui::TableNextColumn();
             ImGui::Text("%d", value);
             ImGui::TableNextColumn();
-            ImGui::TextColored(value > 0 ? share_color : pending, "%.0f%%", share);
+            if (total > 0) ImGui::TextColored(value > 0 ? share_color : pending, "%.0f%%", share);
+            else ImGui::TextDisabled("-");
         };
-        // An even spread across the six is what "all weapons" wants, so the
-        // share column is the one to read.
+        // Grouped weapon shares; the Summary reports the native slot spread.
         for (int cls = 0; cls < 6; ++cls) {
-            share_row(codename::pw_class_name(cls), axes.by_class[cls], id_yellow);
+            share_row(codename::pw_class_name(cls), axes.by_class[cls], axes.total, id_yellow);
         }
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
@@ -1407,10 +1376,10 @@ void draw_mgspw_codenames(const GameStats& stats)
         ImGui::TableNextColumn();
         ImGui::TextDisabled("%d", axes.total);
         ImGui::TableNextColumn();
-        ImGui::TextDisabled("100%%");
+        ImGui::TextDisabled("%s", axes.total > 0 ? "100%" : "-");
         // FOXHOUND is a non-lethal title: non-lethal must beat twice lethal.
-        share_row("lethal", axes.lethal, id_red);
-        share_row("non-lethal", axes.nonlethal,
+        share_row("lethal", axes.lethal, axes.lethal + axes.nonlethal, id_red);
+        share_row("non-lethal", axes.nonlethal, axes.lethal + axes.nonlethal,
                   axes.nonlethal > 2 * axes.lethal ? id_green : id_red);
         ImGui::EndTable();
     }
@@ -1418,6 +1387,14 @@ void draw_mgspw_codenames(const GameStats& stats)
     ImGui::Spacing();
     const codename::PwGrade grade = codename::pw_grade(stats);
     const bool coop = stats.pw_camaraderie > 10000;
+    if (stats.pw_codename_result_ok) {
+        ImGui::Text("Projected grade %d / 5", grade.grade);
+        if (grade.blocker) {
+            ImGui::TextWrapped("Next grade %d: %s", grade.next, grade.blocker);
+        }
+    } else {
+        ImGui::TextDisabled("Grade pending mission evaluation");
+    }
     if (ImGui::BeginTable("pw_ladder", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("grade", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("camarad.", ImGuiTableColumnFlags_WidthFixed, 70.0f);
@@ -1482,6 +1459,9 @@ void draw_panel()
                                   viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
                             ImGuiCond_FirstUseEver, ImVec2(0.0f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(380, 480), ImGuiCond_FirstUseEver);
+    if (g_game == Game::MGSPW) {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(420, 0), ImVec2(420, FLT_MAX));
+    }
     ImGui::Begin(panel_title, &g.show,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 
@@ -1512,9 +1492,9 @@ void draw_panel()
             }
         }
         if (tabs && ImGui::BeginTabItem(
-                        "Global", nullptr,
+                        "Career", nullptr,
                         selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
-            draw_mgspw_global(stats);
+            draw_mgspw_global(stats, scroll);
             ImGui::EndTabItem();
         }
         if (tabs && ImGui::BeginTabItem(
@@ -1532,6 +1512,8 @@ void draw_panel()
         if (tabs) {
             ImGui::EndTabBar();
         }
+        ImGui::Separator();
+        ImGui::TextDisabled("F3 hide  |  F4 tabs  |  Up/Down scroll career");
         ImGui::End();
         return;
     }
