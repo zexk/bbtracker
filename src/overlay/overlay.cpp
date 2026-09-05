@@ -1109,28 +1109,24 @@ void draw_mgspw_summary(const GameStats& stats)
             }
             row(k, buf);
         };
-        // Alerts and kills are what the clean-clear bonuses hang on, so they
-        // lead; a non-zero either way costs an insignia at results.
-        if (stats.pw_m_alerts >= 0) {
-            snprintf(buf, sizeof(buf), "%d", stats.pw_m_alerts);
+        // Kills and alerts are what the clean-clear bonuses hang on, so a
+        // non-zero either way is coloured: it costs an insignia at results.
+        const auto clean_row = [&](const char* k, int mission_value, int seg) {
+            if (mission_value < 0) {
+                stat_row(k, mission_value, seg);
+                return;
+            }
+            snprintf(buf, sizeof(buf), "%d", mission_value);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted("alerts");
+            ImGui::TextUnformatted(k);
             ImGui::TableNextColumn();
-            ImGui::TextColored(stats.pw_m_alerts ? id_red : id_green, "%s", buf);
-        }
-        if (stats.pw_m_kills >= 0) {
-            snprintf(buf, sizeof(buf), "%d", stats.pw_m_kills);
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted("kills");
-            ImGui::TableNextColumn();
-            ImGui::TextColored(stats.pw_m_kills ? id_red : id_green, "%s", buf);
-        } else {
-            stat_row("kills", stats.pw_m_kills, stats.seg_kills);
-        }
-        stat_row("tranq", stats.pw_m_tranq, stats.seg_tranq);
+            ImGui::TextColored(mission_value ? id_red : id_green, "%s", buf);
+        };
+        clean_row("kills", stats.pw_m_kills, stats.seg_kills);
         stat_row("headshots", stats.pw_m_headshots, stats.seg_headshots);
+        clean_row("alerts", stats.pw_m_alerts, 0);
+        stat_row("tranq", stats.pw_m_tranq, stats.seg_tranq);
         snprintf(buf, sizeof(buf), "%+d", stats.seg_heroism);
         row("heroism", buf);
         // Full health is the deployed soldier's own maximum, not a constant.
