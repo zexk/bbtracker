@@ -832,9 +832,12 @@ IdColors id_colors(Game game)
     return {{0.42f, 0.90f, 0.45f, 1}, {1.0f, 0.82f, 0.25f, 1}, {0.95f, 0.35f, 0.35f, 1}};
 }
 
-// Green for a satisfied requirement or a completed checklist entry. The rank
-// readout uses the per-game green from id_colors() instead.
-constexpr ImVec4 kDoneGreen(0.42f, 0.90f, 0.45f, 1.0f);
+// Dimmed text for a value the probe has not resolved, or an entry not yet
+// earned. Each game theme sets its own TextDisabled.
+ImVec4 unset_color()
+{
+    return ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+}
 
 // Up/Down move a scrolling panel by eight lines a press.
 void apply_scroll(int scroll)
@@ -862,12 +865,13 @@ void stat_row(const char* key, const char* value)
 
 void checklist(const char* id, const char* const* names, size_t count, uint64_t mask, int scroll)
 {
+    const ImVec4 done_color = id_colors(g_game).green;
+    const ImVec4 todo_color = unset_color();
     if (ImGui::BeginChild(id, ImVec2(0, 360), true)) {
         apply_scroll(scroll);
         for (size_t i = 0; i < count; ++i) {
             const bool done = (mask & (uint64_t{1} << i)) != 0;
-            ImGui::TextColored(done ? kDoneGreen
-                                    : ImVec4(1, 1, 1, 0.35f),
+            ImGui::TextColored(done ? done_color : todo_color,
                                "%s  %s", done ? "x" : "-", names[i]);
         }
     }
@@ -889,7 +893,7 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
                               ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
             ImGui::TableSetupColumn("emblem / requirement", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("progress", ImGuiTableColumnFlags_WidthFixed, 125.0f);
-            const ImVec4& done_color = kDoneGreen;
+            const ImVec4 done_color = id_colors(g_game).green;
             const ImVec4 pending_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
             const auto row = [&](const char* name, const char* goal, const char* value) {
                 const bool done = matched(name);
@@ -1061,6 +1065,8 @@ void draw_mgspw_summary(const GameStats& stats)
 {
     // The run clock is the centrepiece; the codename it all feeds lives on
     // its own tab.
+    // Named rather than read from g_game: scripts/test-pw-overlay.py compiles
+    // these panels without the hook that owns it.
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     // Read straight from the game each frame rather than from the 10 Hz stats
     // snapshot, so the milliseconds move smoothly. The game ticks this at
@@ -1300,7 +1306,7 @@ void draw_mgspw_insignia(const GameStats& stats)
         ImGui::TableSetupColumn("counter", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("next", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         ImGui::TableHeadersRow();
-        const ImVec4 pending(1, 1, 1, 0.35f);
+        const ImVec4 pending = unset_color();
         for (const auto& family : kFamilies) {
             const int have = codename::pw_insignia_progress(family.first_id, stats);
             // Tiers run C, B, A on a rising threshold; the first one not yet
@@ -1337,7 +1343,7 @@ void draw_mgspw_codenames(const GameStats& stats)
     // is the distribution that decides "all weapons" plus the grade ladder.
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     const codename::PwAxes axes = codename::pw_axes(stats);
-    const ImVec4 pending(1, 1, 1, 0.35f);
+    const ImVec4 pending = unset_color();
     const auto match = codename::evaluate_mgspw(stats);
     const ImVec4 title_color = !match ? pending
         : std::strcmp(match->name, "FOXHOUND") == 0 || std::strcmp(match->name, "FOX") == 0
@@ -1532,7 +1538,7 @@ void draw_panel()
     auto match = eval_fn ? eval_fn(stats) : std::optional<codename::Match>{};
 
     const auto [id_green, id_yellow, id_red] = id_colors(g_game);
-    const ImVec4 codename_color = !match ? ImVec4(1, 1, 1, 0.35f)
+    const ImVec4 codename_color = !match ? unset_color()
         : std::strcmp(match->name, "FOX") == 0 ? id_yellow
         : std::strcmp(match->name, "BIG BOSS") == 0 || std::strcmp(match->name, "FOXHOUND") == 0
             ? id_green : match->kind == codename::Kind::Worst ? id_red
@@ -1544,7 +1550,6 @@ void draw_panel()
     ImGui::Separator();
     ImGui::Spacing();
 
-    const ImVec4& green = kDoneGreen;
     if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
@@ -1563,7 +1568,7 @@ void draw_panel()
             ImGui::TableNextColumn();
             ImGui::TextUnformatted("difficulty");
             ImGui::TableNextColumn();
-            ImGui::TextColored(valid_difficulty ? green : ImVec4(0.95f, 0.35f, 0.35f, 1.0f),
+            ImGui::TextColored(valid_difficulty ? id_green : id_red,
                                "%s%s", classic_mg
                                    ? (stats.difficulty == Difficulty::Extreme ? "Original" : "Easy")
                                    : difficulty_name(stats.difficulty),
@@ -1659,9 +1664,7 @@ void draw_panel()
             const auto op = static_cast<codename::Op>(r.op);
             const bool near_limit = !over && (op == codename::Op::Le || op == codename::Op::Lt)
                 && r.limit != 0 && r.current >= r.limit * 0.75;
-            const ImVec4 state_col = over ? ImVec4(0.95f, 0.35f, 0.35f, 1.0f)
-                                          : near_limit ? ImVec4(1.0f, 0.82f, 0.25f, 1.0f)
-                                                       : ImVec4(0.4f, 0.9f, 0.5f, 1.0f);
+            const ImVec4 state_col = over ? id_red : near_limit ? id_yellow : id_green;
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
