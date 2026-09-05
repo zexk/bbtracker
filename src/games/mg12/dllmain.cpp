@@ -3,7 +3,7 @@
 #include "../../overlay/overlay.h"
 #include "probe.h"
 
-DWORD WINAPI init_thread(LPVOID)
+static DWORD WINAPI init_thread(LPVOID)
 {
     while (!GetModuleHandleW(L"mg1.dll") && !GetModuleHandleW(L"mg2.dll")) Sleep(100);
     if (GetModuleHandleW(L"mg1.dll")) {

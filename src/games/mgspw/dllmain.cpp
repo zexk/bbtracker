@@ -3,9 +3,9 @@
 #include "../../overlay/overlay.h"
 #include "probe.h"
 
-DWORD WINAPI init_thread(LPVOID)
+static DWORD WINAPI init_thread(LPVOID)
 {
-    bb::start_overlay("METAL GEAR SOLID: PEACE WALKER", &bb::mgspw::poll_stats,
+    bb::start_overlay(BB_GAME_LABEL, &bb::mgspw::poll_stats,
                       L"METAL GEAR SOLID PEACE WALKER.exe", bb::Game::MGSPW,
                       &bb::mgspw::poll_stage_clock);
     return 0;

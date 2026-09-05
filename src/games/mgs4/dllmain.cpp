@@ -3,7 +3,7 @@
 #include "../../overlay/overlay.h"
 #include "probe.h"
 
-DWORD WINAPI init_thread(LPVOID)
+static DWORD WINAPI init_thread(LPVOID)
 {
     bb::start_overlay(BB_GAME_LABEL, &bb::mgs4::poll_stats,
                       L"mgs4.exe", bb::Game::MGS4);
