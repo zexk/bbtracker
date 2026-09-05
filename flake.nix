@@ -21,6 +21,7 @@
     let
       systems = [ "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
+      version = "0.3.0";
     in
     {
       packages = forAllSystems (system:
@@ -30,7 +31,7 @@
 
           bbtracker = mingw.stdenv.mkDerivation {
             pname = "bbtracker";
-            version = "0.2.1";
+            inherit version;
             src = self;
 
             nativeBuildInputs = [
@@ -49,7 +50,7 @@
 
           mgs4-stage-selector = mingw.stdenv.mkDerivation {
             pname = "mgs4-stage-selector";
-            version = "0.2.1";
+            inherit version;
             src = self;
 
             buildPhase = ''
@@ -105,7 +106,7 @@
         {
           rules-tests = pkgs.stdenv.mkDerivation {
             pname = "bbtracker-rules-tests";
-            version = "0.2.1";
+            inherit version;
             src = self;
 
             nativeBuildInputs = [
@@ -127,7 +128,7 @@
           # functions are compiled natively against ImGui's null backend.
           overlay-tests = pkgs.stdenv.mkDerivation {
             pname = "bbtracker-overlay-tests";
-            version = "0.2.1";
+            inherit version;
             src = self;
 
             nativeBuildInputs = [ pkgs.python3 ];
