@@ -120,6 +120,17 @@ void release_rtv()
 
 void apply_game_theme();
 
+// Context setup both backends share; only the renderer init differs.
+void begin_imgui()
+{
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
+    apply_game_theme();
+    ImGui_ImplWin32_Init(g.hwnd);
+}
+
 bool create_rtv(IDXGISwapChain* swap_chain)
 {
     ID3D11Texture2D* back_buffer = nullptr;
@@ -242,12 +253,7 @@ bool init_imgui_d3d12(IDXGISwapChain* swap_chain)
         return false;
     }
 
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = nullptr;
-    io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
-    apply_game_theme();
-    ImGui_ImplWin32_Init(g.hwnd);
+    begin_imgui();
     ImGui_ImplDX12_InitInfo info{};
     info.Device = g.device12;
     info.CommandQueue = g.queue12;
@@ -484,12 +490,7 @@ bool init_imgui(IDXGISwapChain* swap_chain)
         return false;
     }
 
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = nullptr;
-    io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
-    apply_game_theme();
-    ImGui_ImplWin32_Init(g.hwnd);
+    begin_imgui();
     ImGui_ImplDX11_Init(g.device, g.context);
     g.renderer = Renderer::D3D11;
     g.imgui_ready = true;
