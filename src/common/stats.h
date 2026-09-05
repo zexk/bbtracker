@@ -94,7 +94,10 @@ struct GameStats {
     uint32_t pw_stage_play = 0;       // [SAVEROOT+0x88] stage play, ticks fast (ms?)
     char pw_stage[32] = {};           // [SAVEROOT+0x54] stage string
     int pw_region_id = -1;            // live region label key, st_regionNNNN
-    int pw_player_hp = 0;             // [CHARARRAY[0]+0x11BE] u16, 8000 = full
+    int pw_player_hp = 0;             // [CHARARRAY[0]+0x11BE] u16, regenerates
+    // [CHARARRAY[0]+0x11C0] u16. Full health is per soldier, not a constant
+    // 8000: PW lets you deploy any MSF member and they do not share a maximum.
+    int pw_player_max_hp = 0;
     int pw_weapon_id = -1;            // [CHARARRAY[0]+0x14B8]
     int pw_heroism = 0;               // [SAVEROOT+0x64F4] validated lifetime Heroism
     int pw_heroism_delta = 0;         // [SAVEROOT+0x64EC] last-mission delta

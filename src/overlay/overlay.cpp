@@ -1145,8 +1145,10 @@ void draw_mgspw_summary(const GameStats& stats)
         stat_row("headshots", stats.pw_m_headshots, stats.seg_headshots);
         snprintf(buf, sizeof(buf), "%+d", stats.seg_heroism);
         row("heroism", buf);
-        snprintf(buf, sizeof(buf), "%d%% (wpn %d)", stats.pw_player_hp * 100 / 8000,
-                 stats.pw_weapon_id);
+        // Full health is the deployed soldier's own maximum, not a constant.
+        const int max_hp = stats.pw_player_max_hp > 0 ? stats.pw_player_max_hp : 8000;
+        snprintf(buf, sizeof(buf), "%d%% (%d/%d)", stats.pw_player_hp * 100 / max_hp,
+                 stats.pw_player_hp, max_hp);
         row("HP", buf);
         ImGui::EndTable();
     }
@@ -1294,7 +1296,8 @@ void draw_mgspw_global(const GameStats& stats)
                  stats.pw_tranq);
         row("takedowns", buf);
         if (stats.pw_damage_taken >= 0) {
-            // 8000 is a full health bar, so this reads as "bars of damage".
+            // 8000 is Snake's bar, and the scale the counter is kept on
+            // whoever was deployed, so this reads as nominal bars.
             snprintf(buf, sizeof(buf), "%d  (%.1f bars)", stats.pw_damage_taken,
                      stats.pw_damage_taken / 8000.0);
             row("damage taken", buf);

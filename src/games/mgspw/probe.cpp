@@ -66,7 +66,9 @@ constexpr size_t kWeaponUseOff = 0x14;
 
 // Character-array layout.
 constexpr size_t kCharCount = 40;
-constexpr size_t kHpOff = 0x11BE;  // u16, 8000 = full; regenerates ~20/s
+constexpr size_t kHpOff = 0x11BE;     // u16, regenerates ~20/s
+constexpr size_t kMaxHpOff = 0x11C0;  // u16, the deployed soldier's own maximum
+constexpr int kNominalMaxHp = 8000;   // Snake's, and the damage-counter scale
 constexpr size_t kWeaponIdOff = 0x14B8;
 
 uintptr_t g_saveroot_ptr = 0;   // address holding save-block pointer
@@ -662,10 +664,14 @@ bool poll_stats(GameStats& out)
                 *reinterpret_cast<volatile const uintptr_t*>(arr);
             if (player) {
                 out.pw_chararray_ok = true;
-                if (range_readable(player + kHpOff, 2)) {
+                if (range_readable(player + kHpOff, 4)) {
                     out.pw_player_hp = static_cast<int>(
                         *reinterpret_cast<volatile const int16_t*>(player + kHpOff));
+                    out.pw_player_max_hp = static_cast<int>(
+                        *reinterpret_cast<volatile const uint16_t*>(player + kMaxHpOff));
                     out.current_health = out.pw_player_hp;
+                    out.max_health = out.pw_player_max_hp > 0 ? out.pw_player_max_hp
+                                                             : kNominalMaxHp;
                 }
                 if (range_readable(player + kWeaponIdOff, 2)) {
                     out.pw_weapon_id = static_cast<int>(
