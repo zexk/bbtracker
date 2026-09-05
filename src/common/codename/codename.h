@@ -160,6 +160,20 @@ std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);
 // localization index 13.
 const char* pw_title_name(int id);
 
+// One insignia record, by the game's own insignia id (1..110). `over` is the
+// value the counter must exceed (the test is strict); -1 means the grant is
+// not a simple counter compare. `heroism` is the award. Names come from the
+// localization: 0x140544390 formats "sig_%03d_alp_ovl_nearest" and looks the
+// hash up in element 0xb906b5, whose rows run in reverse id order. Six ids
+// have no English label and read "???" in the game too.
+struct PwInsignia {
+    const char* name;
+    int over;
+    int heroism;
+};
+
+PwInsignia pw_insignia(int id);
+
 // Candidate grade 0..5 for the title the profile currently matches, plus the
 // single gate that stops the next grade. Mirrors the native evaluator: see
 // "Codename system" in docs/mgspw_research.md.

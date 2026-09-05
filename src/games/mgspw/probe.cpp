@@ -309,7 +309,9 @@ void read_insignia_state(uintptr_t block, GameStats& out)
     }
     int owned = 0;
     for (size_t index = 1; index <= kInsigniaCount; ++index) {
-        owned += *reinterpret_cast<volatile const uint8_t*>(base + index) & 1;
+        const uint8_t state = *reinterpret_cast<volatile const uint8_t*>(base + index);
+        out.pw_insignia_state[index] = state;
+        owned += state & 1;
     }
     out.pw_insignias = owned;
 }

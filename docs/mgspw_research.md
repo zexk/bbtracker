@@ -741,9 +741,11 @@ The 26 omitted ids are:
 
 These are not reserved slots: the evaluator contains grant paths, thresholds,
 heroism awards and ownership bytes for them. They are hidden from the catalog.
-Whether every hidden id remains obtainable in this port is unknown. Installed
-English localization has labels for 95 ids and holes for 15, further showing
-that the internal 110-id set is not the displayed catalog.
+Whether every hidden id remains obtainable in this port is unknown. Six of the
+110 have no English label and read `???` in the game as well.
+
+Ids **1..75 are solo**, **76..110 VERSUS OPS**, so a save that never hosts a
+match tops out at 75.
 
 | Piece | Address | Role |
 | --- | --- | --- |
@@ -772,6 +774,40 @@ was watched firing mid-session for `+500` heroism, `+522` total with the clear.
 
 The one disagreement is index 53, stat `0x117`. The 84 stat-mapped records and
 84 screen rows are different sets whose equal counts are coincidental.
+
+### Insignia names
+
+`0x140544390` formats `sig_%03d_alp_ovl_nearest` with the insignia id, hashes
+it with `utils.GetHash` and looks the hash up in element `0xB906B5` of
+`slot/001FC/3`; `0x140544300` does the same against `0x8CAEAE` for the
+description. Names are therefore reached **by hash, never by row**, and that
+element's rows happen to run in reverse id order - id `n` is row `110 - n`.
+Reading them in file order instead makes id `1` a VERSUS OPS award on a
+solo-only save, which is how the mistake announces itself.
+
+Confirmed against the four the research profile owns: id `1` Stealth Master
+(Rank C), id `16` Headshot Master (Rank C). Within a name, **Rank A is the
+highest tier**: CQC Master runs C `100`, B `500`, A `1000`.
+
+`scripts/pwolang.py` reads the container; the id-to-name table it produces is
+baked into `codename.cpp` as `kPwInsignias` alongside the thresholds.
+
+### The .olang container
+
+Little-endian throughout, one file per archive element:
+
+| offset | meaning |
+| --- | --- |
+| `+0x00` | `RBX\0` |
+| `+0x18` | `u32` end of key table / start of string index |
+| `+0x1C` | `u32` end of string index / start of string blob |
+| `0x20` | key table, `{u32 name hash, u16 first index, u16 count}` |
+| ... | string index, `{u32 tag, u32 offset, u32 tag}`, offset relative to the blob |
+| ... | NUL-terminated UTF-8 |
+
+A count above `1` marks an array element (the codename names are `0x1B1303`,
+their descriptions `0x62CF73`), count `1` a single named string. Every string
+carries its own key, which is what makes the hash lookup work.
 
 ## Networking
 
@@ -860,6 +896,7 @@ auditing is therefore not available; live diffing is the method.
 | `pwinsig.py` | reconstructs the insignia requirement table (stat id, threshold, heroism award) |
 | `pwgcl.py` | decodes GCL script token streams; `--hashes` lists the command/variable hashes a script references |
 | `pwhash.py` | name-hash helper for the script-variable lookups |
+| `pwolang.py` | reads an extracted `.olang` string container; `--insignias` prints the id-to-name table |
 | `find-mgspw-counter.py` | Cheat-Engine style snap/diff value scan (how `PW_MISSIONID` was found) |
 | `scan-mgspw-strings.py`, `rtti-mgspw-ach.py` | string and RTTI enumeration |
 

@@ -93,4 +93,20 @@ int main()
     assert(bb::codename::pw_grade(pw).grade == 4);
     pw.pw_heroism = 250001;
     assert(bb::codename::pw_grade(pw).grade == 5);
+
+    // Insignia ids run opposite to the localization rows they name, so an
+    // off-by-reversal turns the two solo insignias the reference save owns
+    // into VERSUS OPS awards. Pin both ends and one id in the middle.
+    assert(std::string_view(bb::codename::pw_insignia(1).name)
+           == "Stealth Master (Rank C)");
+    assert(bb::codename::pw_insignia(1).over == 25
+           && bb::codename::pw_insignia(1).heroism == 500);
+    assert(std::string_view(bb::codename::pw_insignia(16).name)
+           == "Headshot Master (Rank C)");
+    assert(bb::codename::pw_insignia(16).over == 100);
+    assert(std::string_view(bb::codename::pw_insignia(110).name)
+           == "VS Fulton Recovery Specialist (Rank A)");
+    // Out of range reads as unknown rather than walking off the table.
+    assert(std::string_view(bb::codename::pw_insignia(0).name) == "?");
+    assert(std::string_view(bb::codename::pw_insignia(111).name) == "?");
 }

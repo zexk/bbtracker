@@ -180,10 +180,11 @@ struct GameStats {
     // game reports those as grade 1.
     uint8_t pw_codename_state[25] = {};
     bool pw_codename_state_ok = false;
-    // Insignias owned, from save+0x1C009 + index (index 1..110, bit 0 owned).
-    // -1 = unread. Thresholds are not duplicated here; scripts/pwinsig.py
-    // reconstructs the game's own table.
+    // Insignias owned, from save+0x1C009 + index (index 1..110, bit 0 owned,
+    // bit 1 seen). Index 0 is unused so the id indexes directly.
+    // -1 = unread.
     int pw_insignias = -1;
+    uint8_t pw_insignia_state[111] = {};
     int pw_camaraderie = -1;        // native codename snapshot +0x30 aggregate
     int pw_codename_missions_required = -1; // result+0x20
     int pw_codename_missions_counted = -1;  // result+0x24
