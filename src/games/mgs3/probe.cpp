@@ -89,21 +89,8 @@ static_assert(!gameplay_area("title"));
 bool find_slot_via_sig(HMODULE mod, uintptr_t& out_slot)
 {
     const auto base = reinterpret_cast<uintptr_t>(mod);
-    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(mod);
-    const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
-    const uintptr_t scan_start = base + nt->OptionalHeader.BaseOfCode;
-    const size_t scan_size = nt->OptionalHeader.SizeOfCode;
-
-    for (uintptr_t addr = scan_start; addr < scan_start + scan_size; addr += 0x1000) {
-        MEMORY_BASIC_INFORMATION mbi{};
-        if (!VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))
-            || mbi.State != MEM_COMMIT) {
-            continue;
-        }
-        const uintptr_t region_end =
-            reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
-        const uintptr_t stop = region_end < scan_start + scan_size ? region_end : scan_start + scan_size;
-        uintptr_t p = addr;
+    return mem::for_each_code_region(mod, [&](uintptr_t begin, uintptr_t stop) {
+        uintptr_t p = begin;
         while (p + std::size(kStatsSig) <= stop) {
             const auto* found = static_cast<const uint8_t*>(std::memchr(
                 reinterpret_cast<const void*>(p), kStatsSig[0],
@@ -122,11 +109,8 @@ bool find_slot_via_sig(HMODULE mod, uintptr_t& out_slot)
                      static_cast<unsigned long long>(out_slot - base));
             return true;
         }
-        if (region_end > addr + 0x1000) {
-            addr = region_end - 0x1000;
-        }
-    }
-    return false;
+        return false;
+    });
 }
 bool resolve(uintptr_t& out_block, uintptr_t& out_story_base)
 {

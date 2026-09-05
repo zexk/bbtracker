@@ -349,32 +349,9 @@ bool pat_match(const uint8_t* p, const uint8_t* pat, const bool* wild, size_t n,
 
 uintptr_t scan_one(HMODULE mod, const uint8_t* pat, const bool* wild, size_t n, int disp_off)
 {
-    const auto base = reinterpret_cast<uintptr_t>(mod);
-    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(mod);
-    if (dos->e_magic != IMAGE_DOS_SIGNATURE) {
-        return 0;
-    }
-    const auto* nt =
-        reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
-    if (nt->Signature != IMAGE_NT_SIGNATURE) {
-        return 0;
-    }
-    const uintptr_t scan_start = base + nt->OptionalHeader.BaseOfCode;
-    const size_t scan_size = nt->OptionalHeader.SizeOfCode;
-    const uintptr_t scan_end = scan_start + scan_size;
-
-    for (uintptr_t addr = scan_start; addr < scan_end; addr += 0x1000) {
-        MEMORY_BASIC_INFORMATION mbi{};
-        if (!VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))
-            || mbi.State != MEM_COMMIT) {
-            continue;
-        }
-        const uintptr_t region_end =
-            reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
-        const uintptr_t stop = region_end < scan_end ? region_end : scan_end;
-        uintptr_t p = addr > reinterpret_cast<uintptr_t>(mbi.BaseAddress)
-            ? addr
-            : reinterpret_cast<uintptr_t>(mbi.BaseAddress);
+    uintptr_t target = 0;
+    mem::for_each_code_region(mod, [&](uintptr_t begin, uintptr_t stop) {
+        uintptr_t p = begin;
         while (p + n <= stop) {
             const auto* found = static_cast<const uint8_t*>(
                 std::memchr(reinterpret_cast<const void*>(p), pat[0], stop - p - n + 1));
@@ -387,15 +364,12 @@ uintptr_t scan_one(HMODULE mod, const uint8_t* pat, const bool* wild, size_t n, 
                 continue;
             }
             const int32_t disp = *reinterpret_cast<volatile const int32_t*>(p + disp_off);
-            const uintptr_t target =
-                static_cast<uintptr_t>(static_cast<int64_t>(p) + disp_off + 4 + disp);
-            return target;
+            target = static_cast<uintptr_t>(static_cast<int64_t>(p) + disp_off + 4 + disp);
+            return true;
         }
-        if (region_end > addr + 0x1000) {
-            addr = region_end - 0x1000;
-        }
-    }
-    return 0;
+        return false;
+    });
+    return target;
 }
 
 void ensure_resolved()
