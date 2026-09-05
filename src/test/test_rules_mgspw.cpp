@@ -1,21 +1,13 @@
 #include <cstdio>
 #include <string_view>
 
+#include "check.h"
 #include "common/codename/codename.h"
 
 using namespace bb;
 using namespace bb::codename;
 
 namespace {
-
-int fails = 0;
-#define CHECK(condition)                                                     \
-    do {                                                                     \
-        if (!(condition)) {                                                  \
-            std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #condition); \
-            ++fails;                                                         \
-        }                                                                    \
-    } while (0)
 
 const char* title(const GameStats& stats)
 {
@@ -130,6 +122,30 @@ void test_native_axes()
     CHECK(fallback.classes_used == 5);
 }
 
+// The axes decomposition above feeds the title table; these pin the titles the
+// native path actually names, which the counter fallback cannot reach.
+void test_native_axes_titles()
+{
+    GameStats stats{};
+    stats.pw_codename_axes_ok = true;
+    stats.pw_codename_axes[0][3] = 1;  // lethal, medium
+    CHECK(std::string_view(title(stats)) == "PUMA");
+
+    stats = {};
+    stats.pw_codename_axes_ok = true;
+    stats.pw_codename_axes[1][2] = 1;  // sleep, short
+    CHECK(std::string_view(title(stats)) == "BUTTERFLY");
+    stats.pw_camaraderie = 10001;
+    CHECK(std::string_view(title(stats)) == "ANT");
+
+    stats = {};
+    stats.pw_codename_axes_ok = true;
+    for (int slot = 0; slot < 12; ++slot) stats.pw_codename_axes[1][slot] = 10;
+    CHECK(std::string_view(title(stats)) == "FOX");
+    stats.pw_camaraderie = 10001;
+    CHECK(std::string_view(title(stats)) == "FOXHOUND");
+}
+
 void test_class_names_and_gates()
 {
     CHECK(std::string_view(pw_class_name(0)) == "short");
@@ -209,6 +225,19 @@ void test_grade_heroism_floor()
     stats.pw_heroism = 10001;
     CHECK(pw_grade(stats).grade == 1);
 
+    // The floor repeats at the top of the ladder, so with the ratio and both
+    // flags out of the way Heroism alone separates grade 4 from grade 5.
+    GameStats topped = all_weapons();
+    topped.pw_codename_result_ok = true;
+    topped.pw_codename_missions_required = 1;
+    topped.pw_codename_missions_counted = 1;
+    topped.pw_codename_grade4_ok = true;
+    topped.pw_codename_grade5_ok = true;
+    topped.pw_heroism = 250000;
+    CHECK(pw_grade(topped).grade == 4);
+    topped.pw_heroism = 250001;
+    CHECK(pw_grade(topped).grade == 5);
+
     GameStats solo = short_class();
     solo.pw_codename_result_ok = true;
     solo.pw_codename_missions_required = 10;
@@ -257,6 +286,12 @@ void test_insignias()
     CHECK(std::string_view(pw_insignia(1).name) == "Stealth Master (Rank C)");
     CHECK(pw_insignia(1).over == 25);
     CHECK(pw_insignia(1).heroism == 500);
+    // Ids run opposite to the localization rows, so pin the middle and the end
+    // as well: an off-by-reversal renames these to VERSUS OPS awards.
+    CHECK(std::string_view(pw_insignia(16).name) == "Headshot Master (Rank C)");
+    CHECK(pw_insignia(16).over == 100);
+    CHECK(std::string_view(pw_insignia(110).name)
+          == "VS Fulton Recovery Specialist (Rank A)");
     CHECK(std::string_view(pw_insignia(0).name) == "?");
     CHECK(std::string_view(pw_insignia(111).name) == "?");
     CHECK(pw_insignia(111).over == -1);
@@ -275,17 +310,18 @@ void test_insignias()
 
 int main()
 {
-    test_no_takedowns_has_no_title();
-    test_dominant_class_and_axes();
-    test_all_weapons_spread();
-    test_native_axes();
-    test_class_names_and_gates();
-    test_grade_ladder();
-    test_grade_heroism_floor();
-    test_elite_requirements();
-    test_insignias();
-    if (fails == 0) {
-        std::printf("mgspw rules: all checks passed\n");
-    }
-    return fails == 0 ? 0 : 1;
+    constexpr bb::test::Case tests[] = {
+        {"no_takedowns_has_no_title", test_no_takedowns_has_no_title},
+        {"dominant_class_and_axes", test_dominant_class_and_axes},
+        {"all_weapons_spread", test_all_weapons_spread},
+        {"native_axes", test_native_axes},
+        {"native_axes_titles", test_native_axes_titles},
+        {"class_names_and_gates", test_class_names_and_gates},
+        {"grade_ladder", test_grade_ladder},
+        {"grade_heroism_floor", test_grade_heroism_floor},
+        {"elite_requirements", test_elite_requirements},
+        {"insignias", test_insignias},
+    };
+
+    return bb::test::run("mgspw", tests);
 }

@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <string_view>
 
+#include "check.h"
 #include "common/codename/codename.h"
 #include "common/stats.h"
 
@@ -8,16 +9,6 @@ using namespace bb;
 using namespace bb::codename;
 
 namespace {
-
-int g_fails = 0;
-
-#define CHECK(cond)                                                     \
-    do {                                                                \
-        if (!(cond)) {                                                  \
-            std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            ++g_fails;                                                  \
-        }                                                               \
-    } while (0)
 
 const char* best(const GameStats& s)
 {
@@ -211,16 +202,11 @@ void test_grid_gazelle_far_corner()
     CHECK(std::string_view(best(s)) == "Gazelle");
 }
 
-struct TestEntry {
-    const char* name;
-    void (*fn)();
-};
-
 } // namespace
 
 int main()
 {
-    constexpr TestEntry tests[] = {
+    constexpr bb::test::Case tests[] = {
         {"big_boss_with_radar_off", test_big_boss_with_radar_off},
         {"fox_when_radar_on", test_fox_when_radar_on},
         {"elite_wrong_difficulty_rejected", test_elite_wrong_difficulty_rejected},
@@ -244,16 +230,5 @@ int main()
         {"grid_gazelle_far_corner", test_grid_gazelle_far_corner},
     };
 
-    for (const TestEntry& t : tests) {
-        const int before = g_fails;
-        t.fn();
-        std::printf("[%s] %s\n", g_fails == before ? "ok" : "FAIL", t.name);
-    }
-
-    if (g_fails > 0) {
-        std::printf("%d check(s) failed\n", g_fails);
-        return 1;
-    }
-    std::printf("all %zu tests passed\n", sizeof(tests) / sizeof(tests[0]));
-    return 0;
+    return bb::test::run("mgs1", tests);
 }

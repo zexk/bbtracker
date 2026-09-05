@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <string_view>
 
+#include "check.h"
 #include "common/codename/codename.h"
 #include "common/codename/rules_mgs3.h"
 #include "common/stats.h"
@@ -9,16 +10,6 @@ using namespace bb;
 using namespace bb::codename;
 
 namespace {
-
-int g_fails = 0;
-
-#define CHECK(cond)                                                     \
-    do {                                                                \
-        if (!(cond)) {                                                  \
-            std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            ++g_fails;                                                  \
-        }                                                               \
-    } while (0)
 
 GameStats sloppy(Difficulty d)
 {
@@ -303,16 +294,11 @@ void test_elite_requirements_statuses()
     CHECK(passing == 9);
 }
 
-struct TestEntry {
-    const char* name;
-    void (*fn)();
-};
-
 } // namespace
 
 int main()
 {
-    constexpr TestEntry tests[] = {
+    constexpr bb::test::Case tests[] = {
         {"foxhound_perfect_extreme", test_foxhound_perfect_extreme},
         {"fox_hard_strict", test_fox_hard_strict},
         {"fox_extreme_loose", test_fox_extreme_loose},
@@ -334,16 +320,5 @@ int main()
         {"elite_requirements_statuses", test_elite_requirements_statuses},
     };
 
-    for (const TestEntry& t : tests) {
-        const int before = g_fails;
-        t.fn();
-        std::printf("[%s] %s\n", g_fails == before ? "ok" : "FAIL", t.name);
-    }
-
-    if (g_fails > 0) {
-        std::printf("%d check(s) failed\n", g_fails);
-        return 1;
-    }
-    std::printf("all %zu tests passed\n", sizeof(tests) / sizeof(tests[0]));
-    return 0;
+    return bb::test::run("mgs3", tests);
 }

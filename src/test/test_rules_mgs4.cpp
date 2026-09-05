@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <string_view>
 
+#include "check.h"
 #include "common/codename/codename.h"
 #include "common/codename/rules_mgs4.h"
 
@@ -8,15 +9,6 @@ using namespace bb;
 using namespace bb::codename;
 
 namespace {
-
-int fails = 0;
-#define CHECK(condition)                                                  \
-    do {                                                                  \
-        if (!(condition)) {                                               \
-            std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #condition); \
-            ++fails;                                                      \
-        }                                                                 \
-    } while (0)
 
 const char* best(const GameStats& stats)
 {
@@ -137,12 +129,14 @@ void test_chicken_priority()
 
 int main()
 {
-    test_elite_ladder();
-    test_elite_strict_boundaries();
-    test_specials_and_multiple_matches();
-    test_regular_grid_boundaries();
-    test_other_inclusive_boundaries();
-    test_chicken_priority();
-    std::printf("%s\n", fails ? "MGS4 rules failed" : "MGS4 rules passed");
-    return fails != 0;
+    constexpr bb::test::Case tests[] = {
+        {"elite_ladder", test_elite_ladder},
+        {"elite_strict_boundaries", test_elite_strict_boundaries},
+        {"specials_and_multiple_matches", test_specials_and_multiple_matches},
+        {"regular_grid_boundaries", test_regular_grid_boundaries},
+        {"other_inclusive_boundaries", test_other_inclusive_boundaries},
+        {"chicken_priority", test_chicken_priority},
+    };
+
+    return bb::test::run("mgs4", tests);
 }
