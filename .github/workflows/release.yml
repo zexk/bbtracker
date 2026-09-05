@@ -26,12 +26,13 @@ jobs:
           VERSION: ${{ github.ref_name }}
         run: |
           mkdir dist
-          cp result/bin/bbtracker_{mg12,mgs1,mgs2,mgs3,mgs4}.asi dist/
+          cp result/bin/bbtracker_*.asi dist/
           cp result-stage-selector/* dist/
           cd dist
           python3 -m zipfile -c "bbtracker-${VERSION}.zip" bbtracker_*.asi
-          for game in mg12 mgs1 mgs2 mgs3 mgs4; do
-            python3 -m zipfile -c "bbtracker-${game}-${VERSION}.zip" "bbtracker_${game}.asi"
+          for asi in bbtracker_*.asi; do
+            game="${asi#bbtracker_}"
+            python3 -m zipfile -c "bbtracker-${game%.asi}-${VERSION}.zip" "$asi"
           done
           python3 -m zipfile -c "mgs4-stage-selector-${VERSION}.zip" \
             launcher.exe mgs4_stage_selector.asi mgs4-stage-selector.ini README.md
