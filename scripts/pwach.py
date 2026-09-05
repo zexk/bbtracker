@@ -12,12 +12,9 @@ Predicate function pointers are installed at runtime by the registrar in
 import argparse
 import struct
 import sys
-import importlib.util
+import siblings
 
-_spec = importlib.util.spec_from_file_location(
-    "pwdis", __file__.rsplit("/", 1)[0] + "/pwdis.py")
-pwdis = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(pwdis)
+pwdis = siblings.load("pwdis.py")
 
 META = 0x14105C230       # 50 rows: u32 steam_no, u32 id, u8 enabled, u8, u8, u8
 PRED_TBL = 0x141596A90   # bool(*)() per achievement id, filled by REGISTRAR

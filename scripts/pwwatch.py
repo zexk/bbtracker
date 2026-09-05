@@ -14,12 +14,9 @@ import signal
 import struct
 import sys
 import time
-import importlib.util
+import siblings
 
-_spec = importlib.util.spec_from_file_location(
-    "pwprobe", __file__.rsplit("/", 1)[0] + "/probe-mgspw-memory.py")
-probe = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(probe)
+probe = siblings.load("probe-mgspw-memory.py")
 
 SIZE = 0x30000  # covers every field the probe knows about
 

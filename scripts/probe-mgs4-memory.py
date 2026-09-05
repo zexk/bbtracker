@@ -4,7 +4,7 @@
 import argparse
 import json
 import pathlib
-import runpy
+import siblings
 import struct
 import sys
 
@@ -84,8 +84,8 @@ def main():
         varbuf = struct.unpack("<Q", read(memory, base + VARBUF_POINTER_RVA, 8))[0]
         if args.set_drebin is not None:
             write_drebin_points(memory, linkvarbuf, args.set_drebin)
-        save_tool = runpy.run_path(pathlib.Path(__file__).with_name("inspect-mgs4-save.py"))
-        stats = save_tool["inspect"](read(memory, linkvarbuf, save_tool["BODY_SIZE"]))
+        save_tool = siblings.load("inspect-mgs4-save.py")
+        stats = save_tool.inspect(read(memory, linkvarbuf, save_tool.BODY_SIZE))
         stats["eastern_europe_time_ticks"] = struct.unpack("<I", read(memory, varbuf + 0xDB4, 4))[0]
         if args.dump_text:
             pathlib.Path(args.dump_text).write_bytes(read(memory, base + TEXT_RVA, TEXT_SIZE))

@@ -29,7 +29,7 @@ Usage:
   python3 scripts/pwolang.py --self-test --file 003_A7FC85.olang
 """
 import argparse
-import importlib.util
+import siblings
 import pathlib
 import struct
 import sys
@@ -44,10 +44,7 @@ INSIGNIA_COUNT = 110
 
 
 def pwhash(name):
-    spec = importlib.util.spec_from_file_location("pwhash", HERE / "pwhash.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.pwhash(name)
+    return siblings.load("pwhash.py").pwhash(name)
 
 
 class Olang:

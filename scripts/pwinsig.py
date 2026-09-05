@@ -20,7 +20,7 @@ Needs only the on-disk exe plus a runtime .text dump:
 """
 import argparse
 import collections
-import importlib.util
+import siblings
 import json
 import pathlib
 import struct
@@ -36,10 +36,7 @@ RBP_BIAS = 0x100  # rbp = rsp + 0x100 once the prologue has run
 
 
 def load_pwdis():
-    spec = importlib.util.spec_from_file_location("pwdis", HERE / "pwdis.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    return siblings.load("pwdis.py")
 
 
 def section_bytes(m, secs, exe, va, n):
