@@ -9,7 +9,7 @@
 
 namespace bb::mg12 {
 
-using bb::mem::readable;
+using bb::mem::range_readable;
 using bb::mem::read;
 
 namespace {
@@ -57,8 +57,8 @@ bool poll_mg1(GameStats& out)
     const auto module = reinterpret_cast<uintptr_t>(GetModuleHandleW(L"mg1.dll"));
     constexpr uintptr_t first = 0x2F6A4;
     constexpr uintptr_t last = 0x2F780;
-    if (!module || !readable(module + 0x2E260, sizeof(uint32_t))
-        || !readable(module + first, last - first + sizeof(uint32_t))) return false;
+    if (!module || !range_readable(module + 0x2E260, sizeof(uint32_t))
+        || !range_readable(module + first, last - first + sizeof(uint32_t))) return false;
     set_common(out, read<uint32_t>(module + 0x2F6A4), read<uint32_t>(module + 0x2F768),
                read<uint32_t>(module + 0x2F76C), read<uint32_t>(module + 0x2F770),
                read<uint32_t>(module + 0x2F774), read<uint32_t>(module + 0x2F778),
@@ -69,11 +69,11 @@ bool poll_mg1(GameStats& out)
 bool poll_mg2(GameStats& out)
 {
     const auto module = reinterpret_cast<uintptr_t>(GetModuleHandleW(L"mg2.dll"));
-    if (!module || !readable(module + 0x39170, sizeof(uint32_t))
-        || !readable(module + 0x45790, 0x1C)
-        || !readable(module + 0x46DE0, sizeof(uintptr_t))) return false;
+    if (!module || !range_readable(module + 0x39170, sizeof(uint32_t))
+        || !range_readable(module + 0x45790, 0x1C)
+        || !range_readable(module + 0x46DE0, sizeof(uintptr_t))) return false;
     const uintptr_t state = read<uintptr_t>(module + 0x46DE0);
-    if (!state || !readable(state + 0x88, sizeof(uint32_t))) return false;
+    if (!state || !range_readable(state + 0x88, sizeof(uint32_t))) return false;
     set_common(out, read<uint32_t>(state + 0x88), read<uint32_t>(module + 0x45790),
                read<uint32_t>(module + 0x45794), read<uint32_t>(module + 0x45798),
                read<uint32_t>(module + 0x4579C), read<uint32_t>(module + 0x457A0),

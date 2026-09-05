@@ -11,7 +11,7 @@
 
 namespace bb::mgs4 {
 
-using bb::mem::readable;
+using bb::mem::range_readable;
 using bb::mem::read;
 
 namespace {
@@ -55,9 +55,9 @@ static_assert(!ranked_stage("s99a00l"));
 bool poll_stats(GameStats& out)
 {
     const auto module = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-    if (!module || !readable(module + kLinkvarbufPointer, sizeof(uintptr_t))) return false;
+    if (!module || !range_readable(module + kLinkvarbufPointer, sizeof(uintptr_t))) return false;
     const uintptr_t address = *reinterpret_cast<volatile const uintptr_t*>(module + kLinkvarbufPointer);
-    if (!address || !readable(address, kLinkvarbufSize)) return false;
+    if (!address || !range_readable(address, kLinkvarbufSize)) return false;
     const auto* data = reinterpret_cast<const uint8_t*>(address);
 
     const uint16_t raw_difficulty = read<uint16_t>(data, 0x006);
