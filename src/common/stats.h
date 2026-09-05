@@ -85,7 +85,8 @@ struct GameStats {
     bool mgs1_integral = false;
     bool mgs1_japanese_original = false;
 
-    // Peace Walker probe (FOXHOUND tracker bootstrap, all unverified).
+    // Peace Walker probe. Offsets are relative to SAVEROOT unless noted; the
+    // per-field comments say what each one has been confirmed against.
     uint64_t pw_mission_raw = 0;      // [PW_MISSIONTIME] ticks 300/s of active game time
     uint32_t pw_total_play = 0;       // [SAVEROOT+0x84] total play, ticks ~1/s
     uint32_t pw_stage_play = 0;       // [SAVEROOT+0x88] stage play, ticks fast (ms?)
@@ -194,7 +195,6 @@ struct GameStats {
     // per-level pool, resets on level-up). -1 = unreadable.
     int pw_weapon_use[16] = {-1, -1, -1, -1, -1, -1, -1, -1,
                              -1, -1, -1, -1, -1, -1, -1, -1};
-
 };
 
 } // namespace bb

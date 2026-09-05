@@ -771,7 +771,7 @@ Confirmed against the four the research profile owns: id `1` Stealth Master
 highest tier**: CQC Master runs C `100`, B `500`, A `1000`.
 
 `scripts/pwolang.py` reads the container; the id-to-name table it produces is
-baked into `codename.cpp` as `kPwInsignias` alongside the thresholds.
+baked into `rules_mgspw.cpp` as `kPwInsignias` alongside the thresholds.
 
 ### The .olang container
 
