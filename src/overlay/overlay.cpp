@@ -1062,20 +1062,14 @@ void draw_mgspw_summary(const GameStats& stats)
     ImGui::SetWindowFontScale(1.0f);
     const codename::PwGrade grade = codename::pw_grade(stats);
     if (match) {
-        if (grade.grade > 0) {
-            ImGui::TextDisabled("grade %d", grade.grade);
-        } else {
-            ImGui::TextDisabled("no grade yet");
-        }
-        ImGui::SameLine();
+        ImGui::TextDisabled("grade %d", grade.grade);
         if (grade.blocker) {
             const bool ratio = std::strcmp(grade.blocker, "cooperation ratio") == 0;
-            ImGui::TextDisabled("- grade %d needs %s %s%.*f", grade.next, grade.blocker,
+            ImGui::SameLine();
+            ImGui::TextDisabled("| %d: %s %s%.*f", grade.next, grade.blocker,
                                 std::strncmp(grade.blocker, "camaraderie under", 17) == 0
-                                    ? "<= " : ">= ",
+                                    ? "<=" : ">=",
                                 ratio ? 2 : 0, grade.need);
-        } else if (grade.grade == 5) {
-            ImGui::TextDisabled("- highest grade");
         }
     }
     ImGui::Separator();
@@ -1083,7 +1077,7 @@ void draw_mgspw_summary(const GameStats& stats)
 
     char buf[64];
     if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("toward FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         for (const codename::ReqStatus& r : codename::elite_requirements_mgspw(stats)) {
             if (r.limit == 0) {
@@ -1110,10 +1104,6 @@ void draw_mgspw_summary(const GameStats& stats)
         plain("CQC takedowns", stats.pw_cqc_takedowns > 0 ? stats.pw_cqc_takedowns : 0);
         ImGui::EndTable();
     }
-    ImGui::Spacing();
-    ImGui::TextDisabled("FOX and FOXHOUND share these axes; the co-op half is");
-    ImGui::TextDisabled("not measured, so the solo name is shown.");
-
     // Current sortie: segment deltas land at the results tally (actions) or at
     // lobby exit (heroism/XP/GMP); the master clock ticks live.
     ImGui::Spacing();
@@ -1128,11 +1118,11 @@ void draw_mgspw_summary(const GameStats& stats)
                 static_cast<unsigned long long>(stats.pw_cur_best) * 1000ULL / 300ULL;
             // Rank and time are separate bests and may come from different
             // runs, so they are labelled apart rather than read as one result.
-            ImGui::TextDisabled("mission %d  best rank %s  best time %llu:%02llu.%03llu",
-                                stats.pw_mission_id, rank, best_ms / 60000,
-                                (best_ms / 1000) % 60, best_ms % 1000);
+            ImGui::TextDisabled("m%d  best %s  %llu:%02llu.%03llu", stats.pw_mission_id,
+                                rank, best_ms / 60000, (best_ms / 1000) % 60,
+                                best_ms % 1000);
         } else {
-            ImGui::TextDisabled("mission %d  first clear", stats.pw_mission_id);
+            ImGui::TextDisabled("m%d  new", stats.pw_mission_id);
         }
     }
     if (ImGui::BeginTable("pw_current", 2,
@@ -1248,11 +1238,11 @@ void draw_mgspw_global(const GameStats& stats)
                      stats.pw_ar_takedowns, stats.pw_sniper_takedowns,
                      stats.pw_sniper_nonlethal, stats.pw_lmg_takedowns,
                      stats.pw_shotgun_takedowns, stats.pw_cqc_takedowns);
+            row("by weapon", buf);
             snprintf(buf, sizeof(buf), "grenade %d  rocket %d  placed %d",
                      stats.pw_grenade_takedowns, stats.pw_rocket_takedowns,
                      stats.pw_placed_takedowns);
             row("explosives", buf);
-            row("by weapon", buf);
         }
         snprintf(buf, sizeof(buf), "HS %d  AL %d", stats.pw_headshots, stats.pw_alerts);
         row("lifetime", buf);
@@ -1287,14 +1277,14 @@ void draw_mgspw_global(const GameStats& stats)
             // with tranq takedowns as the combined non-lethal input.
             // Provisional until stun/incap split out.
             snprintf(buf, sizeof(buf), "%d", stats.pw_tranq - 2 * stats.pw_kills);
-            row("lethal score (prov.)", buf);
+            row("lethal score", buf);
         }
         row("total play", total_clock);
         row("stage play", stage_clock);
         ImGui::EndTable();
     }
     ImGui::Spacing();
-    ImGui::TextDisabled("weapon XP (settles at mission end)");
+    ImGui::TextDisabled("weapon XP");
     bool any_weapon = false;
     for (int i = 0; i < 16; ++i) {
         if (stats.pw_weapon_use[i] > 0) {
@@ -1312,7 +1302,7 @@ void draw_mgspw_global(const GameStats& stats)
         }
         ImGui::EndTable();
     } else if (!any_weapon) {
-        ImGui::TextDisabled("no weapon XP yet");
+        ImGui::TextDisabled("-");
     }
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Forensics")) {
@@ -1389,7 +1379,7 @@ void draw_mgspw_insignia(const GameStats& stats, int scroll)
     // Ground truth from save+0x1C009: one byte per insignia, bit 0 owned,
     // bit 1 seen. Ids 76..110 are VERSUS OPS and stay locked on a solo save.
     if (stats.pw_insignias < 0) {
-        ImGui::TextDisabled("insignia state unavailable");
+        ImGui::TextDisabled("-");
         return;
     }
     int seen = 0;
@@ -1403,7 +1393,7 @@ void draw_mgspw_insignia(const GameStats& stats, int scroll)
     }
     ImGui::Text("%d / 110", stats.pw_insignias);
     ImGui::SameLine();
-    ImGui::TextDisabled("- %d seen, %d Heroism awarded", seen, heroism);
+    ImGui::TextDisabled("%d seen  %d Heroism", seen, heroism);
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     if (ImGui::BeginChild("pw_insignias", ImVec2(0, 360), true)) {
         if (scroll != 0) {
@@ -1451,7 +1441,7 @@ void draw_mgspw_codenames(const GameStats& stats, int scroll)
     // bit 1 seen, bits 2..4 grade. Grade reads 0 while owned on the oldest
     // awards; the game reports those as grade 1.
     if (!stats.pw_codename_state_ok) {
-        ImGui::TextDisabled("codename state unavailable");
+        ImGui::TextDisabled("-");
         return;
     }
     int owned = 0;
@@ -1459,8 +1449,6 @@ void draw_mgspw_codenames(const GameStats& stats, int scroll)
         owned += stats.pw_codename_state[id] & 1;
     }
     ImGui::Text("%d / 24", owned);
-    ImGui::SameLine();
-    ImGui::TextDisabled("- awarded at a result screen");
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     const auto match = codename::evaluate_mgspw(stats);
     if (ImGui::BeginChild("pw_codenames", ImVec2(0, 360), true)) {

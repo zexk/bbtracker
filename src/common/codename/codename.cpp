@@ -691,10 +691,10 @@ std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s)
     std::vector<ReqStatus> out;
     // FOX is the solo all-weapons non-lethal title: spread the takedowns, keep
     // no class dominant, and stay non-lethal.
-    out.push_back(row("all 12 weapon slots balanced", p.balanced,
+    out.push_back(row("weapon spread", p.balanced,
                       p.balanced ? 1 : 0, 1));
     // Shown against kills, the value it actually has to beat.
-    out.push_back(row("non-lethal vs 2x kills", p.nonlethal > 2 * p.lethal,
+    out.push_back(row("non-lethal", p.nonlethal > 2 * p.lethal,
                       p.nonlethal, 2 * p.lethal));
     return out;
 }
