@@ -832,6 +832,19 @@ IdColors id_colors(Game game)
     return {{0.42f, 0.90f, 0.45f, 1}, {1.0f, 0.82f, 0.25f, 1}, {0.95f, 0.35f, 0.35f, 1}};
 }
 
+// Green for a satisfied requirement or a completed checklist entry. The rank
+// readout uses the per-game green from id_colors() instead.
+constexpr ImVec4 kDoneGreen(0.42f, 0.90f, 0.45f, 1.0f);
+
+// Up/Down move a scrolling panel by eight lines a press.
+void apply_scroll(int scroll)
+{
+    if (scroll != 0) {
+        ImGui::SetScrollY(ImGui::GetScrollY()
+                          + scroll * ImGui::GetTextLineHeightWithSpacing() * 8);
+    }
+}
+
 void format_time(double seconds, char* buf, size_t len)
 {
     const int total = static_cast<int>(seconds);
@@ -850,12 +863,10 @@ void stat_row(const char* key, const char* value)
 void checklist(const char* id, const char* const* names, size_t count, uint64_t mask, int scroll)
 {
     if (ImGui::BeginChild(id, ImVec2(0, 360), true)) {
-        if (scroll != 0) {
-            ImGui::SetScrollY(ImGui::GetScrollY() + scroll * ImGui::GetTextLineHeightWithSpacing() * 8);
-        }
+        apply_scroll(scroll);
         for (size_t i = 0; i < count; ++i) {
             const bool done = (mask & (uint64_t{1} << i)) != 0;
-            ImGui::TextColored(done ? ImVec4(0.42f, 0.90f, 0.45f, 1.0f)
+            ImGui::TextColored(done ? kDoneGreen
                                     : ImVec4(1, 1, 1, 0.35f),
                                "%s  %s", done ? "x" : "-", names[i]);
         }
@@ -873,15 +884,12 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
         return false;
     };
     if (ImGui::BeginChild("mgs4_feats", ImVec2(0, 360), true)) {
-        if (scroll != 0) {
-            ImGui::SetScrollY(ImGui::GetScrollY()
-                              + scroll * ImGui::GetTextLineHeightWithSpacing() * 8);
-        }
+        apply_scroll(scroll);
         if (ImGui::BeginTable("mgs4_feat_rows", 2,
                               ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
             ImGui::TableSetupColumn("emblem / requirement", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("progress", ImGuiTableColumnFlags_WidthFixed, 125.0f);
-            const ImVec4 done_color(0.42f, 0.90f, 0.45f, 1.0f);
+            const ImVec4& done_color = kDoneGreen;
             const ImVec4 pending_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
             const auto row = [&](const char* name, const char* goal, const char* value) {
                 const bool done = matched(name);
@@ -1192,9 +1200,7 @@ void draw_mgspw_summary(const GameStats& stats)
 void draw_mgspw_global(const GameStats& stats, int scroll)
 {
     ImGui::BeginChild("pw_career_scroll", ImVec2(0, 420));
-    if (scroll != 0) {
-        ImGui::SetScrollY(ImGui::GetScrollY() + scroll * ImGui::GetTextLineHeightWithSpacing() * 8);
-    }
+    apply_scroll(scroll);
     char buf[64];
     if (ImGui::BeginTable("pw_global", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
@@ -1538,7 +1544,7 @@ void draw_panel()
     ImGui::Separator();
     ImGui::Spacing();
 
-    const ImVec4 green(0.42f, 0.90f, 0.45f, 1.0f);
+    const ImVec4& green = kDoneGreen;
     if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
