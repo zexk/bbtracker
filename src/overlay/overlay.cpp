@@ -863,6 +863,16 @@ void stat_row(const char* key, const char* value)
     ImGui::TextUnformatted(value);
 }
 
+// Same row, dimmed: context the panel shows but does not rank on.
+void dim_row(const char* key, const char* value)
+{
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::TextDisabled("%s", key);
+    ImGui::TableNextColumn();
+    ImGui::TextDisabled("%s", value);
+}
+
 void checklist(const char* id, const char* const* names, size_t count, uint64_t mask, int scroll)
 {
     const ImVec4 done_color = id_colors(g_game).green;
@@ -1107,30 +1117,23 @@ void draw_mgspw_summary(const GameStats& stats)
         ImGui::TableSetupColumn("this run", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 150.0f);
         ImGui::TableHeadersRow();
-        const auto row = [&](const char* k, const char* v) {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(k);
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(v);
-        };
         // The game keeps its own per-mission tally in each stat descriptor
         // (+0x18); it beats the client-side segment delta because the game
         // clears it at mission start. Fall back to the segment when a
         // descriptor is unresolved.
-        const auto stat_row = [&](const char* k, int mission_value, int seg) {
+        const auto run_stat = [&](const char* k, int mission_value, int seg) {
             if (mission_value >= 0) {
                 snprintf(buf, sizeof(buf), "%d", mission_value);
             } else {
                 snprintf(buf, sizeof(buf), "%+d (area)", seg);
             }
-            row(k, buf);
+            stat_row(k, buf);
         };
         // Kills and alerts are what the clean-clear bonuses hang on, so a
         // non-zero either way is coloured: it costs an insignia at results.
         const auto clean_row = [&](const char* k, int mission_value, int seg) {
             if (mission_value < 0) {
-                stat_row(k, mission_value, seg);
+                run_stat(k, mission_value, seg);
                 return;
             }
             snprintf(buf, sizeof(buf), "%d", mission_value);
@@ -1141,20 +1144,20 @@ void draw_mgspw_summary(const GameStats& stats)
             ImGui::TextColored(mission_value ? id_red : id_green, "%s", buf);
         };
         clean_row("kills", stats.pw_m_kills, stats.seg_kills);
-        stat_row("headshots", stats.pw_m_headshots, stats.seg_headshots);
-        if (stats.pw_m_alerts < 0) row("alerts", "-");
+        run_stat("headshots", stats.pw_m_headshots, stats.seg_headshots);
+        if (stats.pw_m_alerts < 0) stat_row("alerts", "-");
         else clean_row("alerts", stats.pw_m_alerts, 0);
-        stat_row("tranq", stats.pw_m_tranq, stats.seg_tranq);
+        run_stat("tranq", stats.pw_m_tranq, stats.seg_tranq);
         snprintf(buf, sizeof(buf), "%+d", stats.seg_heroism);
-        row("heroism (area)", buf);
+        stat_row("heroism (area)", buf);
         // Full health is the deployed soldier's own maximum, not a constant.
         if (stats.pw_player_max_hp > 0) {
             snprintf(buf, sizeof(buf), "%d%% (%d/%d)",
                      stats.pw_player_hp * 100 / stats.pw_player_max_hp,
                      stats.pw_player_hp, stats.pw_player_max_hp);
-            row("HP", buf);
+            stat_row("HP", buf);
         } else {
-            row("HP", "-");
+            stat_row("HP", "-");
         }
         ImGui::EndTable();
     }
@@ -1179,11 +1182,7 @@ void draw_mgspw_summary(const GameStats& stats)
         // Context, not a requirement: the counters the axes are read from.
         const auto plain = [&](const char* key, int value) {
             snprintf(buf, sizeof(buf), "%d", value);
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("%s", key);
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("%s", buf);
+            dim_row(key, buf);
         };
         if (stats.pw_camaraderie >= 0) {
             plain("camaraderie", stats.pw_camaraderie);
@@ -1221,8 +1220,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
                 stat_row(label, buf);
             }
         };
-        snprintf(buf, sizeof(buf), "%u:%02u:%02u", stats.pw_total_play / 3600,
-                 (stats.pw_total_play / 60) % 60, stats.pw_total_play % 60);
+        format_time(stats.pw_total_play, buf, sizeof(buf));
         stat_row("play time", buf);
         snprintf(buf, sizeof(buf), "%d (%+d last)", stats.pw_heroism,
                  stats.pw_heroism_delta);
@@ -1673,24 +1671,16 @@ void draw_panel()
             ImGui::TextColored(state_col, "%s", ratio);
         }
 
-        auto plain_row = [&](const char* key, const char* val) {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("%s", key);
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("%s", val);
-        };
-
         auto plain_count = [&](const char* key, int value) {
             char buf[24];
             snprintf(buf, sizeof(buf), "%d", value);
-            plain_row(key, buf);
+            dim_row(key, buf);
         };
 
         auto plain_pair = [&](const char* key, int value, int maximum) {
             char buf[32];
             snprintf(buf, sizeof(buf), "%d / %d", value, maximum);
-            plain_row(key, buf);
+            dim_row(key, buf);
         };
 
         if (g_game == Game::MGS1) {
@@ -1699,28 +1689,28 @@ void draw_panel()
             if (stats.diazepam_frames > 0) {
                 char buf[24];
                 snprintf(buf, sizeof(buf), "%.1fs", stats.diazepam_frames / 30.0);
-                plain_row("diazepam", buf);
+                dim_row("diazepam", buf);
             }
         } else if (g_game == Game::MGS2) {
             plain_pair("health", stats.current_health, stats.max_health);
-            plain_row("sea louse", stats.sea_louse ? "YES" : "NO");
+            dim_row("sea louse", stats.sea_louse ? "YES" : "NO");
             plain_count("clearing escapes", stats.clearing_escapes);
             plain_count("times seen", stats.times_seen);
             plain_count("mechs destroyed", stats.mechs_destroyed);
             plain_count("pull-ups", stats.pull_ups);
-            plain_row("alert state", stats.alert_state_available
+            dim_row("alert state", stats.alert_state_available
                                          ? alert_state_name(stats.alert_state)
                                          : "unavailable");
         } else if (g_game == Game::MGS3) {
             char buf[16];
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
-            plain_row("captures", buf);
+            dim_row("captures", buf);
             const int current_kerotan = mgs3_area_kerotan(stats.area_code);
             snprintf(buf, sizeof(buf), "%d / 64  %s", stats.kerotans,
                      current_kerotan >= 0
                              && (stats.kerotan_mask & (uint64_t{1} << current_kerotan)) != 0
                          ? "x" : "-");
-            plain_row("kerotans", buf);
+            dim_row("kerotans", buf);
             plain_count("meals eaten", stats.meals_eaten);
         } else if (g_game == Game::MGS4) {
             plain_count("flashbacks", stats.flashbacks_viewed);

@@ -98,7 +98,9 @@ with tempfile.TemporaryDirectory() as directory:
     path = Path(directory)
     (path / "test.cpp").write_text(code)
     subprocess.run(shlex.split(os.environ.get("CXX", "c++")) + [
-        "-std=c++20", f"-I{imgui}", f"-I{root / 'src'}", str(path / "test.cpp"),
+        # -UNDEBUG: every check below is an assert, so a build type that defines
+        # NDEBUG would compile the whole smoke check away and still pass.
+        "-std=c++20", "-UNDEBUG", f"-I{imgui}", f"-I{root / 'src'}", str(path / "test.cpp"),
         *map(str, (root / "src/common/codename").glob("*.cpp")),
         *[str(imgui / name) for name in
           ("imgui.cpp", "imgui_draw.cpp", "imgui_tables.cpp", "imgui_widgets.cpp")],
