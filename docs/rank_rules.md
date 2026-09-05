@@ -7,6 +7,9 @@ hidden in code comments.
 MGS4 rules, PC memory layout, and reverse-engineering reference:
 [mgs4_research.md](mgs4_research.md).
 
+Peace Walker rules, PC memory layout, and reverse-engineering reference:
+[mgspw_research.md](mgspw_research.md).
+
 ## MGS1
 
 Source: [muni_shinobu's original MGS codename chart](https://www.tentenpro.com/muni_shinobu/mgs/codename.html).
@@ -103,6 +106,40 @@ bytes; type `7` with positive injury health means a leech remains attached.
 Tsuchinoko checks all three live-animal cages for food type `130` with an active
 occupancy record. Cage memory was verified by changing a live rabbit (`114`) into
 a Tsuchinoko and carrying it across an area transition.
+
+## Peace Walker
+
+Peace Walker awards no rank. Missions carry their own S to C rank, written by
+script and stored per mission, and the career instead earns a codename out of
+24 and insignias out of 110. Rules come from the game's own evaluator rather
+than from community charts; see "Codename system" and "Insignia system" in
+[mgspw_research.md](mgspw_research.md).
+
+The codename is three independent axes: which weapon class dominates career
+takedowns, whether camaraderie is over 10000 (cooperation titles) and whether
+non-lethal takedowns beat twice the lethal ones. All-weapons titles (FOX,
+FOXHOUND, HOUND, DOBERMAN) need no class to dominate: the evaluator measures
+its twelve weapon slots against their own average and wants every one within a
+tenth of it.
+
+The evaluator reads those twelve slots on four axes (kills, sleeps, stuns,
+incapacitations). When that snapshot has not been read, the panel falls back to
+the career takedown counters rolled into the six classes, and the spread is
+approximated as four classes in use with no class holding 40% of the total.
+The two paths gate the spread on different numbers, so each reports its own.
+
+Grades 1 to 5 stack camaraderie steps (10000, 50000, 100000, 200000, 500000), a
+cooperation ratio over missions counted against missions required (0.05, 0.5,
+then 1.0), and for all-weapons titles a Heroism floor (10000, 50000, 100000,
+150000, 250000). A solo title needs camaraderie at or below its step, a
+cooperation title strictly above it. Grades 4 and 5 add a flag the game sets
+from mission ranks. Comparisons follow the native branches: the Heroism floor
+and grades 1 and 2's ratio are strict, grade 3 and up accept 1.0 exactly.
+
+Known gaps: the stun rod has no identified takedown counter, so the fallback
+profile can never name a stun title; grades are only reported once the game has
+evaluated a mission, since the ratio inputs live in that result; and six
+insignia families read "???" in the game's own localization.
 
 ## Snake's Revenge
 
