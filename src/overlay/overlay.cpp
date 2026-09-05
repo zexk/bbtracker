@@ -873,6 +873,40 @@ void dim_row(const char* key, const char* value)
     ImGui::TextDisabled("%s", value);
 }
 
+// The special-items row reads as the list of items actually used. Each game
+// has its own set, one per bit of special_items_mask.
+std::span<const char* const> special_item_names(Game game)
+{
+    static constexpr const char* kMgs2[] = {
+        "Stealth Camo", "Infinity Bandana/Wig", "O2 Wig", "Grip Wig"};
+    static constexpr const char* kMgs3[] = {
+        "Stealth Camo", "Infinity Face Paint", "EZ Gun"};
+    static constexpr const char* kMgs4[] = {"Infinity Bandana", "Stealth Camo"};
+    switch (game) {
+    case Game::MGS2: return kMgs2;
+    case Game::MGS3: return kMgs3;
+    case Game::MGS4: return kMgs4;
+    default: return {};
+    }
+}
+
+// Comma-joined names of the set bits, or NONE when none of them is set. Bits
+// above the name list are ignored, which is what bounds the mask.
+void join_flags(char* out, size_t len, uint16_t mask, std::span<const char* const> names)
+{
+    out[0] = '\0';
+    for (size_t i = 0; i < names.size(); ++i) {
+        if ((mask & (1u << i)) == 0) {
+            continue;
+        }
+        const size_t used = std::strlen(out);
+        snprintf(out + used, len - used, "%s%s", used ? ", " : "", names[i]);
+    }
+    if (out[0] == '\0') {
+        snprintf(out, len, "NONE");
+    }
+}
+
 void checklist(const char* id, const char* const* names, size_t count, uint64_t mask, int scroll)
 {
     const ImVec4 done_color = id_colors(g_game).green;
@@ -1579,50 +1613,13 @@ void draw_panel()
         }
         for (const codename::ReqStatus& r : reqs) {
             char ratio[96];
-            if (std::strcmp(r.label, "special items") == 0 && g_game == Game::MGS2) {
-                ratio[0] = '\0';
-                const uint16_t used = stats.special_items_mask & 0x000F;
-                const char* names[] = {
-                    "Stealth Camo", "Infinity Bandana/Wig", "O2 Wig", "Grip Wig"};
-                for (int i = 0; i < 4; ++i) {
-                    if ((used & (1u << i)) != 0) {
-                        snprintf(ratio + strlen(ratio), sizeof(ratio) - strlen(ratio), "%s%s",
-                                 ratio[0] ? ", " : "", names[i]);
-                    }
-                }
-                if (!used) {
-                    snprintf(ratio, sizeof(ratio), "NONE");
-                }
-            } else if (std::strcmp(r.label, "special items") == 0 && g_game == Game::MGS3) {
-                ratio[0] = '\0';
-                const uint16_t used = stats.special_items_mask & 0x07;
-                const char* names[] = {"Stealth Camo", "Infinity Face Paint", "EZ Gun"};
-                for (int i = 0; i < 3; ++i) {
-                    if ((used & (1u << i)) != 0) {
-                        snprintf(ratio + strlen(ratio), sizeof(ratio) - strlen(ratio), "%s%s",
-                                 ratio[0] ? ", " : "", names[i]);
-                    }
-                }
-                if (!used) {
-                    snprintf(ratio, sizeof(ratio), "NONE");
-                }
-            } else if (std::strcmp(r.label, "special items") == 0
-                       && (g_game == Game::MG1 || g_game == Game::MG2)) {
-                snprintf(ratio, sizeof(ratio), "%s",
-                         stats.special_item_used ? "Infinity Bandana" : "NONE");
-            } else if (std::strcmp(r.label, "special items") == 0
-                       && g_game == Game::MGS4) {
-                ratio[0] = '\0';
-                const uint16_t used = stats.special_items_mask & 0x03;
-                const char* names[] = {"Infinity Bandana", "Stealth Camo"};
-                for (int i = 0; i < 2; ++i) {
-                    if ((used & (1u << i)) != 0) {
-                        snprintf(ratio + strlen(ratio), sizeof(ratio) - strlen(ratio), "%s%s",
-                                 ratio[0] ? ", " : "", names[i]);
-                    }
-                }
-                if (!used) {
-                    snprintf(ratio, sizeof(ratio), "NONE");
+            if (std::strcmp(r.label, "special items") == 0) {
+                if (g_game == Game::MG1 || g_game == Game::MG2) {
+                    snprintf(ratio, sizeof(ratio), "%s",
+                             stats.special_item_used ? "Infinity Bandana" : "NONE");
+                } else {
+                    join_flags(ratio, sizeof(ratio), stats.special_items_mask,
+                               special_item_names(g_game));
                 }
             } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS1) {
                 snprintf(ratio, sizeof(ratio), "%s", stats.radar_off ? "OFF" : "ON");
