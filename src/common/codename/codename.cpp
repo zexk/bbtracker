@@ -696,16 +696,24 @@ std::optional<Match> evaluate_mgspw(const GameStats& s)
 std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s)
 {
     const PwProfile p = pw_profile(s);
-    const auto row = [](const char* label, bool pass, double current, double limit) {
+    const auto row = [](const char* label, bool pass, double current, double limit,
+                        Op op = Op::Ge) {
         return ReqStatus{label, pass, current, limit,
                          static_cast<uint8_t>(ReqFmt::Count),
-                         static_cast<uint8_t>(Op::Ge)};
+                         static_cast<uint8_t>(op)};
     };
     std::vector<ReqStatus> out;
     // FOX is the solo all-weapons non-lethal title: spread the takedowns, keep
-    // no class dominant, and stay non-lethal.
-    out.push_back(row("weapon spread", p.balanced,
-                      p.balanced ? 1 : 0, 1));
+    // no class dominant, and stay non-lethal. The spread is two separate gates
+    // and each carries a number worth seeing, so they get a row apiece rather
+    // than one pass/fail.
+    out.push_back(row("classes used", p.classes_used >= kPwSpreadClasses,
+                      p.classes_used, kPwSpreadClasses));
+    const double top_share = p.total > 0
+        ? 100.0 * static_cast<double>(p.top) / static_cast<double>(p.total)
+        : 0.0;
+    out.push_back(row("top class %", p.total > 0 && top_share < 100.0 * kPwSpreadShare,
+                      top_share, 100.0 * kPwSpreadShare, Op::Lt));
     // Shown against kills, the value it actually has to beat.
     out.push_back(row("non-lethal", p.nonlethal > 2 * p.lethal,
                       p.nonlethal, 2 * p.lethal));
