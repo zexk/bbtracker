@@ -450,17 +450,6 @@ PwProfile pw_profile(const GameStats& s)
 
 } // namespace
 
-const char* pw_title_name(int id)
-{
-    // Evaluator id order, from the 24-way switch in 0x140543E40. Alphabetical
-    // except EEL, which trails the list rather than sorting under E.
-    static constexpr const char* kNames[] = {
-        "ANT", "BEAR", "BEE", "BUTTERFLY", "CAT", "DEER", "DOBERMAN", "FIREFLY",
-        "FOX", "FOXHOUND", "GULL", "HAWK", "HOUND", "KANGAROO", "OCTOPUS", "ORCA",
-        "PIRANHA", "PUMA", "RAVEN", "SCORPION", "SWALLOW", "WHALE", "WOLF", "EEL"};
-    return id >= 1 && id <= 24 ? kNames[id - 1] : "?";
-}
-
 // Insignias, by the game's own id. Thresholds and Heroism awards are the
 // .rdata table 0x140543810 assembles on the stack; names are the localization
 // rows those ids resolve to. scripts/pwinsig.py and scripts/pwolang.py
@@ -619,6 +608,71 @@ double pw_coop_ratio(const GameStats& s)
 
 } // namespace
 
+// The twelve slots the evaluator reads, mapped onto the six title classes.
+// Taken from the dominance masks in pw_profile; slot 10 is in none of them.
+constexpr int kPwSlotClass[12] = {
+    static_cast<int>(WeaponClass::Cqc),       // 0
+    static_cast<int>(WeaponClass::Stun),      // 1
+    static_cast<int>(WeaponClass::Short),     // 2
+    static_cast<int>(WeaponClass::Medium),    // 3
+    static_cast<int>(WeaponClass::Long),      // 4
+    static_cast<int>(WeaponClass::Medium),    // 5
+    static_cast<int>(WeaponClass::Short),     // 6
+    static_cast<int>(WeaponClass::Short),     // 7
+    static_cast<int>(WeaponClass::Explosive), // 8
+    static_cast<int>(WeaponClass::Explosive), // 9
+    -1,                                       // 10
+    static_cast<int>(WeaponClass::Explosive), // 11
+};
+
+const char* pw_class_name(int cls)
+{
+    static constexpr const char* kNames[] = {
+        "short", "medium", "long", "explosive", "CQC", "stun rod"};
+    return cls >= 0 && cls < 6 ? kNames[cls] : "?";
+}
+
+PwGradeGate pw_grade_gate(int grade)
+{
+    if (grade < 1 || grade > 5) {
+        return {0, 0, 0.0};
+    }
+    const int i = grade - 1;
+    return {kPwCamaraderieStep[i], kPwHeroismFloor[i], kPwCoopRatioGate[i]};
+}
+
+PwAxes pw_axes(const GameStats& s)
+{
+    PwAxes out;
+    if (s.pw_codename_axes_ok) {
+        out.native = true;
+        for (int slot = 0; slot < 12; ++slot) {
+            for (int axis = 0; axis < 4; ++axis) {
+                out.slot[slot] += pw_count(s.pw_codename_axes[axis][slot]);
+            }
+            out.lethal += pw_count(s.pw_codename_axes[0][slot]);
+            out.nonlethal += pw_count(s.pw_codename_axes[1][slot])
+                + pw_count(s.pw_codename_axes[2][slot])
+                + pw_count(s.pw_codename_axes[3][slot]);
+            if (kPwSlotClass[slot] >= 0) {
+                out.by_class[kPwSlotClass[slot]] += out.slot[slot];
+            }
+        }
+    } else {
+        const PwProfile p = pw_profile(s);
+        for (int i = 0; i < 6; ++i) {
+            out.by_class[i] = p.by_class[i];
+        }
+        out.lethal = p.lethal;
+        out.nonlethal = p.nonlethal;
+    }
+    for (int i = 0; i < 6; ++i) {
+        out.total += out.by_class[i];
+        if (out.by_class[i] > 0) ++out.classes_used;
+    }
+    return out;
+}
+
 PwGrade pw_grade(const GameStats& s)
 {
     PwGrade out;
@@ -703,17 +757,33 @@ std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s)
                          static_cast<uint8_t>(op)};
     };
     std::vector<ReqStatus> out;
-    // FOX is the solo all-weapons non-lethal title: spread the takedowns, keep
-    // no class dominant, and stay non-lethal. The spread is two separate gates
-    // and each carries a number worth seeing, so they get a row apiece rather
-    // than one pass/fail.
-    out.push_back(row("classes used", p.classes_used >= kPwSpreadClasses,
-                      p.classes_used, kPwSpreadClasses));
-    const double top_share = p.total > 0
-        ? 100.0 * static_cast<double>(p.top) / static_cast<double>(p.total)
-        : 0.0;
-    out.push_back(row("top class %", p.total > 0 && top_share < 100.0 * kPwSpreadShare,
-                      top_share, 100.0 * kPwSpreadShare, Op::Lt));
+    // FOX is the solo all-weapons non-lethal title: spread the takedowns and
+    // stay non-lethal. The two paths gate the spread differently, so each
+    // reports the number its own gate is actually measured on.
+    const PwAxes axes = pw_axes(s);
+    if (axes.native) {
+        // Every slot within a tenth of the average, the average taken over 11.
+        int slot_total = 0;
+        for (int value : axes.slot) slot_total += value;
+        const double average = slot_total / 11.0;
+        double worst = 0.0;
+        if (average > 0.0) {
+            for (int value : axes.slot) {
+                const double off = 100.0 * std::abs(value - average) / average;
+                if (off > worst) worst = off;
+            }
+        }
+        out.push_back(row("slot spread %", slot_total > 0 && worst <= 10.0,
+                          worst, 10.0, Op::Le));
+    } else {
+        out.push_back(row("classes used", p.classes_used >= kPwSpreadClasses,
+                          p.classes_used, kPwSpreadClasses));
+        const double top_share = p.total > 0
+            ? 100.0 * static_cast<double>(p.top) / static_cast<double>(p.total)
+            : 0.0;
+        out.push_back(row("top class %", p.total > 0 && top_share < 100.0 * kPwSpreadShare,
+                          top_share, 100.0 * kPwSpreadShare, Op::Lt));
+    }
     // Shown against kills, the value it actually has to beat.
     out.push_back(row("non-lethal", p.nonlethal > 2 * p.lethal,
                       p.nonlethal, 2 * p.lethal));

@@ -155,11 +155,6 @@ inline std::vector<ReqStatus> requirements_from_rows(const GameStats& s,
 
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);
 
-// Name for an evaluator title id (1..24). These ids are the game's own and
-// are NOT the localization indices used by kPwTitles - FOXHOUND is id 10 but
-// localization index 13.
-const char* pw_title_name(int id);
-
 // One insignia record, by the game's own insignia id (1..110). `over` is the
 // value the counter must exceed (the test is strict); -1 means the grant is
 // not a simple counter compare. `heroism` is the award. Names come from the
@@ -191,6 +186,33 @@ struct PwGrade {
 };
 
 PwGrade pw_grade(const GameStats& s);
+
+// The evaluator's own inputs. `slot` is the twelve weapon slots it reads, all
+// four axes summed; `by_class` rolls those into the six groups the title table
+// is keyed on. Slot 10 belongs to no group. `native` is false when the axes
+// could not be read and the per-counter fallback was used instead.
+struct PwAxes {
+    int slot[12] = {};
+    int by_class[6] = {};
+    int total = 0;
+    int lethal = 0;
+    int nonlethal = 0;
+    int classes_used = 0;
+    bool native = false;
+};
+
+PwAxes pw_axes(const GameStats& s);
+
+// Class name for a `by_class` index, and the gates one grade demands.
+const char* pw_class_name(int cls);
+
+struct PwGradeGate {
+    int camaraderie;
+    int heroism;
+    double coop_ratio;
+};
+
+PwGradeGate pw_grade_gate(int grade); // 1..5
 
 std::optional<Match> evaluate_mgspw(const GameStats& s);
 

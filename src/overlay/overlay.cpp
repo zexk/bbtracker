@@ -1378,116 +1378,144 @@ void draw_mgspw_global(const GameStats& stats)
     }
 }
 
-void draw_mgspw_insignia(const GameStats& stats, int scroll)
+void draw_mgspw_insignia(const GameStats& stats)
 {
-    // Ground truth from save+0x1C009: one byte per insignia, bit 0 owned,
-    // bit 1 seen. Ids 76..110 are VERSUS OPS and stay locked on a solo save.
-    if (stats.pw_insignias < 0) {
-        ImGui::TextDisabled("-");
-        return;
-    }
-    int seen = 0;
-    int heroism = 0;
-    for (int id = 1; id <= 110; ++id) {
-        const uint8_t state = stats.pw_insignia_state[id];
-        seen += (state & 2) != 0;
-        if (state & 1) {
-            heroism += codename::pw_insignia(id).heroism;
-        }
-    }
-    ImGui::Text("%d / 110", stats.pw_insignias);
-    ImGui::SameLine();
-    ImGui::TextDisabled("%d seen  %d Heroism", seen, heroism);
+    // The counters the insignia evaluator grades, with the tier ladder each
+    // one climbs. Every family is three consecutive ids on a rising threshold,
+    // so the family is named by its first id.
+    static constexpr struct {
+        const char* label;
+        int first_id;
+    } kFamilies[] = {
+        {"no-alert clears", 1},  {"no-kill clears", 4}, {"hold-ups", 7},
+        {"no-item clears", 10},  {"headshots", 16},     {"Fulton recoveries", 44},
+    };
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
-    if (ImGui::BeginChild("pw_insignias", ImVec2(0, 360), true)) {
-        if (scroll != 0) {
-            ImGui::SetScrollY(ImGui::GetScrollY()
-                              + scroll * ImGui::GetTextLineHeightWithSpacing() * 8);
-        }
-        if (ImGui::BeginTable("pw_insignia_rows", 2,
-                              ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-            ImGui::TableSetupColumn("insignia", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-            const ImVec4 pending(1, 1, 1, 0.35f);
-            char req[32];
-            for (int id = 1; id <= 110; ++id) {
-                const codename::PwInsignia insignia = codename::pw_insignia(id);
-                const bool owned = (stats.pw_insignia_state[id] & 1) != 0;
-                // Six ids carry no English label; the game shows "???" too.
-                const bool labelled = std::strcmp(insignia.name, "???") != 0;
-                // -1 marks a grant the evaluator does not decide on a counter.
-                if (insignia.over >= 0) {
-                    snprintf(req, sizeof(req), "over %d", insignia.over);
-                } else {
-                    snprintf(req, sizeof(req), "-");
-                }
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                if (labelled) {
-                    ImGui::TextColored(owned ? id_green : pending, "%s  %s",
-                                       owned ? "x" : "-", insignia.name);
-                } else {
-                    ImGui::TextColored(owned ? id_green : pending, "%s  insignia %d",
-                                       owned ? "x" : "-", id);
-                }
-                ImGui::TableNextColumn();
-                ImGui::TextColored(owned ? id_green : pending, "%s", req);
-            }
-            ImGui::EndTable();
-        }
+    if (stats.pw_insignias >= 0) {
+        ImGui::Text("%d / 110", stats.pw_insignias);
     }
-    ImGui::EndChild();
+    if (ImGui::BeginTable("pw_insignia_stats", 5,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("counter", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 55.0f);
+        ImGui::TableSetupColumn("C", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+        ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+        ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+        const ImVec4 pending(1, 1, 1, 0.35f);
+        for (const auto& family : kFamilies) {
+            const int have = codename::pw_insignia_progress(family.first_id, stats);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(family.label);
+            ImGui::TableNextColumn();
+            if (have < 0) {
+                ImGui::TextColored(pending, "-");
+            } else {
+                ImGui::Text("%d", have);
+            }
+            // Tiers run C, B, A on a rising threshold; the test is strict.
+            for (int tier = 0; tier < 3; ++tier) {
+                const int over = codename::pw_insignia(family.first_id + tier).over;
+                ImGui::TableNextColumn();
+                ImGui::TextColored(have > over ? id_green : pending, "%d", over);
+            }
+        }
+        ImGui::EndTable();
+    }
 }
 
-void draw_mgspw_codenames(const GameStats& stats, int scroll)
+void draw_mgspw_codenames(const GameStats& stats)
 {
-    // Ownership from save+0x1BFF0 + id, evaluator ids 1..24: bit 0 owned,
-    // bit 1 seen, bits 2..4 grade. Grade reads 0 while owned on the oldest
-    // awards; the game reports those as grade 1.
-    if (!stats.pw_codename_state_ok) {
-        ImGui::TextDisabled("-");
-        return;
-    }
-    int owned = 0;
-    for (int id = 1; id <= 24; ++id) {
-        owned += stats.pw_codename_state[id] & 1;
-    }
-    ImGui::Text("%d / 24", owned);
+    // FOXHOUND is the all-weapons cooperation non-lethal title, so this tab
+    // is the distribution that decides "all weapons" plus the grade ladder.
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
-    const auto match = codename::evaluate_mgspw(stats);
-    if (ImGui::BeginChild("pw_codenames", ImVec2(0, 360), true)) {
-        if (scroll != 0) {
-            ImGui::SetScrollY(ImGui::GetScrollY()
-                              + scroll * ImGui::GetTextLineHeightWithSpacing() * 8);
+    const codename::PwAxes axes = codename::pw_axes(stats);
+    const ImVec4 pending(1, 1, 1, 0.35f);
+    if (stats.pw_codename_state_ok) {
+        int owned = 0;
+        for (int id = 1; id <= 24; ++id) {
+            owned += stats.pw_codename_state[id] & 1;
         }
-        if (ImGui::BeginTable("pw_title_rows", 2,
-                              ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-            ImGui::TableSetupColumn("codename", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("grade", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-            const ImVec4 pending(1, 1, 1, 0.35f);
-            for (int id = 1; id <= 24; ++id) {
-                const uint8_t state = stats.pw_codename_state[id];
-                const bool has = (state & 1) != 0;
-                const char* name = codename::pw_title_name(id);
-                // The name the profile currently classifies as, whether or not
-                // it has been awarded yet.
-                const bool current = match && std::strcmp(match->name, name) == 0;
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                ImGui::TextColored(has ? id_green : current ? id_yellow : pending,
-                                   "%s  %s", has ? "x" : current ? ">" : "-", name);
-                ImGui::TableNextColumn();
-                if (has) {
-                    const int grade = (state >> 2) & 7;
-                    ImGui::TextColored(id_green, "%d", grade ? grade : 1);
-                } else {
-                    ImGui::TextColored(pending, "-");
-                }
-            }
-            ImGui::EndTable();
-        }
+        ImGui::Text("%d / 24", owned);
     }
-    ImGui::EndChild();
+    if (ImGui::BeginTable("pw_class", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("weapon class", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+        for (int cls = 0; cls < 6; ++cls) {
+            const int value = axes.by_class[cls];
+            const double share = axes.total > 0 ? 100.0 * value / axes.total : 0.0;
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextColored(value > 0 ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : pending,
+                               "%s", codename::pw_class_name(cls));
+            ImGui::TableNextColumn();
+            ImGui::Text("%d", value);
+            ImGui::TableNextColumn();
+            // An even spread is the goal, so the share is what to read.
+            ImGui::TextColored(value > 0 ? id_yellow : pending, "%.0f%%", share);
+        }
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextDisabled("total");
+        ImGui::TableNextColumn();
+        ImGui::TextDisabled("%d", axes.total);
+        ImGui::TableNextColumn();
+        ImGui::TextDisabled("%d/%d", axes.lethal, axes.nonlethal);
+        ImGui::EndTable();
+    }
+
+    ImGui::Spacing();
+    const codename::PwGrade grade = codename::pw_grade(stats);
+    const bool coop = stats.pw_camaraderie > 10000;
+    if (ImGui::BeginTable("pw_ladder", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("grade", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("camaraderie", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("heroism", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+        ImGui::TableSetupColumn("co-op", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+        for (int g = 1; g <= 5; ++g) {
+            const codename::PwGradeGate gate = codename::pw_grade_gate(g);
+            const bool held = g <= grade.grade;
+            const ImVec4 color = held ? id_green : g == grade.next ? id_yellow : pending;
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextColored(color, "%d", g);
+            ImGui::TableNextColumn();
+            // A cooperation title needs camaraderie above the step, a solo one
+            // at or below it.
+            ImGui::TextColored(color, "%s%d", coop ? ">" : "<=", gate.camaraderie);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(color, "%d", gate.heroism);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(color, "%.2f", gate.coop_ratio);
+        }
+        ImGui::EndTable();
+    }
+    if (ImGui::BeginTable("pw_ladder_have", 2,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("held", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        const auto row = [&](const char* key, int value) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(key);
+            ImGui::TableNextColumn();
+            ImGui::Text("%d", value);
+        };
+        row("camaraderie", stats.pw_camaraderie);
+        row("heroism", stats.pw_heroism);
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted("co-op ratio");
+        ImGui::TableNextColumn();
+        if (stats.pw_codename_missions_required > 0) {
+            ImGui::Text("%d / %d", stats.pw_codename_missions_counted,
+                        stats.pw_codename_missions_required);
+        } else {
+            ImGui::TextColored(pending, "-");
+        }
+        ImGui::EndTable();
+    }
 }
 
 void draw_panel()
@@ -1549,13 +1577,13 @@ void draw_panel()
         if (tabs && ImGui::BeginTabItem(
                         "Insignia", nullptr,
                         selected_tab == 2 ? ImGuiTabItemFlags_SetSelected : 0)) {
-            draw_mgspw_insignia(stats, scroll);
+            draw_mgspw_insignia(stats);
             ImGui::EndTabItem();
         }
         if (tabs && ImGui::BeginTabItem(
                         "Codenames", nullptr,
                         selected_tab == 3 ? ImGuiTabItemFlags_SetSelected : 0)) {
-            draw_mgspw_codenames(stats, scroll);
+            draw_mgspw_codenames(stats);
             ImGui::EndTabItem();
         }
         if (tabs) {
