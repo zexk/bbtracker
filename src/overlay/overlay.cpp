@@ -1362,9 +1362,9 @@ void draw_mgspw_global(const GameStats& stats)
 
 void draw_mgspw_insignia(const GameStats& stats)
 {
-    // The counters the insignia evaluator grades, with the tier ladder each
-    // one climbs. Every family is three consecutive ids on a rising threshold,
-    // so the family is named by its first id.
+    // The counters the insignia evaluator grades, each against the tier it is
+    // working toward. Every family is three consecutive ids on a rising
+    // threshold, so the family is named by its first id.
     static constexpr struct {
         const char* label;
         int first_id;
@@ -1376,30 +1376,33 @@ void draw_mgspw_insignia(const GameStats& stats)
     if (stats.pw_insignias >= 0) {
         ImGui::Text("%d / 110", stats.pw_insignias);
     }
-    if (ImGui::BeginTable("pw_insignia_stats", 5,
+    if (ImGui::BeginTable("pw_insignia_stats", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("counter", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 55.0f);
-        ImGui::TableSetupColumn("C", ImGuiTableColumnFlags_WidthFixed, 50.0f);
-        ImGui::TableSetupColumn("B", ImGuiTableColumnFlags_WidthFixed, 50.0f);
-        ImGui::TableSetupColumn("A", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         const ImVec4 pending(1, 1, 1, 0.35f);
         for (const auto& family : kFamilies) {
             const int have = codename::pw_insignia_progress(family.first_id, stats);
+            // Tiers run C, B, A on a rising threshold; the first one not yet
+            // beaten is the one being worked toward.
+            int target = -1;
+            for (int tier = 0; tier < 3 && target < 0; ++tier) {
+                const int over = codename::pw_insignia(family.first_id + tier).over;
+                if (have <= over) {
+                    target = over;
+                }
+            }
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(family.label);
             ImGui::TableNextColumn();
             if (have < 0) {
                 ImGui::TextColored(pending, "-");
+            } else if (target < 0) {
+                ImGui::TextColored(id_green, "%d", have);
             } else {
-                ImGui::Text("%d", have);
-            }
-            // Tiers run C, B, A on a rising threshold; the test is strict.
-            for (int tier = 0; tier < 3; ++tier) {
-                const int over = codename::pw_insignia(family.first_id + tier).over;
-                ImGui::TableNextColumn();
-                ImGui::TextColored(have > over ? id_green : pending, "%d", over);
+                ImGui::TextColored(have * 4 >= target * 3 ? id_yellow : pending, "%d / %d",
+                                   have, target);
             }
         }
         ImGui::EndTable();
