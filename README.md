@@ -25,15 +25,9 @@ Requires Ultimate ASI Loader. Recommended setup:
 
 - MGS1: install [MGSM2Fix](https://github.com/nuggslet/MGSM2Fix/releases).
 - MGS2/MGS3: install [MGSHDFix](https://github.com/ShizCalev/MGSHDFix/releases).
-- MGS4 and Peace Walker: install
-  [MGSPatriotFix](https://github.com/ShizCalev/MGSPatriotFix/releases) - one
-  zip per game, extracted into `METAL GEAR SOLID 4` or `MGS_PW`. It ships
-  Ultimate ASI Loader as `MGS4/winmm.dll` and `mgspw/winmm.dll`, so no
-  separate loader is needed. Under Proton, set Steam launch options to
-  `WINEDLLOVERRIDES="winmm=n,b" %command%`. MGS4 supports both Direct3D 11
-  and Direct3D 12.
-  Without the fix, install Ultimate ASI Loader under those same names by
-  hand.
+- MGS4/Peace Walker: install
+  [MGSPatriotFix](https://github.com/ShizCalev/MGSPatriotFix/releases) - one zip
+  per game.
 
 Those fixes provide ASI-loading setup. Then download matching bbtracker release and
 copy ASI into game directory:
@@ -43,7 +37,7 @@ copy ASI into game directory:
 - `bbtracker_mgs2.asi` into `MGS2`
 - `bbtracker_mgs3.asi` into `MGS3`
 - `bbtracker_mgs4.asi` into `METAL GEAR SOLID 4/MGS4`
-- `bbtracker_mgspw.asi` into `MGS_PW/mgspw` (FOXHOUND probe)
+- `bbtracker_mgspw.asi` into `MGS_PW/mgspw`
 
 Follow fix project's Proton/Steam Deck DLL-override instructions when applicable.
 
