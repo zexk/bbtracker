@@ -198,7 +198,6 @@ struct GameStats {
     // (action careers tick live mid-mission; heroism/XP/GMP settle at
     // results, so their segments only move post-results).
     char seg_stage[32] = {};
-    double seg_time_seconds = 0.0;
     int seg_headshots = 0;
     int seg_kills = 0;
     int seg_tranq = 0;

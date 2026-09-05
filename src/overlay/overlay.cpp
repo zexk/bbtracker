@@ -1104,10 +1104,12 @@ void draw_mgspw_summary(const GameStats& stats)
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(v);
         };
-        const unsigned long long seg_ms =
-            static_cast<unsigned long long>(stats.seg_time_seconds * 1000.0);
-        snprintf(buf, sizeof(buf), "%llu:%02llu.%03llu", seg_ms / 60000,
-                 (seg_ms / 1000) % 60, seg_ms % 1000);
+        // The game's own stage clock, not a latched delta of the total: it
+        // resets exactly at stage start and cannot drift from the baseline.
+        const unsigned long long stage_ms =
+            static_cast<unsigned long long>(stats.pw_stage_play) * 1000ULL / 300ULL;
+        snprintf(buf, sizeof(buf), "%llu:%02llu.%03llu", stage_ms / 60000,
+                 (stage_ms / 1000) % 60, stage_ms % 1000);
         row("time", buf);
         // The game keeps its own per-mission tally in each stat descriptor
         // (+0x18); it beats the client-side segment delta because the game
@@ -1178,9 +1180,6 @@ void draw_mgspw_summary(const GameStats& stats)
             ImGui::TableNextColumn();
             ImGui::TextDisabled("%s", buf);
         };
-        plain("kills", stats.pw_kills > 0 ? stats.pw_kills : 0);
-        plain("CQC", stats.pw_cqc_takedowns > 0 ? stats.pw_cqc_takedowns : 0);
-        plain("heroism", stats.pw_heroism);
         if (stats.pw_camaraderie >= 0) {
             plain("camaraderie", stats.pw_camaraderie);
         }
@@ -1259,13 +1258,9 @@ void draw_mgspw_global(const GameStats& stats)
 {
     // Career totals. Clocks render from validated units; raw values live
     // under Forensics.
-    char total_clock[32], stage_clock[32];
+    char total_clock[32];
     snprintf(total_clock, sizeof(total_clock), "%u:%02u:%02u", stats.pw_total_play / 3600,
              (stats.pw_total_play / 60) % 60, stats.pw_total_play % 60);
-    const unsigned long long stage_ms =
-        static_cast<unsigned long long>(stats.pw_stage_play) * 1000ULL / 300ULL;
-    snprintf(stage_clock, sizeof(stage_clock), "%llu:%02llu.%03llu", stage_ms / 60000,
-             (stage_ms / 1000) % 60, stage_ms % 1000);
     if (ImGui::BeginTable("pw_global", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("field", ImGuiTableColumnFlags_WidthStretch);
@@ -1320,8 +1315,10 @@ void draw_mgspw_global(const GameStats& stats)
                      stats.pw_placed_takedowns);
             row("explosives", buf);
         }
-        snprintf(buf, sizeof(buf), "HS %d  AL %d", stats.pw_headshots, stats.pw_alerts);
-        row("lifetime", buf);
+        snprintf(buf, sizeof(buf), "%d", stats.pw_alerts);
+        row("alerts", buf);
+        snprintf(buf, sizeof(buf), "%d", stats.pw_headshots);
+        row("headshots", buf);
         if (stats.pw_body_kills >= 0 && stats.pw_kills >= 0 && stats.pw_headshots >= 0
             && stats.pw_grenade_takedowns >= 0 && stats.pw_rocket_takedowns >= 0) {
             // Headshots are stored as one total and non-headshot kills
@@ -1333,7 +1330,7 @@ void draw_mgspw_global(const GameStats& stats)
             const int lethal_hs = stats.pw_kills - stats.pw_body_kills - explosive;
             snprintf(buf, sizeof(buf), "%d lethal / %d tranq", lethal_hs,
                      stats.pw_headshots - lethal_hs);
-            row("headshots", buf);
+            row("headshot split", buf);
         }
         if (stats.pw_fulton_recoveries >= 0) {
             snprintf(buf, sizeof(buf), "%d  (+%d POW)", stats.pw_fulton_recoveries,
@@ -1356,7 +1353,6 @@ void draw_mgspw_global(const GameStats& stats)
             row("lethal score", buf);
         }
         row("total play", total_clock);
-        row("stage play", stage_clock);
         ImGui::EndTable();
     }
     ImGui::Spacing();
@@ -1417,8 +1413,7 @@ void draw_mgspw_global(const GameStats& stats)
         }
         char fulton_str[32];
         if (stats.pw_fulton_recoveries >= 0) {
-            snprintf(fulton_str, sizeof(fulton_str), "%d (%+d sortie)", stats.pw_fulton_recoveries,
-                     stats.seg_fulton);
+            snprintf(fulton_str, sizeof(fulton_str), "%+d", stats.seg_fulton);
         } else {
             snprintf(fulton_str, sizeof(fulton_str), "-");
         }
@@ -1438,9 +1433,8 @@ void draw_mgspw_global(const GameStats& stats)
             row("mission tick rate", rate);
             row("aux [+0x08]", aux);
             row("area [+0x10] / sec [+0x14]", area);
-            row("stage", stats.pw_stage[0] ? stats.pw_stage : "-");
             row("fulton/XP-next? [+0x130]", f130);
-            row("Fulton [0x2008E]", fulton_str);
+            row("Fulton sortie delta", fulton_str);
             char twin[32];
             snprintf(twin, sizeof(twin), "%u", stats.pw_last_score);
             row("twin [+0x278]", twin);

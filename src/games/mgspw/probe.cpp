@@ -702,9 +702,6 @@ bool poll_stats(GameStats& out)
         return (cur < 0 || base < 0) ? 0 : cur - base;
     };
     std::memcpy(out.seg_stage, out.pw_stage, sizeof(out.seg_stage));
-    out.seg_time_seconds = out.pw_mission_ok
-        ? out.play_time_seconds - seg_base.play_time_seconds
-        : 0.0;
     out.seg_headshots = seg_delta(out.pw_headshots, seg_base.pw_headshots);
     out.seg_kills = seg_delta(out.pw_kills, seg_base.pw_kills);
     out.seg_tranq = seg_delta(out.pw_tranq, seg_base.pw_tranq);
