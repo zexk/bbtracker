@@ -1,6 +1,6 @@
 # MGS Peace Walker Master Collection PC reverse-engineering reference
 
-Reference for Steam build `24525201`. Unverified findings are listed under
+Reference for Steam build `25052315`. Unverified findings are listed under
 "Validation and unknowns".
 
 ## Target build
@@ -8,37 +8,33 @@ Reference for Steam build `24525201`. Unverified findings are listed under
 | Property | Value |
 | --- | --- |
 | Steam app / depot | `2492660` / `2492661` |
-| Depot manifest | `1804199695039359147` |
+| Build ID | `25052315` |
+| Depot manifest | `5550125754382053839` |
 | Executable | `mgspw/METAL GEAR SOLID PEACE WALKER.exe` |
 | Product version | `1.2.0.0` |
 | Architecture | PE32+ x86-64, ASLR, NX, preferred base `0x140000000` |
-| Image size | `0x199e000` |
-| Entry point | RVA `0x1964310` in `.bind` |
+| Image size | `0x19a2000` |
+| Entry point | RVA `0x1968310` in `.bind` |
 
-Steam rewrote PE metadata after first launch without changing any section. File
-size/hash before launch were `18408520` and
-`8dd0eaa5cc8d35e121612a52087399399578aeb62df1a5faff64388e7ec7a429`.
-After launch size became `18408960`; repeated reads observed hashes
-`52d2d18be2dd0a34c1c910deecec3abf205e35ce8f9e8a2d4eb98bba97453ba6`
-and `c684d6fd44ed9262629ddc3e9d23fd4335335d5931b1ac2c52bfe6feb453cd1b`.
-Section hashes below stayed identical. Whole-file hash is unsuitable as sole
-build gate; use build ID plus section hashes.
+Gate a build on the build ID plus the section hashes: Steam rewrites PE
+metadata after first launch, so the whole-file hash moves without any section
+changing.
 
-| Section | RVA | Virtual/raw size | File offset | SHA-256 |
+| Section | RVA | Virtual / raw size | File offset | SHA-256 |
 | --- | ---: | ---: | ---: | --- |
-| `.text` | `0x1000` | `0x98b65c` | `0x400` | `49bb66dbc78ae81e159c0a849e3bc8acf3e8f0d831531e668c403e82c433f029` |
-| `.rdata` | `0x98d000` | `0x50e24a` | `0x98bc00` | `280e835e7d8a9bda51af0eef5acb1a539499d7881e8535e52e81ebba2dae1e5c` |
-| `.data` | `0xe9c000` | `0x1dfe00` | `0xe9a000` | `847e605450d5cb83782e1913b19cfa7a6d396aaba0177525e490fb48aeeb3b4b` |
-| `.pdata` | `0x1886000` | `0x77454` | `0x1079e00` | `c02267dff37f1f36f93f87e0613b95f812a38c1416a7db02a679c0fbdba51625` |
-| `_RDATA` | `0x18fe000` | `0xfc` | `0x10f1400` | `269596face4db8c46de4f31452acdf1afd0a39421b43fb3c36b56a2f04e919a5` |
-| `.rsrc` | `0x18ff000` | `0x38508` | `0x10f1600` | `815b666e532c9a62f4fe1da7f58d420755574ab2dd7191a49643f78e1d70935c` |
-| `.reloc` | `0x1938000` | `0x2b518` | `0x1129c00` | `35359003ac5aa664192be3e9882bce0ee3e60f9aad2dda2a54ead5e6e5b527f2` |
-| `.bind` | `0x1964000` | `0x39248` | `0x1155200` | `69918a806fd5a745371f2fc1931ec8b42d33ff5536982ef0547ab4f1af84a8b6` |
+| `.text` | `0x1000` | `0x98b7ec` / `0x98b800` | `0x400` | `d87f5aec9e82aa19c3cc6d587c456effb628b59f0bc9b0696c19c35c1929303f` |
+| `.rdata` | `0x98d000` | `0x50e2a6` / `0x50e400` | `0x98bc00` | `f59581c0b127017efefbc2e4d12e8b3f94c03ed89ed4ac56322e6fd39f1d20c5` |
+| `.data` | `0xe9c000` | `0x9ed568` / `0x1dfe00` | `0xe9a000` | `dc4e961ce59532158cbea3e8730b0052976a47f8aea9b346716a2ed0d6fd795c` |
+| `.pdata` | `0x188a000` | `0x77484` / `0x77600` | `0x1079e00` | `0d201d4aa17a8c31f51e53cc21cf0fc48d3b2b36c1d4dd27c8beba3885a116ae` |
+| `_RDATA` | `0x1902000` | `0xfc` / `0x200` | `0x10f1400` | `6764ad9aba599d90e0f555db57d23582b841e018b7828d42eea62d01fa76c46e` |
+| `.rsrc` | `0x1903000` | `0x38508` / `0x38600` | `0x10f1600` | `793a208bcc323bb2612a96fead8d8a2052294ce4661f00fb0b30886536275b92` |
+| `.reloc` | `0x193c000` | `0x2b518` / `0x2b600` | `0x1129c00` | `3fe992bf141adfba5f991b4d9ef8156df9bc7d25b62f3e220a7b0a8a8be780ff` |
+| `.bind` | `0x1968000` | `0x39248` / `0x39248` | `0x1155200` | `16666003b7e2be90c7ddc23481320c720110eacb45865ad7a8bebef0c999bc44` |
 
 ## Executable protection
 
 On-disk `.text` is encrypted; disassembly from RVA `0x1000` yields garbage.
-The `.bind` bootstrap (entry `0x1964310`, protection stub at `0x19643D0`)
+The `.bind` bootstrap (entry `0x1968310`, protection stub at `0x19683D0`)
 decrypts the whole code region in place before OEP handoff, and `.text` stays
 plaintext for the rest of the process lifetime - a single runtime capture is
 enough, and no anti-dump re-encryption was observed during play.
@@ -465,10 +461,9 @@ therefore need separate rules; why the offset resets is not yet understood.
 
 ### Weapon and region names
 
-[`mgspw_names.json`](mgspw_names.json) contains 355 weapon IDs with full and
-compact English labels, plus 44 region labels, extracted from SLOT page
-`00001` (`00001_41469CCB.slot`). These are game strings, preserving spelling
-and punctuation, not names inferred from a public weapon list.
+[`mgspw_names.json`](mgspw_names.json) holds 355 weapon IDs with full and
+compact English labels plus 44 region labels, from SLOT page `00001`
+(`00001_41469CCB.slot`). Game strings, not names inferred from a public list.
 
 | Element | Group key | Entity key | Meaning |
 | --- | --- | --- | --- |
@@ -476,57 +471,43 @@ and punctuation, not names inferred from a public weapon list.
 | `16` | `0x1BCA3F` | numeric weapon ID | compact HUD name |
 | `12` | hash of `st_region%04d` | `0x08F1C2` | region name |
 
-Weapon IDs include rank variants and non-player weapons; repeated names are
-intentional. For example, IDs `2..6` are `Mk.22 Mod.0 (Hush Puppy)` / `MK.22`,
-`76` is `M16A1`, `171` is `Mosin-Nagant` / `M.NAGANT`, and `282` is `C4`.
-ID `3` agrees with the equipped-weapon/XP observation above. Missing full
-names fall back to the compact label; missing compact labels remain empty.
-Empty names and question-mark placeholders are omitted (IDs `297..301`,
-`327`); unknown IDs should retain a numeric fallback.
+Weapon IDs cover rank variants and non-player weapons, so repeated names are
+intentional: `2..6` are `Mk.22 Mod.0 (Hush Puppy)` / `MK.22`, `76` `M16A1`,
+`171` `Mosin-Nagant` / `M.NAGANT`, `282` `C4`. Missing full names fall back to
+the compact label. Empty and `?` placeholders are omitted (`297..301`, `327`);
+unknown IDs keep a numeric fallback.
 
-**Region numbers are not stage codes.** Region `1` is `MSF Base`, `2` is
-`Playa del Alba`, `8` is `Río del Jade`. Numbers `41..49` contain only
-`st_regionNNNN` placeholders and are omitted. The JSON's `stages` object
-records only observed stage-code-to-region-ID pairs; do not fill the rest
-by list position or mission number.
+**Region numbers are not stage codes.** `1` is `MSF Base`, `2` `Playa del
+Alba`, `8` `Río del Jade`; `41..49` hold only `st_regionNNNN` placeholders and
+are omitted. The JSON's `stages` object records observed stage-to-region pairs
+only - do not fill the rest by list position or mission number.
 
-The region-label consumer at `0x1401F03F0` (script command hash `0xEFBF0A`)
-reads a script argument, stores `argument - 1` at object `+0x110`, formats
-`st_region%04d` with the original argument, and looks up entity `0x08F1C2`.
-Its special case maps stored value `70` to name suffix `7`.
+Consumer `0x1401F03F0` (script command hash `0xEFBF0A`) reads a script
+argument, stores `argument - 1` at object `+0x110`, formats `st_region%04d`
+with the original argument and looks up entity `0x08F1C2`. Stored value `70`
+maps to name suffix `7`.
 
-`PW_REGIONOBJECT` resolves the pointer at RVA `0x143A8E8`; its u32 handle
-is at pointer address minus `8`. Require object `+0x28` to match the handle
-and object `+0x30` to point to itself, then read the signed index at `+0x110`.
-
-Live captures on 2026-09-05 matched both player-reported screen labels:
+`PW_REGIONOBJECT` resolves the pointer at RVA `0x143A8E8`; its u32 handle sits
+at pointer address minus `8`. Require object `+0x28` to match the handle and
+`+0x30` to point to itself, then read the signed index at `+0x110`. The pointer
+is null in `result`, `my_outer` and `ms_lobby`, and resolves a reallocated
+object per area.
 
 | Stage | Index | Name ID | Name | Object |
 | --- | ---: | ---: | --- | --- |
 | `w01s03a` | 3 | 4 | Puerto del Alba | `0x1511C3290` (handle 677) |
 | `w01s04a` | 4 | 5 | El Cenagal: Jungle | `0x151167F50` |
 
-The pointer became null in `result`, stayed null through `my_outer` and
-`ms_lobby`, then resolved the reallocated second-area object. Equipped weapon
-ID `3` resolved to `Mk.22 Mod.0 (Hush Puppy)`. Loading-transition timing and
-the special region remain untested.
+All 44 labels are baked into `src/games/mgspw/names.h`, so the ASI needs no
+archive or external JSON. Menus and the two observed gameplay codes have static
+fallbacks; other names come from the live region object.
 
-The probe reports region and weapon names alongside raw IDs, rejecting absent
-or stale objects. The tracker uses the same checks, publishes
-`GameStats::pw_region_id`, and maps all 44 labels through
-`src/games/mgspw/names.h`. The Current tab wraps `Region name (stage_code)`.
-Menus and the two observed gameplay codes have static fallbacks; unknown
-regions retain the raw code. Other gameplay names use the live region object,
-not a static stage-code catalog. The ASI needs no archive or external JSON.
-
-To reproduce the extraction, use the localization tool's
-`slotitem.parse()` on page `00001`, then `olang.OlangFile.parse()` on elements
-`16` and `12`. Iterate `entries()` with `lang == 'en'`; use `entity.key` for
-weapon IDs and match `group.key` against `olang.strcode('st_region%04d' % n)`
-for region numbers. Do not use the reference indices in `pwtext.py`'s text
-export: that export deduplicates strings, discarding IDs that share a name.
-The saved JSON was checked against every retained archive entry and the
-known Mk.22 ID; individual weapon variants have not all been tested in play.
+To reproduce: localization tool `slotitem.parse()` on page `00001`, then
+`olang.OlangFile.parse()` on elements `16` and `12`. Iterate `entries()` with
+`lang == 'en'`; use `entity.key` for weapon IDs and match `group.key` against
+`olang.strcode('st_region%04d' % n)` for regions. Do not use the reference
+indices in `pwtext.py`'s export - it deduplicates strings and drops IDs that
+share a name.
 
 ### Mission rank thresholds
 
@@ -824,34 +805,24 @@ client carry the traffic.
 | `SteamFriends017`, `SteamUser023`, `SteamUtils010`, `SteamInput006` | identity, overlay, input |
 | `STEAMSCREENSHOTS_003`, `STEAMREMOTESTORAGE_016`, `STEAMAPPS_008`, `STEAMUSERSTATS_012` | the four `*_INTERFACE_VERSION`-style interfaces |
 
-The executable has no socket layer of its own. It imports 12 DLLs and none is
-a networking one - no `ws2_32`, `winhttp` or `wininet` - and `.rdata` holds no
-winsock symbols. `ws2_32` *is* mapped into the process, but alongside
-`steamclient64.dll` and `lsteamclient.dll`: networking runs inside the Steam
-client and the game reaches it over local IPC. A live check while sitting in
-the VS host menu found exactly one established TCP connection,
-`127.0.0.1 -> 127.0.0.1`, and no remote peer.
+The exe has no socket layer: 12 imported DLLs, none of them networking, and no
+winsock symbols in `.rdata`. `ws2_32` is mapped, but by `steamclient64.dll` /
+`lsteamclient.dll` - networking runs in the Steam client, reached over local
+IPC. Sitting in the VS host menu, the only established TCP connection is
+`127.0.0.1 -> 127.0.0.1`.
 
-The PSP networking modules are declared and empty. `.data 0x140F4D0E0` is a
-module table of `{name pointer, handler pointer}` pairs; `pspnet`,
-`pspnet_adhoc`, `pspnet_adhoc_auth`, `pspnet_adhocctl`,
-`pspnet_adhoc_matching`, `pspnet_inet`, `pspnet_apctl`, `kjnet` and `memab` all
-have a **null handler**. The `konamionline.com` URLs that survive are policy
-and manual pages, not a session service, so no Konami backend is in the loop.
+The PSP modules are declared and empty. `.data 0x140F4D0E0` is a table of
+`{name pointer, handler pointer}`; `pspnet`, `pspnet_adhoc`,
+`pspnet_adhoc_auth`, `pspnet_adhocctl`, `pspnet_adhoc_matching`, `pspnet_inet`,
+`pspnet_apctl`, `kjnet` and `memab` all have a null handler. The surviving
+`konamionline.com` URLs are policy and manual pages, not a session service.
 
-The Unity launcher bundles the whole Steamworks.NET binding - all 158
-`SteamAPI_ISteamMatchmaking*`/`ISteamNetworking*` flat functions - but carries
-no PW-specific session or packet types, and it exits once the game starts. Its
-binding proves nothing about who does the networking; the game exe does.
+The Unity launcher bundles all 158 Steamworks.NET flat functions regardless of
+use and exits at game start, so it is no evidence either way.
 
-Sessions appear host-authoritative, with Steam providing discovery and relay.
-A Steam API shim would need `SteamMatchMaking009` and
-`SteamNetworkingSockets012`/`Messages002`; the role of
-`sdkencryptedappticket64.dll` remains untested.
-
-Versioned interface names above do not follow the `STEAM*_INTERFACE_VERSION`
-pattern. Searching only that pattern misses multiplayer support; null PSP
-handlers and no direct socket imports do not imply its removal.
+Sessions look host-authoritative with Steam doing discovery and relay: a shim
+needs `SteamMatchMaking009` and `SteamNetworkingSockets012`/`Messages002`.
+`sdkencryptedappticket64.dll` is untested.
 
 ## Installed data and saves
 
@@ -962,44 +933,33 @@ constants are confirmed against the branches in the binary; no codename has
 been awarded on the research profile, so the ladder has never been observed
 producing a real grade.
 
-**The mission rank is written by GCL script, not by native code.** A write
-watchpoint on the rank array caught the store on a first clear of mission 53
-(`0xFFFF -> 0x0000`, S). The storing instruction is
-`mov word ptr [r11 + rax*2], r10w` at `0x1400A4530`, inside the script VM's
-typed-store dispatcher `0x1400A44C0` - a jump table over store widths, reached
-from the variable-assignment path at `0x1400A415C` that first checks the
-`0xF0000000` type tag. `r11` is the array base, `r8d` the mission id, `r10` the
-value.
+**The mission rank is written by GCL script, not native code.** A write
+watchpoint caught the store on a first clear of mission 53 (`0xFFFF -> 0x0000`,
+S): `mov word ptr [r11 + rax*2], r10w` at `0x1400A4530`, in the script VM's
+typed-store dispatcher `0x1400A44C0`, reached from the variable-assignment path
+`0x1400A415C` after the `0xF0000000` type-tag check. `r11` array base, `r8d`
+mission id, `r10` value.
 
-The rank formula remains in script bytecode. Variable lookup `0x1400A52E0`
-walks the loaded script stream and matches a three-byte hash at `[cursor-3]`;
-there are no plaintext variable names.
+| Piece | Address | Role |
+| --- | --- | --- |
+| variable lookup | `0x1400A52E0` | matches a three-byte hash at `[cursor-3]`; no plaintext names |
+| data stack | `0x1410A63E8` | VM stack pointer, pushed at `0x1400A55C0`; a watchpoint fires ~17k times a session and stalls the game |
+| second stack | `0x1410A64F0` | - |
 
-`0x1410A63E8` is the VM's data-stack pointer, not a script registry: the code
-at `0x1400A55C0` stores through it and bumps it by 8, which is a push. A second
-stack lives at `0x1410A64F0`. A write watchpoint on the first fired 17,130
-times in one play session from that single instruction, which is what a program
-counter looks like - and it stalls the game, so it is not a usable trap. Recovering the formula now means reading the
-results script - `STAGEDAT/0175_result.rlc` is extracted already - rather than
-more disassembly. `scripts/pwgcl.py` decodes the token layer and parses the container header;
-section boundaries are still open. All 92 extracted scripts begin `oEbN`,
-followed by eleven `{u24 value, u8 tag}` entries - read that way 970 of 984
-values land inside the file with tags from `{0,1,2,3,4,5,255}`, whereas plain
-`u32` reads give absurd sizes. Entry 2 is a 24-bit name hash and entries with
-tag `255` are sentinels.
-
-What each entry selects is unknown. "Body length is entry 10, after a `0x30`
-header" holds for 70 of the 92 files and overruns on the other 22, so it is a
-coincidence of the common case rather than the rule. Nothing in code settles it
-either: the magic never appears as an immediate in `.text`, so the game does
-not validate it, and no loader can be found that way. The 26 activation calls
-in `result.rlc` are 18-byte table entries the VM indexes into, so a forward
-walk from one does not reach the next.
+The formula lives in `STAGEDAT/0175_result.rlc`, extracted already;
+`scripts/pwgcl.py` decodes the token layer and the container header. All 92
+scripts begin `oEbN` plus eleven `{u24 value, u8 tag}` entries - read that way
+970 of 984 values land inside the file with tags from `{0,1,2,3,4,5,255}`.
+Entry 2 is a 24-bit name hash, tag `255` a sentinel. Section boundaries are
+open: entry 10 as body length after a `0x30` header holds for 70 files and
+overruns 22, the magic never appears as an immediate in `.text` so no loader
+can be found by xref, and the 26 activation calls in `result.rlc` are 18-byte
+table entries the VM indexes rather than a walkable list.
 
 References to displacement `0x32B4` are reads, staging copies, or unrelated
-float code. The `list_rank_a_%02d`..`_f_%02d` UI strings do not lead to grade
-accessors. Story missions have no score field; observed ranks vary by mission,
-time, and alerts, but these runs do not establish the thresholds:
+float code, and the `list_rank_a_%02d`..`_f_%02d` UI strings reach no grade
+accessor. Story missions have no score field. Observed ranks, not enough to
+fix the thresholds:
 
 | mission | time | alerts | rank |
 | ---: | ---: | ---: | --- |
@@ -1048,24 +1008,19 @@ Open items:
 - `0x14017084E` is inside a ten-case jump table on `[rcx+0x9C]`, not an event
   handler, so `save+0x22` needs a live write watchpoint rather than static work.
 
-## Corrections worth keeping
+## Disproven readings
 
-Avoid these disproven interpretations:
-
-- A packed field with a high bit set reads as plausible text. `ECEDFGCCCCA` at
-  `save+0x140CF` is eleven grade bytes of `0x40 | value`, not a rank string.
-- An index join between two zero-based tables looks clean and can be entirely
-  wrong. `save+0x18334` is 226 comm messages, not 24 codenames followed by 84
-  insignias, and every "insignia" reading off it landed 24 entries out.
-- Record strides must come from the code that indexes them, not from the data.
-  Descriptors are `0x28` bytes; the `999999` seen `0x28` later belongs to the
-  next record, and reading the pair as one frame invented a 48-byte record and
-  forced a linear scan.
-- Dispatch records are 16 bytes. An 8-byte read at `0x140EDAD88` paired
-  `0x14039BC70` with the next record's hash and produced a precise, wrong
-  claim about which script command activates a title.
-- Ownership can be a bitfield. Insignia state resisted several byte-array
-  scans because `0x140544C00` tests one bit per insignia.
-- Tests written from the same reading as the implementation only catch typos.
-  The Heroism floor shipped as `>=` with a test asserting the same mistake; the
-  binary says `jle`, so it is strictly greater.
+- `save+0x140CF` `ECEDFGCCCCA` is eleven grade bytes of `0x40 | value`, not a
+  rank string.
+- `save+0x18334` is 226 comm messages, not 24 codenames then 84 insignias;
+  readings off that join land 24 entries out.
+- Descriptors are `0x28` bytes. The `999999` at `+0x28` belongs to the next
+  record, not to a 48-byte one.
+- Dispatch records at `0x140EDAD88` are 16 bytes; an 8-byte stride pairs a
+  handler with the next record's hash.
+- Insignia ownership is a bitfield - `0x140544C00` tests one bit per insignia -
+  so byte-array scans miss it.
+- The Heroism floor is strictly `>` (`jle`), not `>=`.
+- Multiplayer support is not visible by grepping `STEAM*_INTERFACE_VERSION`;
+  the interfaces it uses are versioned names. Null PSP handlers and no socket
+  imports do not mean networking was removed.
