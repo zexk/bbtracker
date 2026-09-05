@@ -1,8 +1,7 @@
 # MGS Peace Walker Master Collection PC reverse-engineering reference
 
-Technical reference for Peace Walker support in bbtracker. Values apply to
-Steam build `24525201`. What is still unproven, and the mistakes worth not
-repeating, are at the end under "Validation and unknowns".
+Reference for Steam build `24525201`. Unverified findings are listed under
+"Validation and unknowns".
 
 ## Target build
 
@@ -164,34 +163,10 @@ Runtime table at `0x14143B738` -> `+0xB8`, 380 rows, stride `0x24`:
 Category spread: cat 5 = ids 1-130, cat 4 = 131-219, cat 2 = 220-253,
 cat 3 = 254-331, cat 1 = 332-338, cat 6 = 339-380.
 
-Known ids:
-
-| id | mission | stage |
-| ---: | --- | --- |
-| 1 | Main Op 1 | `w00s01a` |
-| 2 | Main Op 2: Contact the Sandinista Comandante | `w01s04a` |
-| 3 | Main Op 3: Pursue Amanda (inferred) | - |
-| 4 | Main Op 4: Armored Vehicle Battle: LAV-Type G | - |
-| 5 | Main Op 5: Rescue Chico | - |
-| 6 | Main Op 6: Pursue the Jungle Train | - |
-| 7 | Main Op 7: Tank Battle: T-72U | - |
-| 36 | Extra Ops 005: Marksmanship Challenge | - |
-| 37 | Extra Op, unidentified | - |
-| 52 | Side Ops 10 | - |
-| 53 | Extra Ops 011 | - |
-
-Extra Ops numbering does not map onto ids by a single offset: id 52 is Extra
-Ops 010 and id 53 Extra Ops 011, but id 36 is recorded as Extra Ops 005. One of
-those two labels is from a different sub-category, and the 005 one is the less
-certain.
-
-**Mission id equals the Main Op number.** Ids 1, 2 and 4 match the published
-Main Ops order (Main Op 4 is LAV-Type G, Main Op 2 is Sandinista
-Comandante), so the whole Main Ops range can be labelled from the public
-mission list without playing each one. Extra Ops use a different id range.
-
-The probe prints the id and the stage string together, so this table grows as
-missions are played.
+Mission names and ID mappings are listed under "Mission names". Additional
+observations: id `37` is an unidentified Extra Op; id `53` is Extra Ops 011.
+Observed stages: mission `1` used `w00s01a`; mission `2` used `w01s04a`.
+Extra Ops numbering does not use a single offset from mission ID.
 
 ## Stat descriptors
 
@@ -453,20 +428,14 @@ sit next to the PC save root, so port code kept much of the PSP terminology.
 
 ## Archive encryption (broken)
 
-The Master Collection wraps every shipped archive in an extra layer the PSP
-and PS3 releases do not have, which is why Jayveer's
-[Chrysalis](https://github.com/Jayveer/Chrysalis) fails on these files in
-both `-psp` and `-ps3` modes (it also needs building 64-bit: the released
-binary is 32-bit and the slot archive is 519 MB).
+Master Collection archives add an MT19937 keystream XOR layer seeded from a
+filename hash. [Peace Walker Localization Tool](https://github.com/LittleBitUA/PEACE-WALKER-LOCALIZATION-TOOL)
+implements it in `src/pwcrypt.py` and parses the containers.
+[Chrysalis](https://github.com/Jayveer/Chrysalis) cannot read this layer in
+`-psp` or `-ps3` mode; its released 32-bit binary also needs a 64-bit rebuild
+for the 519 MB slot archive.
 
-The layer is an **MT19937 keystream XOR seeded from a hash of the file
-name** - no block cipher, which is why no AES or SHA tables appear anywhere
-in the executable. Dmytro Bidlov's [Peace Walker Localization
-Tool](https://github.com/LittleBitUA/PEACE-WALKER-LOCALIZATION-TOOL)
-implements it (`src/pwcrypt.py`) along with the container formats, so there
-is no reason to reimplement any of it.
-
-With that, `MLG/disc0_rel/002aba34.DAT` + `.KEY` (the Master Collection's
+`MLG/disc0_rel/002aba34.DAT` + `.KEY` (the Master Collection's
 renamed `SLOT.DAT`/`SLOT.KEY`) unpacks cleanly: 2137 of 2137 blocks, 1.3 GB,
 no failures, and `slottext.export` pulls 10,074 strings out of it.
 
@@ -526,34 +495,29 @@ reads a script argument, stores `argument - 1` at object `+0x110`, formats
 `st_region%04d` with the original argument, and looks up entity `0x08F1C2`.
 Its special case maps stored value `70` to name suffix `7`.
 
-Live probing on 2026-09-05 confirmed `w01s03a` = region index `3`, name ID
-`4`, **Puerto del Alba**, matching the name the player read on screen.
-`PW_REGIONOBJECT` resolves to a pointer at RVA `0x143A8E8`; the handle is the
-u32 at pointer address minus `8`. Accept the object only when its `+0x28`
-u32 matches that handle and its `+0x30` pointer equals the object itself,
-then read the signed index at `+0x110`. In this capture the object was
-`0x1511C3290`, handle `677`. Equipped weapon ID `3` simultaneously resolved
-to `Mk.22 Mod.0 (Hush Puppy)`. On entering `result`, the region pointer
-became null; it also stayed absent through `my_outer` and `ms_lobby`.
-The probe now reports this region and weapon name, with raw
-IDs retained and stale/absent objects rejected. This provides a live name
-source without enumerating every stage code.
+`PW_REGIONOBJECT` resolves the pointer at RVA `0x143A8E8`; its u32 handle
+is at pointer address minus `8`. Require object `+0x28` to match the handle
+and object `+0x30` to point to itself, then read the signed index at `+0x110`.
 
-A second live capture in the same process confirmed `w01s04a` = index `4`,
-name ID `5`, **El Cenagal: Jungle**, again matching the player-reported
-screen label. The object had been reallocated to `0x151167F50`; the same
-AOB-resolved global and validity checks still worked. Together with the
-intervening null pointers in menus, this verifies reacquisition for a second
-area. Exact loading-transition timing and the special region remain untested.
+Live captures on 2026-09-05 matched both player-reported screen labels:
 
-The C++ tracker now uses the same AOB and object checks, publishes
-`GameStats::pw_region_id`, and maps all 44 named regions through
-`src/games/mgspw/names.h`. The Current tab shows `Region name (stage_code)`,
-wrapping long names like the other trackers. This uses the game's live
-stage/mission-to-region mapping; it is not an inferred static catalog of
-unvisited stage codes. Menus have readable labels and the two observed
-gameplay codes have static fallbacks. Unknown/placeholder regions keep
-the raw code. No game archive or external JSON is needed by the ASI.
+| Stage | Index | Name ID | Name | Object |
+| --- | ---: | ---: | --- | --- |
+| `w01s03a` | 3 | 4 | Puerto del Alba | `0x1511C3290` (handle 677) |
+| `w01s04a` | 4 | 5 | El Cenagal: Jungle | `0x151167F50` |
+
+The pointer became null in `result`, stayed null through `my_outer` and
+`ms_lobby`, then resolved the reallocated second-area object. Equipped weapon
+ID `3` resolved to `Mk.22 Mod.0 (Hush Puppy)`. Loading-transition timing and
+the special region remain untested.
+
+The probe reports region and weapon names alongside raw IDs, rejecting absent
+or stale objects. The tracker uses the same checks, publishes
+`GameStats::pw_region_id`, and maps all 44 labels through
+`src/games/mgspw/names.h`. The Current tab wraps `Region name (stage_code)`.
+Menus and the two observed gameplay codes have static fallbacks; unknown
+regions retain the raw code. Other gameplay names use the live region object,
+not a static stage-code catalog. The ASI needs no archive or external JSON.
 
 To reproduce the extraction, use the localization tool's
 `slotitem.parse()` on page `00001`, then `olang.OlangFile.parse()` on elements
@@ -627,13 +591,9 @@ record is 16 bytes:
 | `+0x04` | `u32` | always `0` |
 | `+0x08` | `u64` | native function VA |
 
-Records run in tables of strictly ascending hash; `pwdis.py --cmd-tables`
-recovers **80 tables, 28,075 records** from a stock exe. The hash is the only
-stable name a command has, so this table is the entry point for any "what does
-the script call here" question.
-
-Read the stride as 8 bytes and every pairing shifts by one record while still
-looking plausible; see "Corrections worth keeping". Pairings that matter here:
+Tables contain strictly ascending hashes. `pwdis.py --cmd-tables` recovers
+80 tables and 28,075 records from the on-disk executable. Use the 16-byte
+stride: an 8-byte stride pairs functions with the next record's hash.
 
 | command hash | native function | role |
 | --- | --- | --- |
@@ -650,13 +610,10 @@ checks is `0x180`, matching the `0x180`-byte state block cleared by
 `0x1400F9810` sets bit `0x200` in the dwords at `save+0xB520` and
 `save+0xB524`.
 
-**The activation command is in the result script**, 26 times. An earlier note
-here said the opposite; that search looked for an aligned 32-bit value, but
-script tokens are a tag byte followed by three, so an aligned scan cannot find
-one. `scripts/pwgcl.py` decodes the stream properly and finds 26 calls at a
-regular 18-byte stride in `STAGEDAT/0175_result.rlc`, each passing a config id
-in the `50..289` range that comm-message records use - so the results script
-registers comm messages, matching the callback's "set state bit 1" behaviour.
+`scripts/pwgcl.py` finds 26 activation calls at an 18-byte stride in
+`STAGEDAT/0175_result.rlc`, passing comm-message config IDs `50..289`.
+Script tokens encode a tag byte followed by three hash bytes; an aligned
+32-bit search misses them.
 
 ### Grade bytes
 
@@ -674,9 +631,7 @@ is a packed nibble array over the same subsystem, read by leaf getters at
 `0x14039C530` (`>> 4 & 0xF`), `0x14039C550` (`& 0xF`) and `0x14039C570`
 (`& 0xF` at `+0x182E6`).
 
-Because every value is 1-7 with `0x40` set, the block reads as the ASCII
-`ECEDFGCCCCA` - the "rank letters" string that sat unexplained for weeks. It
-was never text.
+The packed bytes render as ASCII `ECEDFGCCCCA`; they are not text.
 
 ## Codename system
 
@@ -818,7 +773,6 @@ was watched firing mid-session for `+500` heroism, `+522` total with the clear.
 The one disagreement is index 53, stat `0x117`. The 84 stat-mapped records and
 84 screen rows are different sets whose equal counts are coincidental.
 
-
 ## Networking
 
 VS Ops and CO-OPS work in this build. The PSP ad-hoc stack is gone and Steam
@@ -854,22 +808,14 @@ The Unity launcher bundles the whole Steamworks.NET binding - all 158
 no PW-specific session or packet types, and it exits once the game starts. Its
 binding proves nothing about who does the networking; the game exe does.
 
-**Feasibility of a private server.** Sessions are host-authoritative peer to
-peer with Steam providing discovery and relay, so there is no session server to
-reimplement. The practical open-source route is a Steam API reimplementation
-(the Goldberg approach): implement `SteamMatchMaking009` plus
-`SteamNetworkingSockets012`/`Messages002` faithfully and the game's own netcode
-does the rest, which also gives LAN play with no Steam at all. Both ends run
-the same binary, so the wire format never has to be understood. The open
-question is how much `sdkencryptedappticket64.dll` matters - encrypted app
-tickets imply an identity step worth checking before assuming a clean-room
-shim works.
+Sessions appear host-authoritative, with Steam providing discovery and relay.
+A Steam API shim would need `SteamMatchMaking009` and
+`SteamNetworkingSockets012`/`Messages002`; the role of
+`sdkencryptedappticket64.dll` remains untested.
 
-**Correction.** An earlier pass concluded this build had no networking at all.
-That came from grepping only for the `STEAM*_INTERFACE_VERSION` naming
-convention, which the versioned interfaces above do not use. The null `pspnet`
-handlers and the missing `ws2_32` import were real; they meant the ad-hoc stack
-was replaced, not that multiplayer was removed.
+Versioned interface names above do not follow the `STEAM*_INTERFACE_VERSION`
+pattern. Searching only that pattern misses multiplayer support; null PSP
+handlers and no direct socket imports do not imply its removal.
 
 ## Installed data and saves
 
@@ -939,14 +885,10 @@ resolves, which is enough to catch a game update moving the tables.
 
 ## Test protocol
 
-All tooling is read-only: the ASI only reads, the `/proc` scripts never write,
-save handling is copy-out backups. Peace Walker autosaves after missions and
-on-disk GMP matches live GMP, so live snapshots plus reported results-screen
-numbers are a sound baseline method - no manual-save discipline needed.
-
-Snapshot immediately before and after each reported mission. Sessions-apart
-baselines let an unreported mission slip into the delta, which is exactly how
-the retracted weapon-XP multiplier below was invented.
+The ASI and `/proc` probes only read memory; save backups are copy-out.
+Peace Walker autosaves after missions. Capture immediately before and after
+each reported mission and compare with the results screen. Baselines spanning
+unreported missions produced a false weapon-XP multiplier.
 
 ## In-game Mission Stats screen
 
@@ -992,10 +934,9 @@ from the variable-assignment path at `0x1400A415C` that first checks the
 `0xF0000000` type tag. `r11` is the array base, `r8d` the mission id, `r10` the
 value.
 
-That explains every failed static search: there is no native writer to find,
-and the formula lives in script bytecode. The VM resolves variables by walking
-the loaded script stream (`0x1400A52E0`, matching a three-byte name hash at
-`[cursor-3]`), so the namespace is hashed and carries no plaintext names.
+The rank formula remains in script bytecode. Variable lookup `0x1400A52E0`
+walks the loaded script stream and matches a three-byte hash at `[cursor-3]`;
+there are no plaintext variable names.
 
 `0x1410A63E8` is the VM's data-stack pointer, not a script registry: the code
 at `0x1400A55C0` stores through it and bumps it by 8, which is a push. A second
@@ -1018,15 +959,10 @@ not validate it, and no loader can be found that way. The 26 activation calls
 in `result.rlc` are 18-byte table entries the VM indexes into, so a forward
 walk from one does not reach the next.
 
-Two earlier approaches are ruled out. Nothing in `.text` writes the rank array: every
-reference to displacement `0x32B4` is a read, a staging `memcpy`, or a
-coincidence in unrelated float code, so the writer forms the address through a
-pointer like the rest of this game. And the `list_rank_a_%02d`..`_f_%02d` UI
-strings are not the grade bytes - none of the three functions using them calls
-into the grade accessor bank at all. Thresholds are
-per mission and data-driven; story missions carry no score field at all, so
-their letter comes from the run. Observation constrains it only loosely - time
-dominates and alerts cost a grade:
+References to displacement `0x32B4` are reads, staging copies, or unrelated
+float code. The `list_rank_a_%02d`..`_f_%02d` UI strings do not lead to grade
+accessors. Story missions have no score field; observed ranks vary by mission,
+time, and alerts, but these runs do not establish the thresholds:
 
 | mission | time | alerts | rank |
 | ---: | ---: | ---: | --- |
@@ -1077,8 +1013,7 @@ Open items:
 
 ## Corrections worth keeping
 
-Each of these was believed once and cost real time; the failure modes
-generalise.
+Avoid these disproven interpretations:
 
 - A packed field with a high bit set reads as plausible text. `ECEDFGCCCCA` at
   `save+0x140CF` is eleven grade bytes of `0x40 | value`, not a rank string.
