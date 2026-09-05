@@ -10,7 +10,11 @@ constexpr TierMask kH_ = kH;
 constexpr TierMask kExtreme = kX | (1u << 5);
 constexpr TierMask kAllMgs3 = kAllTiers | (1u << 5);
 
-constexpr Cond kFoxhound[] = {
+// The elite ladder runs on a diagonal: FOXHOUND sits at Extreme, FOX at Hard,
+// DOBERMAN at Normal, HOUND at Easy. Each rank clears step 0 at its own floor
+// difficulty and one step looser for every difficulty above that, so these four
+// bars serve all four ranks between them.
+constexpr Cond kEliteStep0[] = {
     {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Eq, 0},
     {StatId::Kills, Op::Eq, 0},           {StatId::SevereInjuries, Op::Lt, 20},
     {StatId::DamageBars, Op::Lt, 5},      {StatId::LifeMedUsed, Op::Eq, 0},
@@ -18,35 +22,20 @@ constexpr Cond kFoxhound[] = {
     {StatId::Saves, Op::Lt, 25},
 };
 
-constexpr Cond kStrictRow[] = {
-    {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Eq, 0},
-    {StatId::Kills, Op::Eq, 0},           {StatId::SevereInjuries, Op::Lt, 20},
-    {StatId::DamageBars, Op::Lt, 5},      {StatId::LifeMedUsed, Op::Eq, 0},
-    {StatId::PlayTimeHours, Op::Lt, 5},   {StatId::Continues, Op::Eq, 0},
-    {StatId::Saves, Op::Lt, 25},
-};
-
-constexpr Cond kFoxExtreme[] = {
+constexpr Cond kEliteStep1[] = {
     {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Le, 3},
     {StatId::Kills, Op::Eq, 0},           {StatId::LifeMedUsed, Op::Eq, 0},
     {StatId::PlayTimeHours, Op::Lt, 5},   {StatId::Continues, Op::Eq, 0},
     {StatId::Saves, Op::Lt, 35},
 };
 
-constexpr Cond kMidTier[] = {
-    {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Le, 3},
-    {StatId::Kills, Op::Eq, 0},           {StatId::LifeMedUsed, Op::Eq, 0},
-    {StatId::PlayTimeHours, Op::Lt, 5},   {StatId::Continues, Op::Eq, 0},
-    {StatId::Saves, Op::Lt, 35},
-};
-
-constexpr Cond kHighTier[] = {
+constexpr Cond kEliteStep2[] = {
     {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Le, 5},
     {StatId::Kills, Op::Eq, 0},           {StatId::LifeMedUsed, Op::Eq, 0},
     {StatId::PlayTimeHours, Op::Lt, 5.5}, {StatId::Continues, Op::Eq, 0},
 };
 
-constexpr Cond kTopExtreme[] = {
+constexpr Cond kEliteStep3[] = {
     {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Le, 10},
     {StatId::Kills, Op::Eq, 0},           {StatId::LifeMedUsed, Op::Eq, 0},
     {StatId::PlayTimeHours, Op::Lt, 6},   {StatId::Continues, Op::Eq, 0},
@@ -127,19 +116,19 @@ constexpr Cond kRegAlligator[] = {
 };
 
 const std::array<RankRule, 61> kMgs3Rules{{
-    RankRule{"FOXHOUND", kExtreme, Kind::Elite, kFoxhound},
+    RankRule{"FOXHOUND", kExtreme, Kind::Elite, kEliteStep0},
 
-    RankRule{"FOX", kH_, Kind::Elite, kStrictRow},
-    RankRule{"FOX", kExtreme, Kind::Elite, kFoxExtreme},
+    RankRule{"FOX", kH_, Kind::Elite, kEliteStep0},
+    RankRule{"FOX", kExtreme, Kind::Elite, kEliteStep1},
 
-    RankRule{"DOBERMAN", kN, Kind::Elite, kStrictRow},
-    RankRule{"DOBERMAN", kH_, Kind::Elite, kMidTier},
-    RankRule{"DOBERMAN", kExtreme, Kind::Elite, kHighTier},
+    RankRule{"DOBERMAN", kN, Kind::Elite, kEliteStep0},
+    RankRule{"DOBERMAN", kH_, Kind::Elite, kEliteStep1},
+    RankRule{"DOBERMAN", kExtreme, Kind::Elite, kEliteStep2},
 
-    RankRule{"HOUND", kE, Kind::Elite, kStrictRow},
-    RankRule{"HOUND", kN, Kind::Elite, kMidTier},
-    RankRule{"HOUND", kH_, Kind::Elite, kHighTier},
-    RankRule{"HOUND", kExtreme, Kind::Elite, kTopExtreme},
+    RankRule{"HOUND", kE, Kind::Elite, kEliteStep0},
+    RankRule{"HOUND", kN, Kind::Elite, kEliteStep1},
+    RankRule{"HOUND", kH_, Kind::Elite, kEliteStep2},
+    RankRule{"HOUND", kExtreme, Kind::Elite, kEliteStep3},
 
     RankRule{"Chicken", kVEE, Kind::Worst, kWorst},
     RankRule{"Mouse", kN, Kind::Worst, kWorst},
