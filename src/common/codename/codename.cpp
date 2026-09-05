@@ -217,16 +217,10 @@ std::optional<Match> evaluate_mgs1(const GameStats& s)
 
 namespace {
 
-constexpr std::array<ReqRow, 6> kOriginalLadderReqs{{
+// Integral drops the radar requirement and keeps the rest of the ladder, so
+// it reads as this table without its first row.
+constexpr std::array<ReqRow, 6> kMgs1LadderReqs{{
     {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
-    {"discovered", StatId::Alerts, Op::Lt, 4, ReqFmt::Count},
-    {"kills", StatId::Kills, Op::Lt, 25, ReqFmt::Count},
-    {"rations used", StatId::RationsUsed, Op::Le, 1, ReqFmt::Count},
-    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
-    {"play time", StatId::PlayTimeHours, Op::Lt, 3, ReqFmt::Time},
-}};
-
-constexpr std::array<ReqRow, 5> kIntegralLadderReqs{{
     {"discovered", StatId::Alerts, Op::Lt, 4, ReqFmt::Count},
     {"kills", StatId::Kills, Op::Lt, 25, ReqFmt::Count},
     {"rations used", StatId::RationsUsed, Op::Le, 1, ReqFmt::Count},
@@ -238,10 +232,8 @@ constexpr std::array<ReqRow, 5> kIntegralLadderReqs{{
 
 std::vector<ReqStatus> elite_requirements_mgs1(const GameStats& s)
 {
-    const std::span<const ReqRow> rows =
-        s.mgs1_integral ? std::span<const ReqRow>{kIntegralLadderReqs}
-                        : std::span<const ReqRow>{kOriginalLadderReqs};
-    return requirements_from_rows(s, rows, true);
+    const std::span<const ReqRow> ladder{kMgs1LadderReqs};
+    return requirements_from_rows(s, s.mgs1_integral ? ladder.subspan(1) : ladder, true);
 }
 
 namespace {
