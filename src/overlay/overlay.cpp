@@ -19,6 +19,7 @@
 #include <cstring>
 #include <array>
 #include <optional>
+#include <span>
 #include <vector>
 #include <filesystem>
 
@@ -576,11 +577,11 @@ const char* mgs1_area_name(const char* stage)
     return nullptr;
 }
 
-const char* exact_area_name(const char* code, const AreaName* areas, size_t count)
+const char* exact_area_name(const char* code, std::span<const AreaName> areas)
 {
-    for (size_t i = 0; i < count; ++i) {
-        if (std::strcmp(code, areas[i].code) == 0) {
-            return areas[i].name;
+    for (const AreaName& area : areas) {
+        if (std::strcmp(code, area.code) == 0) {
+            return area.name;
         }
     }
     return nullptr;
@@ -624,7 +625,7 @@ const char* mgs2_area_name(const char* code)
         {"w45a", "Arsenal Gear, Sigmoid Colon"}, {"w46a", "Arsenal Gear, Rectum"},
         {"w51a", "Arsenal Gear"}, {"w61a", "Federal Hall"},
     };
-    return exact_area_name(code, kAreas, std::size(kAreas));
+    return exact_area_name(code, kAreas);
 }
 
 const char* mgs3_area_name(const char* code)
@@ -698,12 +699,12 @@ const char* mgs3_area_name(const char* code)
         {"s192a", "Zaozyorje East"}, {"s201a", "Rokovoj Bereg"},
         {"s211a", "WIG Interior"},
     };
-    return exact_area_name(code, kAreas, std::size(kAreas));
+    return exact_area_name(code, kAreas);
 }
 
 const char* mgs4_area_name(const char* code)
 {
-    constexpr AreaName kAreas[] = {
+    static constexpr AreaName kAreas[] = {
         {"s00a00l", "Prologue Cemetery"},
         {"s00a10l", "Ending Cemetery"},
         {"s01a00l", "Middle East Infiltration"},
@@ -773,7 +774,7 @@ const char* mgs4_area_name(const char* code)
         {"s30a00l", "Wedding"},
         {"s30a10l", "Hospital"},
     };
-    if (const char* area = exact_area_name(code, kAreas, std::size(kAreas))) return area;
+    if (const char* area = exact_area_name(code, kAreas)) return area;
     if (std::strncmp(code, "r_sna", 5) == 0) return "Nomad Mission Briefing";
     if (std::strncmp(code, "s00", 3) == 0) return "Prologue";
     if (std::strncmp(code, "s01", 3) == 0) return "Middle East";
@@ -797,7 +798,7 @@ const char* mgspw_area_name(const char* code, int region)
         {"title", "Title Screen"}, {"r_title", "Title Screen"},
         {"ending_flow", "Ending"}, {"browser", "Browser"},
     };
-    return exact_area_name(code, kAreas, std::size(kAreas));
+    return exact_area_name(code, kAreas);
 }
 
 const char* area_name(Game game, const char* code)
