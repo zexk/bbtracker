@@ -8,5 +8,3 @@ compile_commands.json
 *.log
 nexus-drafts/
 drafts/
-/micromods/mgs4-stage-select/launcher.exe
-/micromods/mgs4-stage-select/mgs4_stage_selector.asi
