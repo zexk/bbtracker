@@ -1,11 +1,16 @@
 # bbtracker: Metal Gear rank tracker
 
 Live rank and codename tracker overlay for Metal Gear Solid: Master Collection.
-Tracks Metal Gear, Metal Gear 2, MGS1, MGS2, MGS3, and MGS4 runs in real time,
-including projected rank, requirements, and run stats.
+Tracks Metal Gear, Metal Gear 2, MGS1, MGS2, MGS3, MGS4, and Peace Walker runs
+in real time, including projected rank, requirements, and run stats.
 
 MGS4 is a target. Its end-of-playthrough emblems replace legacy codenames but
 still judge stats accumulated across one run, including its highest Big Boss emblem.
+
+Peace Walker is a target too. It has no rank: the codename comes from the
+weapons a career is built on, so the panel shows the projected title with the
+takedown spread behind it, the grade ladder, insignia progress, and the best
+rank and time on record for the mission in progress.
 
 [Download latest release](https://github.com/zexk/bbtracker/releases/latest)
 
@@ -14,6 +19,7 @@ still judge stats accumulated across one run, including its highest Big Boss emb
 - Live projected rank and codename
 - Rank requirements and remaining allowances
 - Run stats, special-rank counters, MGS3 checklists, and MGS4 feat progress
+- Peace Walker codename projection, insignia progress, and career counters
 - Windows, Linux, and Steam Deck support through ASI Loader and Proton
 
 Press `F3` to toggle overlay. In MGS3, MGS4, and Peace Walker, press `F4` to cycle tabs.
