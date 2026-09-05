@@ -1,4 +1,5 @@
 #include "probe.h"
+#include "names.h"
 
 #include <windows.h>
 
@@ -75,6 +76,7 @@ uintptr_t g_mission_id = 0;     // address of current mission id (-1 outside a m
 uintptr_t g_stat_array = 0;     // address holding the stat descriptor array pointer
 uintptr_t g_online_root = 0;    // address holding online subsystem base pointer
 uintptr_t g_result_object = 0;  // address holding Player Data/result UI object
+uintptr_t g_region_object = 0;  // address holding the region label object
 bool g_scanned = false;
 bool g_dumped = false;
 
@@ -110,6 +112,15 @@ constexpr uint8_t kResultObjectPat[] = {
 constexpr bool kResultObjectWild[] = {
     false, false, false, false, false, false, false, false, true, true, true, true,
     false, false, false, true, true, true, true, false, false, false, false};
+
+constexpr uint8_t kRegionObjectPat[] = {
+    0x8B, 0x05, 0, 0, 0, 0, 0x48, 0x8B, 0x1D, 0, 0, 0, 0,
+    0x85, 0xC0, 0x75, 0x09, 0x48, 0x85, 0xDB, 0x0F, 0x84,
+    0x19, 0x01, 0x00, 0x00, 0x39, 0x43, 0x28};
+constexpr bool kRegionObjectWild[] = {
+    false, false, true, true, true, true, false, false, false, true, true, true, true,
+    false, false, false, false, false, false, false, false, false,
+    false, false, false, false, false, false, false};
 
 constexpr uint32_t kStatMax = 999999;
 constexpr size_t kStatScanSize = 0x30000;
@@ -412,6 +423,8 @@ void ensure_resolved()
                              std::size(kOnlineRootPat), 12);
     g_result_object = scan_one(mod, kResultObjectPat, kResultObjectWild,
                                std::size(kResultObjectPat), 15);
+    g_region_object = scan_one(mod, kRegionObjectPat, kRegionObjectWild,
+                               std::size(kRegionObjectPat), 9);
     g_mission_id = scan_one(mod, kMissionIdPat, kMissionIdWild,
                             std::size(kMissionIdPat), kMissionIdDisp);
     LOG_INFO("MGSPW resolved save=%llX time=%llX chars=%llX",
@@ -432,6 +445,7 @@ void ensure_resolved()
     }
     if (!g_online_root) LOG_WARN("MGSPW online-player table pattern not found");
     if (!g_result_object) LOG_WARN("MGSPW result object pattern not found");
+    if (!g_region_object) LOG_WARN("MGSPW region object pattern not found");
 }
 
 } // namespace
@@ -445,6 +459,20 @@ bool poll_stats(GameStats& out)
     }
 
     bool any = false;
+
+    // The game resolves stage/mission state to a region; reuse that result.
+    // Objects are replaced on load and absent in menus. Match the game's
+    // handle/self-pointer checks before accepting the region index.
+    if (g_region_object >= 8 && range_readable(g_region_object - 8, 16)) {
+        const auto object = *reinterpret_cast<volatile const uintptr_t*>(g_region_object);
+        const auto handle = *reinterpret_cast<volatile const uint32_t*>(g_region_object - 8);
+        if (object && range_readable(object, 0x114)
+            && *reinterpret_cast<volatile const uint32_t*>(object + 0x28) == handle
+            && *reinterpret_cast<volatile const uintptr_t*>(object + 0x30) == object) {
+            out.pw_region_id = region_id(
+                *reinterpret_cast<volatile const int32_t*>(object + 0x110));
+        }
+    }
 
     if (g_mission_time && range_readable(g_mission_time, 0x18)) {
         out.pw_mission_raw =

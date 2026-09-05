@@ -23,6 +23,7 @@
 
 #include "../common/codename/codename.h"
 #include "../common/log.h"
+#include "../games/mgspw/names.h"
 
 namespace bb {
 namespace {
@@ -782,6 +783,21 @@ const char* mgs4_area_name(const char* code)
     return nullptr;
 }
 
+const char* mgspw_area_name(const char* code, int region)
+{
+    if (const char* name = mgspw::region_name(region)) return name;
+    static constexpr AreaName kAreas[] = {
+        {"w01s03a", "Puerto del Alba"}, {"w01s04a", "El Cenagal: Jungle"},
+        {"my_outer", "Mother Base"}, {"my_outer_ap", "Mother Base"},
+        {"my_outer_trade", "Mother Base - Trade"}, {"my_outer_tfr", "Mother Base"},
+        {"ms_lobby", "Mission Preparation"}, {"result", "Mission Results"},
+        {"vs_lobby", "Versus Lobby"}, {"vs_result", "Versus Results"},
+        {"title", "Title Screen"}, {"r_title", "Title Screen"},
+        {"ending_flow", "Ending"}, {"browser", "Browser"},
+    };
+    return exact_area_name(code, kAreas, std::size(kAreas));
+}
+
 const char* area_name(Game game, const char* code)
 {
     switch (game) {
@@ -1058,7 +1074,12 @@ void draw_mgspw_current(const GameStats& stats)
         }
         ImGui::TextDisabled("%s", head);
     }
-    ImGui::TextDisabled("%s", stats.seg_stage[0] ? stats.seg_stage : "-");
+    const char* stage = stats.pw_stage[0] ? stats.pw_stage : "-";
+    const char* name = mgspw_area_name(stage, stats.pw_region_id);
+    ImGui::PushTextWrapPos(0.0f);
+    if (name) ImGui::TextDisabled("%s (%s)", name, stage);
+    else ImGui::TextDisabled("%s", stage);
+    ImGui::PopTextWrapPos();
     ImGui::SetWindowFontScale(2.0f);
     ImGui::TextUnformatted(seg_clock);
     ImGui::SetWindowFontScale(1.0f);

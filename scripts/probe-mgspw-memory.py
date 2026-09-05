@@ -25,6 +25,8 @@ import time
 EXE_NAME = "METAL GEAR SOLID PEACE WALKER.exe"
 TEXT_RVA = 0x1000
 TEXT_SIZE = 0x98B65C  # per docs/mgspw_research.md .text virtual size
+NAMES = json.loads((pathlib.Path(__file__).resolve().parents[1]
+                   / "docs/mgspw_names.json").read_text(encoding="utf-8"))
 
 
 def parse_pattern(text):
@@ -43,6 +45,9 @@ PATTERNS = {
     # mission-start init: clears the current-mission-id global to -1
     "PW_MISSIONID": ("33 DB BE FF FF FF FF B9 FF FF FF 00 48 89 1D ?? ?? ?? ??"
                      " 8B EB 89 35 ?? ?? ?? ??", 23),
+    # Region-label consumer: handle, object pointer, and validity checks.
+    "PW_REGIONOBJECT": ("8B 05 ?? ?? ?? ?? 48 8B 1D ?? ?? ?? ?? 85 C0 75 09"
+                        " 48 85 DB 0F 84 19 01 00 00 39 43 28", 9),
 }
 
 
@@ -151,10 +156,32 @@ def resolve(memory, base, ranges):
     return resolved
 
 
+def region_snapshot(memory, address):
+    """Read the label object's region, rejecting null or stale object handles."""
+    handle, obj = struct.unpack("<I4xQ", read_mem(memory, address - 8, 16))
+    if not obj:
+        return {"error": "region object absent"}
+    object_handle, self_ptr = struct.unpack("<I4xQ", read_mem(memory, obj + 0x28, 16))
+    if object_handle != handle or self_ptr != obj:
+        return {"error": "region object stale"}
+    index = struct.unpack("<i", read_mem(memory, obj + 0x110, 4))[0]
+    # Exact mapping used by 0x1401F03F0, including its special case.
+    region_id = 7 if index == 70 else index + 1
+    return {"object": f"{obj:#x}", "index": index, "id": region_id,
+            "name": NAMES["regions"].get(str(region_id))}
+
+
 def snapshot(memory, resolved):
     out = {"resolvers": {}, "mission": {}, "save": {}, "player": {}, "foxhound": {}}
     for name, addr in resolved.items():
         out["resolvers"][name] = f"{addr:#x}" if addr is not None else None
+
+    region = resolved.get("PW_REGIONOBJECT")
+    if region is not None:
+        try:
+            out["region"] = region_snapshot(memory, region)
+        except (OSError, ValueError) as error:
+            out["region"] = {"error": str(error)}
 
     mt = resolved.get("PW_MISSIONTIME")
     if mt is not None:
@@ -262,6 +289,7 @@ def snapshot(memory, resolved):
                 hp = struct.unpack("<H", read_mem(memory, player + 0x11BE, 2))[0]
                 weapon = struct.unpack("<h", read_mem(memory, player + 0x14B8, 2))[0]
                 out["player"].update({"hp": hp, "weapon_id": weapon})
+                out["player"]["weapon_name"] = NAMES["weapons"].get(str(weapon), {}).get("name")
     return out
 
 
@@ -349,6 +377,23 @@ def self_test():
     # ms clock format check
     raw = 90123
     assert f"{raw // 60000}:{(raw // 1000) % 60:02d}.{raw % 1000:03d}" == "1:30.123"
+
+    # Live Puerto del Alba observation, the special mapping, and stale handles.
+    fake = bytearray(0x400)
+    struct.pack_into("<I4xQ", fake, 0x80, 677, 0x100)
+    struct.pack_into("<I4xQ", fake, 0x128, 677, 0x100)
+    struct.pack_into("<i", fake, 0x210, 3)
+    assert region_snapshot(io.BytesIO(fake), 0x88)["name"] == "Puerto del Alba"
+    struct.pack_into("<i", fake, 0x210, 70)
+    assert region_snapshot(io.BytesIO(fake), 0x88)["id"] == 7
+    struct.pack_into("<i", fake, 0x210, -1)
+    assert region_snapshot(io.BytesIO(fake), 0x88)["name"] is None
+    struct.pack_into("<I", fake, 0x128, 678)
+    assert region_snapshot(io.BytesIO(fake), 0x88)["error"] == "region object stale"
+    struct.pack_into("<I4xQ", fake, 0x128, 677, 0x200)
+    assert region_snapshot(io.BytesIO(fake), 0x88)["error"] == "region object stale"
+    struct.pack_into("<Q", fake, 0x88, 0)
+    assert region_snapshot(io.BytesIO(fake), 0x88)["error"] == "region object absent"
 
 
 def main():

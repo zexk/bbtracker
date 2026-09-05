@@ -63,6 +63,7 @@ image base `0x140000000`.
 | `PW_MISSIONTIME` | `48 89 05 ?? ?? ?? ?? 41 0F BA E1 19` | 3 | - |
 | `PW_MISSIONID` | `33 DB BE FF FF FF FF B9 FF FF FF 00 48 89 1D ?? ?? ?? ?? 8B EB 89 35 ?? ?? ?? ??` | 23 | `0x1414F0A00` |
 | `PW_STATARRAY` | `48 83 EC 58 48 0F BF C1 48 8D 0C 80 48 8B 05 ?? ?? ?? ?? 0F 10 44 C8 10` | 15 | `0x14121DFE8` |
+| `PW_REGIONOBJECT` | `8B 05 ?? ?? ?? ?? 48 8B 1D ?? ?? ?? ?? 85 C0 75 09 48 85 DB 0F 84 19 01 00 00 39 43 28` | 9 | `0x14143A8E8` |
 
 `PW_SAVEROOT` holds a pointer to the save block; the matched site
 (`0x140215D10`) is a getter returning `saveroot+0xBD3C`. `PW_MISSIONID` is the
@@ -492,6 +493,76 @@ screen read "[005]", and id 52 is the Fulton Recovery op. The two sections
 therefore need separate rules; why the offset resets is not yet understood.
 
 `scripts/pwtext.py` drives the extraction end to end.
+
+### Weapon and region names
+
+[`mgspw_names.json`](mgspw_names.json) contains 355 weapon IDs with full and
+compact English labels, plus 44 region labels, extracted from SLOT page
+`00001` (`00001_41469CCB.slot`). These are game strings, preserving spelling
+and punctuation, not names inferred from a public weapon list.
+
+| Element | Group key | Entity key | Meaning |
+| --- | --- | --- | --- |
+| `16` | `0x2D3090` | numeric weapon ID | full weapon name |
+| `16` | `0x1BCA3F` | numeric weapon ID | compact HUD name |
+| `12` | hash of `st_region%04d` | `0x08F1C2` | region name |
+
+Weapon IDs include rank variants and non-player weapons; repeated names are
+intentional. For example, IDs `2..6` are `Mk.22 Mod.0 (Hush Puppy)` / `MK.22`,
+`76` is `M16A1`, `171` is `Mosin-Nagant` / `M.NAGANT`, and `282` is `C4`.
+ID `3` agrees with the equipped-weapon/XP observation above. Missing full
+names fall back to the compact label; missing compact labels remain empty.
+Empty names and question-mark placeholders are omitted (IDs `297..301`,
+`327`); unknown IDs should retain a numeric fallback.
+
+**Region numbers are not stage codes.** Region `1` is `MSF Base`, `2` is
+`Playa del Alba`, `8` is `Río del Jade`. Numbers `41..49` contain only
+`st_regionNNNN` placeholders and are omitted. The JSON's `stages` object
+records only observed stage-code-to-region-ID pairs; do not fill the rest
+by list position or mission number.
+
+The region-label consumer at `0x1401F03F0` (script command hash `0xEFBF0A`)
+reads a script argument, stores `argument - 1` at object `+0x110`, formats
+`st_region%04d` with the original argument, and looks up entity `0x08F1C2`.
+Its special case maps stored value `70` to name suffix `7`.
+
+Live probing on 2026-09-05 confirmed `w01s03a` = region index `3`, name ID
+`4`, **Puerto del Alba**, matching the name the player read on screen.
+`PW_REGIONOBJECT` resolves to a pointer at RVA `0x143A8E8`; the handle is the
+u32 at pointer address minus `8`. Accept the object only when its `+0x28`
+u32 matches that handle and its `+0x30` pointer equals the object itself,
+then read the signed index at `+0x110`. In this capture the object was
+`0x1511C3290`, handle `677`. Equipped weapon ID `3` simultaneously resolved
+to `Mk.22 Mod.0 (Hush Puppy)`. On entering `result`, the region pointer
+became null; it also stayed absent through `my_outer` and `ms_lobby`.
+The probe now reports this region and weapon name, with raw
+IDs retained and stale/absent objects rejected. This provides a live name
+source without enumerating every stage code.
+
+A second live capture in the same process confirmed `w01s04a` = index `4`,
+name ID `5`, **El Cenagal: Jungle**, again matching the player-reported
+screen label. The object had been reallocated to `0x151167F50`; the same
+AOB-resolved global and validity checks still worked. Together with the
+intervening null pointers in menus, this verifies reacquisition for a second
+area. Exact loading-transition timing and the special region remain untested.
+
+The C++ tracker now uses the same AOB and object checks, publishes
+`GameStats::pw_region_id`, and maps all 44 named regions through
+`src/games/mgspw/names.h`. The Current tab shows `Region name (stage_code)`,
+wrapping long names like the other trackers. This uses the game's live
+stage/mission-to-region mapping; it is not an inferred static catalog of
+unvisited stage codes. Menus have readable labels and the two observed
+gameplay codes have static fallbacks. Unknown/placeholder regions keep
+the raw code. No game archive or external JSON is needed by the ASI.
+
+To reproduce the extraction, use the localization tool's
+`slotitem.parse()` on page `00001`, then `olang.OlangFile.parse()` on elements
+`16` and `12`. Iterate `entries()` with `lang == 'en'`; use `entity.key` for
+weapon IDs and match `group.key` against `olang.strcode('st_region%04d' % n)`
+for region numbers. Do not use the reference indices in `pwtext.py`'s text
+export: that export deduplicates strings, discarding IDs that share a name.
+The saved JSON was checked against every retained archive entry and the
+known Mk.22 ID; individual weapon variants have not all been tested in play.
 
 ### Mission rank thresholds
 
