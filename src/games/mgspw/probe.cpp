@@ -454,6 +454,20 @@ void ensure_resolved()
 
 } // namespace
 
+bool poll_stage_clock(uint32_t& ticks)
+{
+    if (!g_saveroot_ptr || !range_readable(g_saveroot_ptr, sizeof(uintptr_t))) {
+        return false;
+    }
+    const uintptr_t save_block =
+        *reinterpret_cast<volatile const uintptr_t*>(g_saveroot_ptr);
+    if (!save_block || !range_readable(save_block + kStagePlayOff, 4)) {
+        return false;
+    }
+    ticks = *reinterpret_cast<volatile const uint32_t*>(save_block + kStagePlayOff);
+    return true;
+}
+
 bool poll_stats(GameStats& out)
 {
     out = {};

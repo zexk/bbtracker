@@ -6,7 +6,8 @@
 DWORD WINAPI init_thread(LPVOID)
 {
     bb::start_overlay("METAL GEAR SOLID: PEACE WALKER", &bb::mgspw::poll_stats,
-                      L"METAL GEAR SOLID PEACE WALKER.exe", bb::Game::MGSPW);
+                      L"METAL GEAR SOLID PEACE WALKER.exe", bb::Game::MGSPW,
+                      &bb::mgspw::poll_stage_clock);
     return 0;
 }
 

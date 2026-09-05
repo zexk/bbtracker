@@ -58,6 +58,7 @@ struct OverlayState {
 
 const char* g_label = "?";
 StatsFn g_stats_fn = nullptr;
+ClockFn g_clock_fn = nullptr;
 Game g_game = Game::MGS3;
 OverlayState g{};
 GameStats g_stats{};
@@ -1048,29 +1049,21 @@ static_assert(std::size(kRequirementsFns) == 7);
 
 void draw_mgspw_summary(const GameStats& stats)
 {
-    // The run in progress first, then the career axes the codename is scored
-    // on and the insignias closest to firing.
+    // The run clock is the centrepiece; the codename it all feeds lives on
+    // its own tab.
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
-    const auto match = codename::evaluate_mgspw(stats);
-    const ImVec4 title_color = !match ? ImVec4(1, 1, 1, 0.35f)
-        : std::strcmp(match->name, "FOXHOUND") == 0 || std::strcmp(match->name, "FOX") == 0
-            ? id_green
-            : ImGui::GetStyleColorVec4(ImGuiCol_Text);
-    ImGui::SetWindowFontScale(2.0f);
-    ImGui::TextColored(title_color, "%s", match ? match->name : "---");
-    ImGui::SetWindowFontScale(1.0f);
-    const codename::PwGrade grade = codename::pw_grade(stats);
-    if (match) {
-        ImGui::TextDisabled("grade %d", grade.grade);
-        if (grade.blocker) {
-            const bool ratio = std::strcmp(grade.blocker, "cooperation ratio") == 0;
-            ImGui::SameLine();
-            ImGui::TextDisabled("| %d: %s %s%.*f", grade.next, grade.blocker,
-                                std::strncmp(grade.blocker, "camaraderie under", 17) == 0
-                                    ? "<=" : ">=",
-                                ratio ? 2 : 0, grade.need);
-        }
+    // Read straight from the game each frame rather than from the 10 Hz stats
+    // snapshot, so the milliseconds move smoothly. The game ticks this at
+    // 300 Hz, well above any frame rate it will be drawn at.
+    uint32_t ticks = stats.pw_stage_play;
+    if (g_clock_fn) {
+        g_clock_fn(ticks);
     }
+    const unsigned long long stage_ms = static_cast<unsigned long long>(ticks) * 1000ULL / 300ULL;
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::Text("%llu:%02llu.%03llu", stage_ms / 60000, (stage_ms / 1000) % 60,
+                stage_ms % 1000);
+    ImGui::SetWindowFontScale(1.0f);
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -1104,13 +1097,6 @@ void draw_mgspw_summary(const GameStats& stats)
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(v);
         };
-        // The game's own stage clock, not a latched delta of the total: it
-        // resets exactly at stage start and cannot drift from the baseline.
-        const unsigned long long stage_ms =
-            static_cast<unsigned long long>(stats.pw_stage_play) * 1000ULL / 300ULL;
-        snprintf(buf, sizeof(buf), "%llu:%02llu.%03llu", stage_ms / 60000,
-                 (stage_ms / 1000) % 60, stage_ms % 1000);
-        row("time", buf);
         // The game keeps its own per-mission tally in each stat descriptor
         // (+0x18); it beats the client-side segment delta because the game
         // clears it at mission start. Fall back to the segment when a
@@ -1431,12 +1417,19 @@ void draw_mgspw_codenames(const GameStats& stats)
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     const codename::PwAxes axes = codename::pw_axes(stats);
     const ImVec4 pending(1, 1, 1, 0.35f);
+    const auto match = codename::evaluate_mgspw(stats);
+    const ImVec4 title_color = !match ? pending
+        : std::strcmp(match->name, "FOXHOUND") == 0 || std::strcmp(match->name, "FOX") == 0
+            ? id_green
+            : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    ImGui::TextColored(title_color, "%s", match ? match->name : "---");
     if (stats.pw_codename_state_ok) {
         int owned = 0;
         for (int id = 1; id <= 24; ++id) {
             owned += stats.pw_codename_state[id] & 1;
         }
-        ImGui::Text("%d / 24", owned);
+        ImGui::SameLine();
+        ImGui::TextDisabled("%d / 24", owned);
     }
     if (ImGui::BeginTable("pw_class", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("weapon class", ImGuiTableColumnFlags_WidthStretch);
@@ -2066,10 +2059,12 @@ std::filesystem::path dll_dir()
 
 } // namespace
 
-void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game_module, Game game)
+void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game_module,
+                   Game game, ClockFn clock_fn)
 {
     g_label = game_label;
     g_stats_fn = stats_fn;
+    g_clock_fn = clock_fn;
     g_game = game;
 
     std::filesystem::path dir = dll_dir();
