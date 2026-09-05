@@ -91,7 +91,8 @@ bool poll_stats(GameStats& out)
     out.play_time_seconds = read<uint32_t>(data, 0x168) / 60.0;
     out.alerts = read<uint16_t>(data, 0x16E);
     out.kills = read<uint16_t>(data, 0x178);
-    out.special_item_used = read<uint16_t>(data, 0x17A) != 0;
+    out.special_items_mask = read<uint16_t>(data, 0x17A);
+    out.special_item_used = out.special_items_mask != 0;
     out.cqc_chokes = out.cqc_holds = read<uint16_t>(data, 0x180);
     out.headshots = read<uint16_t>(data, 0x182);
     out.knife_defeats = read<uint16_t>(data, 0x184) + read<uint16_t>(data, 0x186);

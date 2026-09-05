@@ -179,7 +179,8 @@ std::optional<Match> evaluate_mgs2(const GameStats& s)
 
 namespace {
 
-constexpr std::array<ReqRow, 10> kBigBossReqs{{
+constexpr std::array<ReqRow, 11> kBigBossReqs{{
+    {"story (Tanker + Plant)", StatId::MissionCode, Op::Eq, 32, ReqFmt::Count},
     {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
     {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
     {"shots fired", StatId::ShotsFired, Op::Le, 700, ReqFmt::Count},
