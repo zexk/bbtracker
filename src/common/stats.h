@@ -177,7 +177,6 @@ struct GameStats {
     // bit 1 seen). Index 0 is unused so the id indexes directly.
     // -1 = unread.
     int pw_insignias = -1;
-    uint8_t pw_insignia_state[111] = {};
     int pw_camaraderie = -1;        // native codename snapshot +0x30 aggregate
     int pw_codename_missions_required = -1; // result+0x20
     int pw_codename_missions_counted = -1;  // result+0x24

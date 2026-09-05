@@ -1168,62 +1168,6 @@ void draw_mgspw_summary(const GameStats& stats)
         ImGui::EndTable();
     }
 
-    // The insignias closest to firing, of the families whose counter the probe
-    // resolves. The grant test is strict, so the target is threshold + 1.
-    struct Bonus {
-        int id;
-        int have;
-        int need;
-    };
-    Bonus bonuses[4]{};
-    int count = 0;
-    for (int id = 1; id <= 110; ++id) {
-        if (stats.pw_insignia_state[id] & 1) {
-            continue;
-        }
-        const int have = codename::pw_insignia_progress(id, stats);
-        const codename::PwInsignia insignia = codename::pw_insignia(id);
-        if (have < 0 || insignia.over < 0) {
-            continue;
-        }
-        // Tiers of one family are consecutive ids on an ascending threshold,
-        // so only the nearest one is worth showing.
-        if (id > 1 && !(stats.pw_insignia_state[id - 1] & 1)
-            && codename::pw_insignia_progress(id - 1, stats) == have) {
-            continue;
-        }
-        const Bonus bonus{id, have, insignia.over + 1};
-        int at = count;
-        while (at > 0 && bonuses[at - 1].need - bonuses[at - 1].have > bonus.need - bonus.have) {
-            if (at < 4) bonuses[at] = bonuses[at - 1];
-            --at;
-        }
-        if (at < 4) {
-            bonuses[at] = bonus;
-            if (count < 4) ++count;
-        }
-    }
-    if (count) {
-        ImGui::Spacing();
-        if (ImGui::BeginTable("pw_bonus", 2,
-                              ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-            ImGui::TableSetupColumn("next insignia", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-            for (int i = 0; i < count; ++i) {
-                const Bonus& bonus = bonuses[i];
-                snprintf(buf, sizeof(buf), "%d / %d", bonus.have, bonus.need);
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted(codename::pw_insignia(bonus.id).name);
-                ImGui::TableNextColumn();
-                ImGui::TextColored(bonus.have * 4 >= bonus.need * 3 ? id_yellow
-                                                                    : ImVec4(1, 1, 1, 0.35f),
-                                   "%s", buf);
-            }
-            ImGui::EndTable();
-        }
-    }
-
     const char* stage = stats.pw_stage[0] ? stats.pw_stage : "-";
     const char* name = mgspw_area_name(stage, stats.pw_region_id);
     ImGui::Spacing();
@@ -1389,7 +1333,9 @@ void draw_mgspw_insignia(const GameStats& stats)
             for (int tier = 0; tier < 3 && target < 0; ++tier) {
                 const int over = codename::pw_insignia(family.first_id + tier).over;
                 if (have <= over) {
-                    target = over;
+                    // The grant test is strict, so the value to reach is one
+                    // above the threshold.
+                    target = over + 1;
                 }
             }
             ImGui::TableNextRow();
