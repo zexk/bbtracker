@@ -62,6 +62,45 @@ constexpr int pw_count(int value)
     return value > 0 ? value : 0;
 }
 
+// The twelve slots the evaluator reads, mapped onto the six title classes.
+// Slot 10 is in none of them.
+constexpr int kPwSlotClass[12] = {
+    static_cast<int>(WeaponClass::Cqc),       // 0
+    static_cast<int>(WeaponClass::Stun),      // 1
+    static_cast<int>(WeaponClass::Short),     // 2
+    static_cast<int>(WeaponClass::Medium),    // 3
+    static_cast<int>(WeaponClass::Long),      // 4
+    static_cast<int>(WeaponClass::Medium),    // 5
+    static_cast<int>(WeaponClass::Short),     // 6
+    static_cast<int>(WeaponClass::Short),     // 7
+    static_cast<int>(WeaponClass::Explosive), // 8
+    static_cast<int>(WeaponClass::Explosive), // 9
+    -1,                                       // 10
+    static_cast<int>(WeaponClass::Explosive), // 11
+};
+
+// The evaluator picks the single highest slot total and names the class that
+// slot belongs to. It does NOT sum a class first: 2 pistol, 2 shotgun and 3
+// sniper is a long-range career, because sniper is the biggest single type
+// even though the two short-range types outnumber it together.
+// Ties take the first group here, which is the evaluator's own predicate order.
+WeaponClass pw_dominant_class(const int (&slots)[12], int top)
+{
+    unsigned mask = 0;
+    for (int slot = 0; slot < 12; ++slot) {
+        if (slots[slot] == top) mask |= 1u << slot;
+    }
+    constexpr struct { unsigned mask; WeaponClass cls; } kGroups[] = {
+        {0x002, WeaponClass::Stun}, {0x001, WeaponClass::Cqc},
+        {0x1B00, WeaponClass::Explosive}, {0x010, WeaponClass::Long},
+        {0x028, WeaponClass::Medium}, {0x0C4, WeaponClass::Short},
+    };
+    for (const auto& group : kGroups) {
+        if (mask & group.mask) return group.cls;
+    }
+    return WeaponClass::All;
+}
+
 struct PwProfile {
     int by_class[6] = {};
     int total = 0;
@@ -94,21 +133,7 @@ PwProfile pw_profile(const GameStats& s)
                 + pw_count(s.pw_codename_axes[2][slot])
                 + pw_count(s.pw_codename_axes[3][slot]);
         }
-        unsigned dominant_mask = 0;
-        for (int slot = 0; slot < 12; ++slot) {
-            if (slots[slot] == p.top) dominant_mask |= 1u << slot;
-        }
-        constexpr struct { unsigned mask; WeaponClass cls; } groups[] = {
-            {0x002, WeaponClass::Stun}, {0x001, WeaponClass::Cqc},
-            {0x1B00, WeaponClass::Explosive}, {0x010, WeaponClass::Long},
-            {0x028, WeaponClass::Medium}, {0x0C4, WeaponClass::Short},
-        };
-        for (const auto& group : groups) {
-            if (dominant_mask & group.mask) {
-                p.dominant = group.cls;
-                break;
-            }
-        }
+        p.dominant = pw_dominant_class(slots, p.top);
         const double average = static_cast<double>(p.total) / 11.0;
         p.balanced = true;
         for (int value : slots) {
@@ -120,33 +145,37 @@ PwProfile pw_profile(const GameStats& s)
         if (p.balanced) p.dominant = WeaponClass::All;
         return p;
     }
-    p.by_class[static_cast<int>(WeaponClass::Short)] =
-        pw_count(s.pw_pistol_takedowns) + pw_count(s.pw_pistol_lethal)
-        + pw_count(s.pw_shotgun_takedowns);
-    p.by_class[static_cast<int>(WeaponClass::Medium)] =
-        pw_count(s.pw_ar_takedowns) + pw_count(s.pw_lmg_takedowns);
-    p.by_class[static_cast<int>(WeaponClass::Long)] =
-        pw_count(s.pw_sniper_takedowns) + pw_count(s.pw_sniper_nonlethal);
-    p.by_class[static_cast<int>(WeaponClass::Explosive)] =
-        pw_count(s.pw_grenade_takedowns) + pw_count(s.pw_rocket_takedowns)
-        + pw_count(s.pw_placed_takedowns);
-    p.by_class[static_cast<int>(WeaponClass::Cqc)] = pw_count(s.pw_cqc_takedowns);
-    p.by_class[static_cast<int>(WeaponClass::Stun)] = 0; // no stun-rod id yet
+    // No native axes: rebuild the same twelve slots from the per-weapon career
+    // counters, so the dominant type is picked the way the evaluator picks it.
+    // Slots 1 (stun rod), 6 and 10 have no counter resolved yet.
+    int slots[12]{};
+    slots[0] = pw_count(s.pw_cqc_takedowns);
+    slots[2] = pw_count(s.pw_pistol_lethal) + pw_count(s.pw_pistol_takedowns);
+    slots[3] = pw_count(s.pw_ar_takedowns);
+    slots[4] = pw_count(s.pw_sniper_takedowns) + pw_count(s.pw_sniper_nonlethal);
+    slots[5] = pw_count(s.pw_lmg_takedowns);
+    slots[7] = pw_count(s.pw_shotgun_takedowns);
+    slots[8] = pw_count(s.pw_rocket_takedowns);
+    slots[9] = pw_count(s.pw_grenade_takedowns);
+    slots[11] = pw_count(s.pw_placed_takedowns);
 
-    int top_index = 0;
+    int top_slot = 0;
+    for (int slot = 0; slot < 12; ++slot) {
+        if (kPwSlotClass[slot] >= 0) p.by_class[kPwSlotClass[slot]] += slots[slot];
+        if (slots[slot] > top_slot) top_slot = slots[slot];
+    }
     for (int i = 0; i < 6; ++i) {
         p.total += p.by_class[i];
         if (p.by_class[i] > 0) ++p.classes_used;
-        if (p.by_class[i] > p.top) {
-            p.top = p.by_class[i];
-            top_index = i;
-        }
+        if (p.by_class[i] > p.top) p.top = p.by_class[i];
     }
+    // The spread test stays on class shares: without the axes there is no
+    // per-slot uniformity to measure, so this approximates it.
     const bool spread = p.total > 0
         && p.classes_used >= kPwSpreadClasses
         && static_cast<double>(p.top) < static_cast<double>(p.total) * kPwSpreadShare;
     p.balanced = spread;
-    p.dominant = spread ? WeaponClass::All : static_cast<WeaponClass>(top_index);
+    p.dominant = spread ? WeaponClass::All : pw_dominant_class(slots, top_slot);
     p.nonlethal = pw_count(s.pw_tranq) + pw_count(s.pw_cqc_takedowns);
     p.lethal = pw_count(s.pw_kills);
     return p;
@@ -311,23 +340,6 @@ double pw_coop_ratio(const GameStats& s)
 }
 
 } // namespace
-
-// The twelve slots the evaluator reads, mapped onto the six title classes.
-// Taken from the dominance masks in pw_profile; slot 10 is in none of them.
-constexpr int kPwSlotClass[12] = {
-    static_cast<int>(WeaponClass::Cqc),       // 0
-    static_cast<int>(WeaponClass::Stun),      // 1
-    static_cast<int>(WeaponClass::Short),     // 2
-    static_cast<int>(WeaponClass::Medium),    // 3
-    static_cast<int>(WeaponClass::Long),      // 4
-    static_cast<int>(WeaponClass::Medium),    // 5
-    static_cast<int>(WeaponClass::Short),     // 6
-    static_cast<int>(WeaponClass::Short),     // 7
-    static_cast<int>(WeaponClass::Explosive), // 8
-    static_cast<int>(WeaponClass::Explosive), // 9
-    -1,                                       // 10
-    static_cast<int>(WeaponClass::Explosive), // 11
-};
 
 const char* pw_class_name(int cls)
 {

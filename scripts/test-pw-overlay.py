@@ -60,7 +60,9 @@ int main() {
     GameStats stats;
     for (int tab = 0; tab < 4; ++tab) draw(stats, tab);
     auto summary = draw(stats, 0);
-    assert(summary.find("0%") == std::string::npos); // Unknown HP isn't zero health.
+    // Unknown HP is not zero health. Scoped to the HP row: the requirements
+    // table legitimately shows 0% for an empty profile.
+    assert(!std::regex_search(summary, std::regex(R"(HP[\s|{}]*0%)")));
     assert(std::regex_search(summary, std::regex(R"(HP[\s|{}]*-)")));
     assert(std::regex_search(summary, std::regex(R"(alerts[\s|{}]*-)")));
     assert(summary.find("+0 (area)") != std::string::npos);

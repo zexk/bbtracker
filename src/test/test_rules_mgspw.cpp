@@ -66,6 +66,38 @@ void test_dominant_class_and_axes()
     CHECK(std::string_view(title(stats)) == "SCORPION");
 }
 
+// Reported from play: 2 pistol, 2 shotgun and 3 sniper names a long-range
+// codename, because the evaluator takes the biggest single weapon type rather
+// than summing a class. Short range outnumbers long here, 4 to 3, and loses.
+void test_dominant_is_the_top_type_not_the_top_class()
+{
+    GameStats counters{};
+    counters.pw_pistol_lethal = 2;
+    counters.pw_shotgun_takedowns = 2;
+    counters.pw_sniper_takedowns = 3;
+    counters.pw_kills = 7;
+    CHECK(std::string_view(title(counters)) == "HAWK");
+
+    GameStats axes{};
+    axes.pw_codename_axes_ok = true;
+    axes.pw_codename_axes[0][2] = 2;  // pistol
+    axes.pw_codename_axes[0][7] = 2;  // shotgun
+    axes.pw_codename_axes[0][4] = 3;  // sniper
+    CHECK(std::string_view(title(axes)) == "HAWK");
+
+    // One more pistol takedown ties pistol with sniper at 3 each. The tie goes
+    // to the evaluator's predicate order (stun, CQC, explosive, long, medium,
+    // short), so long range still wins over short.
+    counters.pw_pistol_lethal = 3;
+    counters.pw_kills = 8;
+    CHECK(std::string_view(title(counters)) == "HAWK");
+
+    // Pull sniper below both short-range types and the title follows.
+    counters.pw_sniper_takedowns = 1;
+    counters.pw_kills = 6;
+    CHECK(std::string_view(title(counters)) == "SCORPION");
+}
+
 void test_all_weapons_spread()
 {
     GameStats stats = all_weapons();
@@ -318,6 +350,8 @@ int main()
         {"no_takedowns_has_no_title", test_no_takedowns_has_no_title},
         {"dominant_class_and_axes", test_dominant_class_and_axes},
         {"all_weapons_spread", test_all_weapons_spread},
+        {"dominant_is_the_top_type_not_the_top_class",
+         test_dominant_is_the_top_type_not_the_top_class},
         {"native_axes", test_native_axes},
         {"native_axes_titles", test_native_axes_titles},
         {"class_names_and_gates", test_class_names_and_gates},
