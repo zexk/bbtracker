@@ -174,6 +174,11 @@ struct PwInsignia {
 
 PwInsignia pw_insignia(int id);
 
+// Career value an insignia is graded on, or -1 when the counter it reads is
+// not one the probe resolves. Only the solo families whose stat id is
+// confirmed are mapped; see "Insignia system" in docs/mgspw_research.md.
+int pw_insignia_progress(int id, const GameStats& s);
+
 // Candidate grade 0..5 for the title the profile currently matches, plus the
 // single gate that stops the next grade. Mirrors the native evaluator: see
 // "Codename system" in docs/mgspw_research.md.

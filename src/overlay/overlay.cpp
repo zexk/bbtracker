@@ -1048,9 +1048,8 @@ static_assert(std::size(kRequirementsFns) == 7);
 
 void draw_mgspw_summary(const GameStats& stats)
 {
-    // Same grammar as the other games' Summary: the title the profile earns,
-    // the axes it is scored on, then the run in progress. PW classifies career
-    // play rather than a single run, so the requirement rows are lifetime.
+    // The run in progress first, then the career axes the codename is scored
+    // on and the insignias closest to firing.
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     const auto match = codename::evaluate_mgspw(stats);
     const ImVec4 title_color = !match ? ImVec4(1, 1, 1, 0.35f)
@@ -1076,39 +1075,6 @@ void draw_mgspw_summary(const GameStats& stats)
     ImGui::Spacing();
 
     char buf[64];
-    if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-        for (const codename::ReqStatus& r : codename::elite_requirements_mgspw(stats)) {
-            if (r.limit == 0) {
-                snprintf(buf, sizeof(buf), "%.0f", r.current);
-            } else {
-                snprintf(buf, sizeof(buf), "%.0f / %.0f", r.current, r.limit);
-            }
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(r.label);
-            ImGui::TableNextColumn();
-            ImGui::TextColored(r.pass ? id_green : id_red, "%s", buf);
-        }
-        // Context, not a requirement: the counters the axes are read from.
-        const auto plain = [&](const char* key, int value) {
-            snprintf(buf, sizeof(buf), "%d", value);
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("%s", key);
-            ImGui::TableNextColumn();
-            ImGui::TextDisabled("%s", buf);
-        };
-        plain("lethal kills", stats.pw_kills > 0 ? stats.pw_kills : 0);
-        plain("CQC takedowns", stats.pw_cqc_takedowns > 0 ? stats.pw_cqc_takedowns : 0);
-        ImGui::EndTable();
-    }
-    // Current sortie: segment deltas land at the results tally (actions) or at
-    // lobby exit (heroism/XP/GMP); the master clock ticks live.
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
     if (stats.pw_mission_id > 0) {
         const char* rank_names[] = {"S", "A", "B", "C"};
         const char* rank = stats.pw_cur_rank >= 0 && stats.pw_cur_rank < 4
@@ -1125,10 +1091,12 @@ void draw_mgspw_summary(const GameStats& stats)
             ImGui::TextDisabled("m%d  new", stats.pw_mission_id);
         }
     }
+    // Current sortie: segment deltas land at the results tally (actions) or at
+    // lobby exit (heroism/XP/GMP); the master clock ticks live.
     if (ImGui::BeginTable("pw_current", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("this run", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         const auto row = [&](const char* k, const char* v) {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
@@ -1153,19 +1121,124 @@ void draw_mgspw_summary(const GameStats& stats)
             }
             row(k, buf);
         };
-        stat_row("headshots", stats.pw_m_headshots, stats.seg_headshots);
-        stat_row("kills", stats.pw_m_kills, stats.seg_kills);
-        stat_row("tranq", stats.pw_m_tranq, stats.seg_tranq);
+        // Alerts and kills are what the clean-clear bonuses hang on, so they
+        // lead; a non-zero either way costs an insignia at results.
         if (stats.pw_m_alerts >= 0) {
             snprintf(buf, sizeof(buf), "%d", stats.pw_m_alerts);
-            row("alerts", buf);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("alerts");
+            ImGui::TableNextColumn();
+            ImGui::TextColored(stats.pw_m_alerts ? id_red : id_green, "%s", buf);
         }
+        if (stats.pw_m_kills >= 0) {
+            snprintf(buf, sizeof(buf), "%d", stats.pw_m_kills);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("kills");
+            ImGui::TableNextColumn();
+            ImGui::TextColored(stats.pw_m_kills ? id_red : id_green, "%s", buf);
+        } else {
+            stat_row("kills", stats.pw_m_kills, stats.seg_kills);
+        }
+        stat_row("tranq", stats.pw_m_tranq, stats.seg_tranq);
+        stat_row("headshots", stats.pw_m_headshots, stats.seg_headshots);
         snprintf(buf, sizeof(buf), "%+d", stats.seg_heroism);
         row("heroism", buf);
         snprintf(buf, sizeof(buf), "%d%% (wpn %d)", stats.pw_player_hp * 100 / 8000,
                  stats.pw_weapon_id);
-        row("player HP", buf);
+        row("HP", buf);
         ImGui::EndTable();
+    }
+
+    ImGui::Spacing();
+    if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        for (const codename::ReqStatus& r : codename::elite_requirements_mgspw(stats)) {
+            if (r.limit == 0) {
+                snprintf(buf, sizeof(buf), "%.0f", r.current);
+            } else {
+                snprintf(buf, sizeof(buf), "%.0f / %.0f", r.current, r.limit);
+            }
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(r.label);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(r.pass ? id_green : id_red, "%s", buf);
+        }
+        // Context, not a requirement: the counters the axes are read from.
+        const auto plain = [&](const char* key, int value) {
+            snprintf(buf, sizeof(buf), "%d", value);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextDisabled("%s", key);
+            ImGui::TableNextColumn();
+            ImGui::TextDisabled("%s", buf);
+        };
+        plain("kills", stats.pw_kills > 0 ? stats.pw_kills : 0);
+        plain("CQC", stats.pw_cqc_takedowns > 0 ? stats.pw_cqc_takedowns : 0);
+        plain("heroism", stats.pw_heroism);
+        if (stats.pw_camaraderie >= 0) {
+            plain("camaraderie", stats.pw_camaraderie);
+        }
+        ImGui::EndTable();
+    }
+
+    // The insignias closest to firing, of the families whose counter the probe
+    // resolves. The grant test is strict, so the target is threshold + 1.
+    struct Bonus {
+        int id;
+        int have;
+        int need;
+    };
+    Bonus bonuses[4]{};
+    int count = 0;
+    for (int id = 1; id <= 110; ++id) {
+        if (stats.pw_insignia_state[id] & 1) {
+            continue;
+        }
+        const int have = codename::pw_insignia_progress(id, stats);
+        const codename::PwInsignia insignia = codename::pw_insignia(id);
+        if (have < 0 || insignia.over < 0) {
+            continue;
+        }
+        // Tiers of one family are consecutive ids on an ascending threshold,
+        // so only the nearest one is worth showing.
+        if (id > 1 && !(stats.pw_insignia_state[id - 1] & 1)
+            && codename::pw_insignia_progress(id - 1, stats) == have) {
+            continue;
+        }
+        const Bonus bonus{id, have, insignia.over + 1};
+        int at = count;
+        while (at > 0 && bonuses[at - 1].need - bonuses[at - 1].have > bonus.need - bonus.have) {
+            if (at < 4) bonuses[at] = bonuses[at - 1];
+            --at;
+        }
+        if (at < 4) {
+            bonuses[at] = bonus;
+            if (count < 4) ++count;
+        }
+    }
+    if (count) {
+        ImGui::Spacing();
+        if (ImGui::BeginTable("pw_bonus", 2,
+                              ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+            ImGui::TableSetupColumn("next insignia", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+            for (int i = 0; i < count; ++i) {
+                const Bonus& bonus = bonuses[i];
+                snprintf(buf, sizeof(buf), "%d / %d", bonus.have, bonus.need);
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(codename::pw_insignia(bonus.id).name);
+                ImGui::TableNextColumn();
+                ImGui::TextColored(bonus.have * 4 >= bonus.need * 3 ? id_yellow
+                                                                    : ImVec4(1, 1, 1, 0.35f),
+                                   "%s", buf);
+            }
+            ImGui::EndTable();
+        }
     }
 
     const char* stage = stats.pw_stage[0] ? stats.pw_stage : "-";

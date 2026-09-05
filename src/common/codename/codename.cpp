@@ -586,6 +586,19 @@ PwInsignia pw_insignia(int id)
     return kPwInsignias[id - 1];
 }
 
+int pw_insignia_progress(int id, const GameStats& s)
+{
+    switch (id) {
+    case 1: case 2: case 3:     return s.pw_noalert_clears;      // Stealth Master
+    case 4: case 5: case 6:     return s.pw_nokill_clears;       // Non-Lethal Force
+    case 7: case 8: case 9:     return s.pw_holdups;             // Hold-Up Master
+    case 10: case 11: case 12:  return s.pw_noitem_clears;       // No-Recovery Master
+    case 16: case 17: case 18:  return s.pw_headshots;           // Headshot Master
+    case 44: case 45: case 46:  return s.pw_fulton_recoveries;   // Fulton Recovery
+    default: return -1;
+    }
+}
+
 namespace {
 
 // Gates per grade 1..5, from the native evaluator. Camaraderie steps are the
