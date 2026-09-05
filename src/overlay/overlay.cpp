@@ -1276,6 +1276,23 @@ void draw_mgspw_global(const GameStats& stats)
         snprintf(buf, sizeof(buf), "%d   %d lethal / %d non-lethal",
                  stats.pw_kills + stats.pw_tranq, stats.pw_kills, stats.pw_tranq);
         row("kills", buf);
+        if (stats.pw_body_kills >= 0 && stats.pw_kills >= 0 && stats.pw_headshots >= 0
+            && stats.pw_grenade_takedowns >= 0 && stats.pw_rocket_takedowns >= 0) {
+            // Headshots are stored as one total and non-headshot kills
+            // separately, so the lethal/tranq split is a subtraction. Explosive
+            // kills carry no hit location and count as neither, so they have to
+            // come out too - a rocket run moved kills by 3 while both the
+            // headshot and body counters stayed put.
+            const int explosive = stats.pw_grenade_takedowns + stats.pw_rocket_takedowns;
+            const int lethal_hs = stats.pw_kills - stats.pw_body_kills - explosive;
+            snprintf(buf, sizeof(buf), "%d   %d lethal / %d tranq", stats.pw_headshots,
+                     lethal_hs, stats.pw_headshots - lethal_hs);
+        } else {
+            snprintf(buf, sizeof(buf), "%d", stats.pw_headshots);
+        }
+        row("headshots", buf);
+        snprintf(buf, sizeof(buf), "%d", stats.pw_alerts);
+        row("alerts", buf);
         if (stats.pw_damage_taken >= 0) {
             // 8000 is Snake's bar, and the scale the counter is kept on
             // whoever was deployed, so this reads as nominal bars.
@@ -1301,23 +1318,6 @@ void draw_mgspw_global(const GameStats& stats)
                      stats.pw_placed_takedowns);
             row("explosives", buf);
         }
-        snprintf(buf, sizeof(buf), "%d", stats.pw_alerts);
-        row("alerts", buf);
-        if (stats.pw_body_kills >= 0 && stats.pw_kills >= 0 && stats.pw_headshots >= 0
-            && stats.pw_grenade_takedowns >= 0 && stats.pw_rocket_takedowns >= 0) {
-            // Headshots are stored as one total and non-headshot kills
-            // separately, so the lethal/tranq split is a subtraction. Explosive
-            // kills carry no hit location and count as neither, so they have to
-            // come out too - a rocket run moved kills by 3 while both the
-            // headshot and body counters stayed put.
-            const int explosive = stats.pw_grenade_takedowns + stats.pw_rocket_takedowns;
-            const int lethal_hs = stats.pw_kills - stats.pw_body_kills - explosive;
-            snprintf(buf, sizeof(buf), "%d   %d lethal / %d tranq", stats.pw_headshots,
-                     lethal_hs, stats.pw_headshots - lethal_hs);
-        } else {
-            snprintf(buf, sizeof(buf), "%d", stats.pw_headshots);
-        }
-        row("headshots", buf);
         if (stats.pw_fulton_recoveries >= 0) {
             snprintf(buf, sizeof(buf), "%d  (+%d POW)", stats.pw_fulton_recoveries,
                      stats.pw_prisoner_extractions);
