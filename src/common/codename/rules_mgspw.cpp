@@ -455,9 +455,9 @@ std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s)
 {
     const PwProfile p = pw_profile(s);
     const auto row = [](const char* label, bool pass, double current, double limit,
-                        Op op = Op::Ge) {
+                        Op op = Op::Ge, ReqFmt fmt = ReqFmt::Count) {
         return ReqStatus{label, pass, current, limit,
-                         static_cast<uint8_t>(ReqFmt::Count),
+                         static_cast<uint8_t>(fmt),
                          static_cast<uint8_t>(op)};
     };
     std::vector<ReqStatus> out;
@@ -477,16 +477,16 @@ std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s)
                 if (off > worst) worst = off;
             }
         }
-        out.push_back(row("slot spread %", slot_total > 0 && worst <= 10.0,
-                          worst, 10.0, Op::Le));
+        out.push_back(row("slot spread", slot_total > 0 && worst <= 10.0,
+                          worst, 10.0, Op::Le, ReqFmt::Percent));
     } else {
         out.push_back(row("classes used", p.classes_used >= kPwSpreadClasses,
                           p.classes_used, kPwSpreadClasses));
         const double top_share = p.total > 0
             ? 100.0 * static_cast<double>(p.top) / static_cast<double>(p.total)
             : 0.0;
-        out.push_back(row("top class %", p.total > 0 && top_share < 100.0 * kPwSpreadShare,
-                          top_share, 100.0 * kPwSpreadShare, Op::Lt));
+        out.push_back(row("top class", p.total > 0 && top_share < 100.0 * kPwSpreadShare,
+                          top_share, 100.0 * kPwSpreadShare, Op::Lt, ReqFmt::Percent));
     }
     // Shown against kills, the value it actually has to beat.
     out.push_back(row("non-lethal", p.nonlethal > 2 * p.lethal,

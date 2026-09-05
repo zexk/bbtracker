@@ -1203,10 +1203,12 @@ void draw_mgspw_summary(const GameStats& stats)
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         ImGui::TableHeadersRow();
         for (const codename::ReqStatus& r : codename::elite_requirements_mgspw(stats)) {
+            const char* pct =
+                static_cast<codename::ReqFmt>(r.fmt) == codename::ReqFmt::Percent ? "%" : "";
             if (r.limit == 0) {
-                snprintf(buf, sizeof(buf), "%.0f", r.current);
+                snprintf(buf, sizeof(buf), "%.0f%s", r.current, pct);
             } else {
-                snprintf(buf, sizeof(buf), "%.0f / %.0f", r.current, r.limit);
+                snprintf(buf, sizeof(buf), "%.0f%s / %.0f%s", r.current, pct, r.limit, pct);
             }
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
@@ -1644,6 +1646,9 @@ void draw_panel()
                     snprintf(ratio, sizeof(ratio), "%.1f / %.0f", static_cast<double>(r.current),
                              r.limit);
                 }
+                break;
+            case codename::ReqFmt::Percent:
+                snprintf(ratio, sizeof(ratio), "%.0f%% / %.0f%%", r.current, r.limit);
                 break;
             default:
                 if (r.limit == 0) {

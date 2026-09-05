@@ -253,8 +253,11 @@ void test_elite_requirements()
     CHECK(rows.size() == 3);
     CHECK(std::string_view(rows[0].label) == "classes used");
     CHECK(rows[0].pass && rows[0].current == 5 && rows[0].limit == 4);
-    CHECK(std::string_view(rows[1].label) == "top class %");
+    CHECK(std::string_view(rows[1].label) == "top class");
     CHECK(rows[1].pass && rows[1].current == 20.0 && rows[1].limit == 40.0);
+    // Both spread rows are percentages; the panel needs the format to say so.
+    CHECK(static_cast<ReqFmt>(rows[1].fmt) == ReqFmt::Percent);
+    CHECK(static_cast<ReqFmt>(rows[0].fmt) == ReqFmt::Count);
     CHECK(std::string_view(rows[2].label) == "non-lethal");
     // Non-lethal counts the tranquillizer and CQC banks together.
     CHECK(rows[2].pass && rows[2].current == 20 && rows[2].limit == 0);
@@ -268,8 +271,9 @@ void test_elite_requirements()
     }
     const auto native = elite_requirements_mgspw(balanced);
     CHECK(native.size() == 2);
-    CHECK(std::string_view(native[0].label) == "slot spread %");
+    CHECK(std::string_view(native[0].label) == "slot spread");
     CHECK(native[0].pass && native[0].limit == 10.0);
+    CHECK(static_cast<ReqFmt>(native[0].fmt) == ReqFmt::Percent);
     CHECK(native[1].pass);  // 120 non-lethal against no kills
 
     balanced.pw_codename_axes[1][3] = 40;

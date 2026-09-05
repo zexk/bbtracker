@@ -128,6 +128,7 @@ enum class ReqFmt : uint8_t {
     Count,
     Bars,
     Time,
+    Percent,
 };
 
 struct ReqRow {
