@@ -132,10 +132,21 @@ if(UNIX)
     src/common/codename/rules_mgs1_integral.cpp)
   target_include_directories(rules_mgs4_tests PRIVATE src)
 
+  add_executable(rules_mgspw_tests
+    src/test/test_rules_mgspw.cpp
+    src/common/codename/codename.cpp
+    src/common/codename/rules_mgs4.cpp
+    src/common/codename/rules_mgs3.cpp
+    src/common/codename/rules_mgs2.cpp
+    src/common/codename/rules_mgs1.cpp
+    src/common/codename/rules_mgs1_integral.cpp)
+  target_include_directories(rules_mgspw_tests PRIVATE src)
+
   enable_testing()
   add_test(NAME mgs3_rules COMMAND rules_mgs3_tests)
   add_test(NAME mgs2_rules COMMAND rules_mgs2_tests)
   add_test(NAME mgs1_rules COMMAND rules_mgs1_tests)
   add_test(NAME mg12_rules COMMAND rules_mg12_tests)
   add_test(NAME mgs4_rules COMMAND rules_mgs4_tests)
+  add_test(NAME mgspw_rules COMMAND rules_mgspw_tests)
 endif()
