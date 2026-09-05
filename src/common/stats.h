@@ -87,9 +87,6 @@ struct GameStats {
 
     // Peace Walker probe (FOXHOUND tracker bootstrap, all unverified).
     uint64_t pw_mission_raw = 0;      // [PW_MISSIONTIME] ticks 300/s of active game time
-    uint64_t pw_mission_aux = 0;      // [PW_MISSIONTIME+0x08] second accumulator
-    uint32_t pw_area = 0;             // [PW_MISSIONTIME+0x10] area timer, mirrors stage?
-    uint32_t pw_mission_secondary = 0;// [PW_MISSIONTIME+0x14] mirror of area timer
     uint32_t pw_total_play = 0;       // [SAVEROOT+0x84] total play, ticks ~1/s
     uint32_t pw_stage_play = 0;       // [SAVEROOT+0x88] stage play, ticks fast (ms?)
     char pw_stage[32] = {};           // [SAVEROOT+0x54] stage string
@@ -102,12 +99,9 @@ struct GameStats {
     int pw_heroism = 0;               // [SAVEROOT+0x64F4] validated lifetime Heroism
     int pw_heroism_delta = 0;         // [SAVEROOT+0x64EC] last-mission delta
     uint32_t pw_gmp = 0;              // [SAVEROOT+0xB52C] validated funds
-    uint32_t pw_last_best_a = 0;      // [SAVEROOT+0x586C] last-mission best twin slot A
-    uint32_t pw_last_best_b = 0;      // [SAVEROOT+0x5874] last-mission best twin slot B
     int pw_clears = -1;               // [SAVEROOT+0x656C] validated global clear count (replays count)
     // S ranks come from the per-mission array below, not from a scalar: the
     // offset once read as an S count turned out to be unrelated.
-    int pw_fulton = -1;               // [SAVEROOT+0x130] contested: Fulton stock or inspected-weapon XP-to-next
     // FOXHOUND lifetime inputs, resolved by descriptor ID (table moves).
     // -1 = unresolved. Confirmed by quantified missions: headshots +1
     // on exactly-1-headshot run, kills +3 on 3-kill run, tranq +2 on
@@ -139,10 +133,6 @@ struct GameStats {
     int pw_mission_id = -1;
     int pw_cur_rank = -1;
     uint32_t pw_cur_best = 0;
-    // save+0x278, mirrored at +0x2A0/+0x1FBF4/+0x1FC1C. Moves per mission
-    // (4758 -> 6000 -> 8000 -> 6000) but is NOT the results score: regular
-    // missions display no score at all. Unidentified; shown in Forensics.
-    uint32_t pw_last_score = 0;
     // Career alerts (id 0x420002) plus the game's own per-mission tally,
     // the descriptor's +0x18 field: it counts up live during a mission and
     // the game clears it at mission start, so it beats latching baselines.
@@ -197,15 +187,10 @@ struct GameStats {
     // Live per-sortie deltas, differenced client-side at stage change
     // (action careers tick live mid-mission; heroism/XP/GMP settle at
     // results, so their segments only move post-results).
-    char seg_stage[32] = {};
     int seg_headshots = 0;
     int seg_kills = 0;
     int seg_tranq = 0;
-    int seg_fulton = 0;
     int seg_heroism = 0;
-    bool pw_saveroot_ok = false;
-    bool pw_mission_ok = false;
-    bool pw_chararray_ok = false;
     // First 16 weapon-record XP values ([rec+0x14] u16, stride 0x1C;
     // per-level pool, resets on level-up). -1 = unreadable.
     int pw_weapon_use[16] = {-1, -1, -1, -1, -1, -1, -1, -1,

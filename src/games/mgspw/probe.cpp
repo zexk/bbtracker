@@ -481,13 +481,6 @@ bool poll_stats(GameStats& out)
     if (g_mission_time && range_readable(g_mission_time, 0x18)) {
         out.pw_mission_raw =
             *reinterpret_cast<volatile const uint64_t*>(g_mission_time);
-        out.pw_mission_aux =
-            *reinterpret_cast<volatile const uint64_t*>(g_mission_time + 0x08);
-        out.pw_area =
-            *reinterpret_cast<volatile const uint32_t*>(g_mission_time + 0x10);
-        out.pw_mission_secondary =
-            *reinterpret_cast<volatile const uint32_t*>(g_mission_time + 0x14);
-        out.pw_mission_ok = true;
         // Measured: raw ticks 300/s of active game time (a +42600 delta over
         // an interval where total play advanced exactly +142s). 3.33ms
         // resolution still breaks same-second best-time ties.
@@ -505,7 +498,6 @@ bool poll_stats(GameStats& out)
         save_block = *reinterpret_cast<volatile const uintptr_t*>(g_saveroot_ptr);
     }
     if (save_block) {
-        out.pw_saveroot_ok = true;
         if (range_readable(save_block + kStageOff, kStageLen)) {
             char stage[32]{};
             std::memcpy(stage, reinterpret_cast<const void*>(save_block + kStageOff),
@@ -524,11 +516,7 @@ bool poll_stats(GameStats& out)
         constexpr size_t kHeroismOff = 0x64F4;
         constexpr size_t kHeroismDeltaOff = 0x64EC;
         constexpr size_t kGmpOff = 0xB52C;
-        constexpr size_t kLastBestAOff = 0x586C;
-        constexpr size_t kLastBestBOff = 0x5874;
         constexpr size_t kClearsOff = 0x656C;
-        constexpr size_t kFultonOff = 0x130;
-        constexpr size_t kLastScoreOff = 0x278;
         if (range_readable(save_block + kHeroismDeltaOff, 8)) {
             out.pw_heroism_delta =
                 *reinterpret_cast<volatile const int32_t*>(save_block + kHeroismDeltaOff);
@@ -539,23 +527,9 @@ bool poll_stats(GameStats& out)
             out.pw_gmp =
                 *reinterpret_cast<volatile const uint32_t*>(save_block + kGmpOff);
         }
-        if (range_readable(save_block + kLastBestAOff, 16)) {
-            out.pw_last_best_a =
-                *reinterpret_cast<volatile const uint32_t*>(save_block + kLastBestAOff);
-            out.pw_last_best_b =
-                *reinterpret_cast<volatile const uint32_t*>(save_block + kLastBestBOff);
-        }
         if (range_readable(save_block + kClearsOff, 4)) {
             out.pw_clears =
                 *reinterpret_cast<volatile const int32_t*>(save_block + kClearsOff);
-        }
-        if (range_readable(save_block + kLastScoreOff, 4)) {
-            out.pw_last_score =
-                *reinterpret_cast<volatile const uint32_t*>(save_block + kLastScoreOff);
-        }
-        if (range_readable(save_block + kFultonOff, 4)) {
-            out.pw_fulton =
-                *reinterpret_cast<volatile const int32_t*>(save_block + kFultonOff);
         }
         // Per-mission rank array (u16 by mission id; 0 = S, 0xFFFF = never
         // cleared). Ids past the live list read as zeros, so stop at the
@@ -663,7 +637,6 @@ bool poll_stats(GameStats& out)
             const uintptr_t player =
                 *reinterpret_cast<volatile const uintptr_t*>(arr);
             if (player) {
-                out.pw_chararray_ok = true;
                 if (range_readable(player + kHpOff, 4)) {
                     out.pw_player_hp = static_cast<int>(
                         *reinterpret_cast<volatile const int16_t*>(player + kHpOff));
@@ -701,11 +674,9 @@ bool poll_stats(GameStats& out)
     const auto seg_delta = [](int cur, int base) {
         return (cur < 0 || base < 0) ? 0 : cur - base;
     };
-    std::memcpy(out.seg_stage, out.pw_stage, sizeof(out.seg_stage));
     out.seg_headshots = seg_delta(out.pw_headshots, seg_base.pw_headshots);
     out.seg_kills = seg_delta(out.pw_kills, seg_base.pw_kills);
     out.seg_tranq = seg_delta(out.pw_tranq, seg_base.pw_tranq);
-    out.seg_fulton = seg_delta(out.pw_fulton_recoveries, seg_base.pw_fulton_recoveries);
     out.seg_heroism = out.pw_heroism - seg_base.pw_heroism;
 
     return any;
