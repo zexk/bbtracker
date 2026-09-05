@@ -1090,6 +1090,7 @@ void draw_mgspw_summary(const GameStats& stats)
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("this run", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableHeadersRow();
         const auto row = [&](const char* k, const char* v) {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
@@ -1141,6 +1142,7 @@ void draw_mgspw_summary(const GameStats& stats)
     if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableHeadersRow();
         for (const codename::ReqStatus& r : codename::elite_requirements_mgspw(stats)) {
             if (r.limit == 0) {
                 snprintf(buf, sizeof(buf), "%.0f", r.current);
@@ -1189,8 +1191,9 @@ void draw_mgspw_global(const GameStats& stats)
              (stats.pw_total_play / 60) % 60, stats.pw_total_play % 60);
     if (ImGui::BeginTable("pw_global", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("field", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+        ImGui::TableSetupColumn("career", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+        ImGui::TableHeadersRow();
         const auto row = [&](const char* k, const char* v) {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
@@ -1323,7 +1326,8 @@ void draw_mgspw_insignia(const GameStats& stats)
     if (ImGui::BeginTable("pw_insignia_stats", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("counter", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("next", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableHeadersRow();
         const ImVec4 pending(1, 1, 1, 0.35f);
         for (const auto& family : kFamilies) {
             const int have = codename::pw_insignia_progress(family.first_id, stats);
