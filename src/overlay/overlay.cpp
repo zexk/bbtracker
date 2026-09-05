@@ -1374,32 +1374,40 @@ void draw_mgspw_codenames(const GameStats& stats)
             owned += stats.pw_codename_state[id] & 1;
         }
         ImGui::SameLine();
-        ImGui::TextDisabled("%d / 24", owned);
+        ImGui::TextDisabled("- %d / 24 earned", owned);
     }
     if (ImGui::BeginTable("pw_class", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("weapon class", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 60.0f);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 60.0f);
-        for (int cls = 0; cls < 6; ++cls) {
-            const int value = axes.by_class[cls];
+        ImGui::TableSetupColumn("takedowns", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+        ImGui::TableSetupColumn("share", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+        ImGui::TableHeadersRow();
+        const auto share_row = [&](const char* label, int value, const ImVec4& share_color) {
             const double share = axes.total > 0 ? 100.0 * value / axes.total : 0.0;
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextColored(value > 0 ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : pending,
-                               "%s", codename::pw_class_name(cls));
+                               "%s", label);
             ImGui::TableNextColumn();
             ImGui::Text("%d", value);
             ImGui::TableNextColumn();
-            // An even spread is the goal, so the share is what to read.
-            ImGui::TextColored(value > 0 ? id_yellow : pending, "%.0f%%", share);
+            ImGui::TextColored(value > 0 ? share_color : pending, "%.0f%%", share);
+        };
+        // An even spread across the six is what "all weapons" wants, so the
+        // share column is the one to read.
+        for (int cls = 0; cls < 6; ++cls) {
+            share_row(codename::pw_class_name(cls), axes.by_class[cls], id_yellow);
         }
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextDisabled("total");
+        ImGui::TextDisabled("all");
         ImGui::TableNextColumn();
         ImGui::TextDisabled("%d", axes.total);
         ImGui::TableNextColumn();
-        ImGui::TextDisabled("%d/%d", axes.lethal, axes.nonlethal);
+        ImGui::TextDisabled("100%%");
+        // FOXHOUND is a non-lethal title: non-lethal must beat twice lethal.
+        share_row("lethal", axes.lethal, id_red);
+        share_row("non-lethal", axes.nonlethal,
+                  axes.nonlethal > 2 * axes.lethal ? id_green : id_red);
         ImGui::EndTable();
     }
 
@@ -1408,9 +1416,10 @@ void draw_mgspw_codenames(const GameStats& stats)
     const bool coop = stats.pw_camaraderie > 10000;
     if (ImGui::BeginTable("pw_ladder", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("grade", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("camaraderie", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-        ImGui::TableSetupColumn("heroism", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-        ImGui::TableSetupColumn("co-op", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+        ImGui::TableSetupColumn("camarad.", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+        ImGui::TableSetupColumn("heroism", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+        ImGui::TableSetupColumn("co-op", ImGuiTableColumnFlags_WidthFixed, 45.0f);
+        ImGui::TableHeadersRow();
         for (int g = 1; g <= 5; ++g) {
             const codename::PwGradeGate gate = codename::pw_grade_gate(g);
             const bool held = g <= grade.grade;
@@ -1423,34 +1432,26 @@ void draw_mgspw_codenames(const GameStats& stats)
             // at or below it.
             ImGui::TextColored(color, "%s%d", coop ? ">" : "<=", gate.camaraderie);
             ImGui::TableNextColumn();
-            ImGui::TextColored(color, "%d", gate.heroism);
+            ImGui::TextColored(color, ">%d", gate.heroism);
             ImGui::TableNextColumn();
-            ImGui::TextColored(color, "%.2f", gate.coop_ratio);
+            // Grade 3 and up want the ratio to reach the gate, 1 and 2 to pass it.
+            ImGui::TextColored(color, "%s%.2f", g >= 3 ? ">=" : ">", gate.coop_ratio);
         }
-        ImGui::EndTable();
-    }
-    if (ImGui::BeginTable("pw_ladder_have", 2,
-                          ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("held", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-        const auto row = [&](const char* key, int value) {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(key);
-            ImGui::TableNextColumn();
-            ImGui::Text("%d", value);
-        };
-        row("camaraderie", stats.pw_camaraderie);
-        row("heroism", stats.pw_heroism);
+        // The same three columns, holding what the profile has right now.
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("co-op ratio");
+        ImGui::TextDisabled("now");
+        ImGui::TableNextColumn();
+        ImGui::TextDisabled("%d", stats.pw_camaraderie);
+        ImGui::TableNextColumn();
+        ImGui::TextDisabled("%d", stats.pw_heroism);
         ImGui::TableNextColumn();
         if (stats.pw_codename_missions_required > 0) {
-            ImGui::Text("%d / %d", stats.pw_codename_missions_counted,
-                        stats.pw_codename_missions_required);
+            ImGui::TextDisabled("%.2f",
+                                static_cast<double>(stats.pw_codename_missions_counted)
+                                    / stats.pw_codename_missions_required);
         } else {
-            ImGui::TextColored(pending, "-");
+            ImGui::TextDisabled("-");
         }
         ImGui::EndTable();
     }
