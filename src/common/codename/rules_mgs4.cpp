@@ -110,19 +110,12 @@ std::span<const RankRule> mgs4_rules()
 
 std::optional<Match> evaluate_mgs4(const GameStats& s)
 {
-    for (const RankRule& rule : mgs4_rules()) {
-        if (rule_matches(s, rule)) return Match{rule.name, rule.kind};
-    }
-    return std::nullopt;
+    return first_match(s, mgs4_rules());
 }
 
 std::vector<Match> all_matches_mgs4(const GameStats& s)
 {
-    std::vector<Match> matches;
-    for (const RankRule& rule : mgs4_rules()) {
-        if (rule_matches(s, rule)) matches.push_back({rule.name, rule.kind});
-    }
-    return matches;
+    return all_matches(s, mgs4_rules());
 }
 
 std::vector<ReqStatus> elite_requirements_mgs4(const GameStats& s)

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include "../../common/area.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
 
@@ -258,12 +259,7 @@ bool poll_stats(GameStats& out)
             break;
         }
     }
-    static char last_area[8]{};
-    if (std::strcmp(area, last_area) != 0) {
-        LOG_INFO("area: %s", area);
-        std::memcpy(last_area, area, sizeof(last_area));
-    }
-    std::memcpy(out.area_code, area, sizeof(out.area_code));
+    set_area(out, area);
 
     return ranked_game(gametype);
 }

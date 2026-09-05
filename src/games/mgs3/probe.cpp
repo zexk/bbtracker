@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <iterator>
 
+#include "../../common/area.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
 
@@ -315,12 +316,7 @@ bool poll_stats(GameStats& out)
             break;
         }
     }
-    static char last_area[8]{};
-    if (std::strcmp(area, last_area) != 0) {
-        LOG_INFO("area: %s", area);
-        std::memcpy(last_area, area, sizeof(last_area));
-    }
-    std::memcpy(out.area_code, area, sizeof(out.area_code));
+    set_area(out, area);
 
     if (out.kills == 0 && out.alerts == 0 && out.saves == 0 && out.continues == 0
         && out.play_time_seconds == 0.0) {

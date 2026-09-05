@@ -10,6 +10,7 @@
 #include <string_view>
 #include <vector>
 
+#include "../../common/area.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
 
@@ -605,12 +606,7 @@ bool poll_stats(GameStats& out)
             stage[i] = '?';
         }
     }
-    static char last_stage[8] = {};
-    if (std::strcmp(stage, last_stage) != 0) {
-        LOG_INFO("mgs1 stage: %s", stage);
-        std::memcpy(last_stage, stage, sizeof(last_stage));
-    }
-    std::memcpy(out.area_code, stage, sizeof(out.area_code));
+    set_area(out, stage);
 
     return g_game_time_index >= 0 && gameplay && variant != PsxVariant::Unknown;
 }

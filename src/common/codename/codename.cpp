@@ -1,6 +1,7 @@
 #include "codename.h"
 
 #include <array>
+#include <algorithm>
 #include <cmath>
 
 #include "rules_mgs1.h"
@@ -109,15 +110,9 @@ bool rule_matches(const GameStats& s, const RankRule& r, bool skip_tier)
     return true;
 }
 
-namespace {
-
-constexpr std::array<RankRule, 0> kNone{};
-
-} // namespace
-
-std::optional<Match> evaluate_mgs3(const GameStats& s)
+std::optional<Match> first_match(const GameStats& s, std::span<const RankRule> rules)
 {
-    for (const RankRule& r : mgs3_rules()) {
+    for (const RankRule& r : rules) {
         if (rule_matches(s, r)) {
             return Match{r.name, r.kind};
         }
@@ -125,15 +120,25 @@ std::optional<Match> evaluate_mgs3(const GameStats& s)
     return std::nullopt;
 }
 
-std::vector<Match> all_matches_mgs3(const GameStats& s)
+std::vector<Match> all_matches(const GameStats& s, std::span<const RankRule> rules)
 {
     std::vector<Match> out;
-    for (const RankRule& r : mgs3_rules()) {
+    for (const RankRule& r : rules) {
         if (rule_matches(s, r)) {
             out.push_back(Match{r.name, r.kind});
         }
     }
     return out;
+}
+
+std::optional<Match> evaluate_mgs3(const GameStats& s)
+{
+    return first_match(s, mgs3_rules());
+}
+
+std::vector<Match> all_matches_mgs3(const GameStats& s)
+{
+    return all_matches(s, mgs3_rules());
 }
 
 const RankRule* find_mgs3(const char* name)
@@ -169,12 +174,7 @@ std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s)
 
 std::optional<Match> evaluate_mgs2(const GameStats& s)
 {
-    for (const RankRule& r : mgs2_rules()) {
-        if (rule_matches(s, r)) {
-            return Match{r.name, r.kind};
-        }
-    }
-    return std::nullopt;
+    return first_match(s, mgs2_rules());
 }
 
 namespace {
@@ -264,23 +264,26 @@ constexpr std::array<ReqRow, 6> kMg2Reqs{{
     {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
 }};
 
-bool all_pass(const std::vector<ReqStatus>& requirements)
+// MG1 and MG2 have a single elite rank each, earned by clearing every row of
+// the ladder. Extreme names it BIG BOSS, Easy names it FOX; no other
+// difficulty ranks at all.
+std::optional<Match> classic_elite(const GameStats& s, std::span<const ReqRow> rows)
 {
-    for (const ReqStatus& requirement : requirements) {
-        if (!requirement.pass) return false;
+    if (s.difficulty != Difficulty::Extreme && s.difficulty != Difficulty::Easy) {
+        return std::nullopt;
     }
-    return true;
+    const std::vector<ReqStatus> reqs = requirements_from_rows(s, rows, true);
+    if (!std::ranges::all_of(reqs, [](const ReqStatus& r) { return r.pass; })) {
+        return std::nullopt;
+    }
+    return Match{s.difficulty == Difficulty::Extreme ? "BIG BOSS" : "FOX", Kind::Elite};
 }
 
 } // namespace
 
 std::optional<Match> evaluate_mg1(const GameStats& s)
 {
-    if ((s.difficulty == Difficulty::Extreme || s.difficulty == Difficulty::Easy)
-        && all_pass(elite_requirements_mg1(s))) {
-        return Match{s.difficulty == Difficulty::Extreme ? "BIG BOSS" : "FOX", Kind::Elite};
-    }
-    return std::nullopt;
+    return classic_elite(s, kMg1Reqs);
 }
 
 std::vector<ReqStatus> elite_requirements_mg1(const GameStats& s)
@@ -290,11 +293,7 @@ std::vector<ReqStatus> elite_requirements_mg1(const GameStats& s)
 
 std::optional<Match> evaluate_mg2(const GameStats& s)
 {
-    if ((s.difficulty == Difficulty::Extreme || s.difficulty == Difficulty::Easy)
-        && all_pass(elite_requirements_mg2(s))) {
-        return Match{s.difficulty == Difficulty::Extreme ? "BIG BOSS" : "FOX", Kind::Elite};
-    }
-    return std::nullopt;
+    return classic_elite(s, kMg2Reqs);
 }
 
 std::vector<ReqStatus> elite_requirements_mg2(const GameStats& s)

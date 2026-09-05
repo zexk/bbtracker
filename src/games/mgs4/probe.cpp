@@ -6,6 +6,7 @@
 #include <cstring>
 #include <string_view>
 
+#include "../../common/area.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
 
@@ -77,12 +78,7 @@ bool poll_stats(GameStats& out)
     std::memcpy(stage, data + 0x034, 7);
     const size_t stage_length = std::char_traits<char>::length(stage);
     if (!ranked_stage({stage, stage_length})) return false;
-    static char last_stage[8]{};
-    if (std::strcmp(stage, last_stage) != 0) {
-        LOG_INFO("MGS4 area: %s", stage);
-        std::memcpy(last_stage, stage, sizeof(stage));
-    }
-    std::memcpy(out.area_code, stage, sizeof(stage));
+    set_area(out, stage);
     out.difficulty_raw = static_cast<uint8_t>(raw_difficulty);
     out.difficulty_game_byte = static_cast<uint8_t>(raw_difficulty);
     out.difficulty = difficulty(raw_difficulty);

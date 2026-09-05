@@ -102,6 +102,13 @@ bool cond_met(const GameStats& s, const Cond& c);
 
 bool rule_matches(const GameStats& s, const RankRule& r, bool skip_tier = false);
 
+// Rule tables are ordered best-first, so the first rule the stats satisfy is
+// the rank; all_matches reports every one, which the MGS3 and MGS4 panels use
+// to list the special ranks and feats earned alongside it.
+std::optional<Match> first_match(const GameStats& s, std::span<const RankRule> rules);
+
+std::vector<Match> all_matches(const GameStats& s, std::span<const RankRule> rules);
+
 std::optional<Match> evaluate_mgs3(const GameStats& s);
 
 std::vector<Match> all_matches_mgs3(const GameStats& s);
