@@ -54,6 +54,7 @@ if(WIN32)
     src/common/log.cpp
     src/common/codename/codename.cpp
     src/common/codename/rules_mgs4.cpp
+    src/common/codename/rules_mgspw.cpp
     src/common/codename/rules_mgs3.cpp
     src/common/codename/rules_mgs2.cpp
     src/common/codename/rules_mgs1.cpp
@@ -94,7 +95,8 @@ if(UNIX)
     src/common/codename/rules_mgs1_integral.cpp
     src/common/codename/rules_mgs2.cpp
     src/common/codename/rules_mgs3.cpp
-    src/common/codename/rules_mgs4.cpp)
+    src/common/codename/rules_mgs4.cpp
+    src/common/codename/rules_mgspw.cpp)
 
   function(bb_rules_test game)
     add_executable(rules_${game}_tests src/test/test_rules_${game}.cpp ${RULES_SOURCES})
