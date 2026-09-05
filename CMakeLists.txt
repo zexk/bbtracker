@@ -64,7 +64,7 @@ if(WIN32)
   target_link_libraries(core PUBLIC imgui minhook d3d11 d3d12 dxgi d3dcompiler dwmapi)
 
   function(bb_asi name label sources)
-    add_library(${name} SHARED ${sources})
+    add_library(${name} SHARED ${sources} src/games/asi_main.cpp)
     set_target_properties(${name} PROPERTIES PREFIX "" OUTPUT_NAME "bbtracker_${name}" SUFFIX ".asi")
     target_link_libraries(${name} PRIVATE core)
     target_compile_definitions(${name} PRIVATE BB_GAME_LABEL="${label}")
