@@ -1519,82 +1519,88 @@ void draw_mgspw_codenames(const GameStats& stats)
     ImGui::Spacing();
     const codename::PwGrade grade = codename::pw_grade(stats);
     const bool coop = stats.pw_camaraderie > 10000;
-    if (stats.pw_codename_result_ok) {
-        ImGui::Text("Projected grade %d / 5", grade.grade);
-        if (grade.blocker) {
-            // The blocker names an input; on its own it reads as a cut-off
-            // sentence, so it carries the two numbers that decide it. The
-            // cooperation ratio is the one gate that is not a big integer.
-            if (std::strncmp(grade.blocker, "mission ranks", 13) == 0) {
-                // A flag, not a counter: it has no numbers worth printing.
-                ImGui::TextWrapped("Next grade %d: %s", grade.next, grade.blocker);
-            } else {
-                char have[24], need[24];
-                if (grade.need < 10.0) {
-                    snprintf(have, sizeof(have), "%.2f", grade.have);
-                    snprintf(need, sizeof(need), "%.2f", grade.need);
-                } else {
-                    format_thousands(grade.have, have, sizeof(have));
-                    format_thousands(grade.need, need, sizeof(need));
-                }
-                ImGui::TextWrapped("Next grade %d: %s %s (now %s)", grade.next, grade.blocker,
-                                   need, have);
-            }
-        }
+    // The grade being worked towards: the first one that fails, the one held
+    // once that is 5, and 1 before any evaluation has happened.
+    const int target = grade.next ? grade.next : grade.grade ? grade.grade : 1;
+    const codename::PwGradeGate gate = codename::pw_grade_gate(target);
+    if (!stats.pw_codename_result_ok) {
+        // Nothing has been evaluated yet, so the gates below are what grade 1
+        // will be judged on rather than a standing on them.
+        ImGui::TextDisabled("No grade yet | finish a mission to be evaluated");
+    } else if (grade.next) {
+        ImGui::TextColored(grade.grade ? id_green : pending, "Grade %d / 5", grade.grade);
+        ImGui::SameLine();
+        ImGui::TextColored(id_yellow, "| next: %d", grade.next);
     } else {
-        ImGui::TextDisabled("Grade pending mission evaluation");
+        ImGui::TextColored(id_green, "Grade 5 / 5 | highest grade held");
     }
-    if (ImGui::BeginTable("pw_ladder", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("grade", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("camarad.", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-        ImGui::TableSetupColumn("heroism", ImGuiTableColumnFlags_WidthFixed, 60.0f);
-        ImGui::TableSetupColumn("co-op", ImGuiTableColumnFlags_WidthFixed, 45.0f);
+    char header[32];
+    snprintf(header, sizeof(header), "grade %d needs", target);
+    if (ImGui::BeginTable("pw_ladder", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn(header, ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("now", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+        ImGui::TableSetupColumn("goal", ImGuiTableColumnFlags_WidthFixed, 70.0f);
         ImGui::TableHeadersRow();
-        for (int g = 1; g <= 5; ++g) {
-            const codename::PwGradeGate gate = codename::pw_grade_gate(g);
-            const bool held = g <= grade.grade;
-            const ImVec4 color = held ? id_green : g == grade.next ? id_yellow : pending;
+        // A gate reads red only once it is known to fail: an unread counter is
+        // no standing at all, and a gate this title is not judged on is spent
+        // ink either way.
+        const auto gate_row = [&](const char* label, bool known, bool judged,
+                                  const char* now, const char* goal, bool pass) {
+            const ImVec4 color = !known || !judged ? pending : pass ? id_green : id_red;
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextColored(color, "%d", g);
+            ImGui::TextColored(judged ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : pending,
+                               "%s", label);
             ImGui::TableNextColumn();
-            // A cooperation title needs camaraderie above the step, a solo one
-            // at or below it.
-            char gate_value[24];
-            format_thousands(gate.camaraderie, gate_value, sizeof(gate_value));
-            ImGui::TextColored(color, "%s%s", coop ? ">" : "<=", gate_value);
+            ImGui::TextColored(color, "%s", known ? now : "-");
             ImGui::TableNextColumn();
-            format_thousands(gate.heroism, gate_value, sizeof(gate_value));
-            ImGui::TextColored(color, ">%s", gate_value);
-            ImGui::TableNextColumn();
-            // Grade 3 and up want the ratio to reach the gate, 1 and 2 to pass it.
-            ImGui::TextColored(color, "%s%.2f", g >= 3 ? ">=" : ">", gate.coop_ratio);
-        }
-        // The same three columns, holding what the profile has right now.
-        ImGui::TableNextRow();
-        ImGui::TableNextColumn();
-        ImGui::TextDisabled("now");
-        ImGui::TableNextColumn();
-        char now_value[24];
-        if (stats.pw_camaraderie < 0) {
-            // The aggregate is only there once the native snapshot is read.
-            ImGui::TextDisabled("-");
+            ImGui::TextColored(color, "%s", goal);
+        };
+        char now_value[24], goal_value[32], gate_text[24];
+        // A cooperation title needs camaraderie above the step, a solo one at
+        // or below it: the profile picks which of the two this is.
+        format_thousands(gate.camaraderie, gate_text, sizeof(gate_text));
+        snprintf(goal_value, sizeof(goal_value), "%s%s", coop ? ">" : "<=", gate_text);
+        format_thousands(stats.pw_camaraderie, now_value, sizeof(now_value));
+        gate_row("camaraderie", stats.pw_camaraderie >= 0, true, now_value, goal_value,
+                 coop ? stats.pw_camaraderie > gate.camaraderie
+                      : stats.pw_camaraderie <= gate.camaraderie);
+        // Only all-weapons titles (FOXHOUND among them) carry the Heroism floor.
+        if (grade.all_weapons) {
+            format_thousands(gate.heroism, gate_text, sizeof(gate_text));
+            snprintf(goal_value, sizeof(goal_value), ">%s", gate_text);
         } else {
-            format_thousands(stats.pw_camaraderie, now_value, sizeof(now_value));
-            ImGui::TextDisabled("%s", now_value);
+            // The title this profile projects is not judged on Heroism at all.
+            snprintf(goal_value, sizeof(goal_value), "any");
         }
-        ImGui::TableNextColumn();
         format_thousands(stats.pw_heroism, now_value, sizeof(now_value));
-        ImGui::TextDisabled("%s", now_value);
-        ImGui::TableNextColumn();
-        if (stats.pw_codename_missions_required > 0) {
-            ImGui::TextDisabled("%.2f",
-                                static_cast<double>(stats.pw_codename_missions_counted)
-                                    / stats.pw_codename_missions_required);
-        } else {
-            ImGui::TextDisabled("-");
+        gate_row("heroism", true, grade.all_weapons, now_value, goal_value,
+                 stats.pw_heroism > gate.heroism);
+        // Grade 3 and up want the ratio to reach the gate, 1 and 2 to pass it.
+        const bool ratio_known = stats.pw_codename_missions_required > 0;
+        const double ratio = ratio_known
+            ? static_cast<double>(stats.pw_codename_missions_counted)
+                / stats.pw_codename_missions_required
+            : 0.0;
+        snprintf(now_value, sizeof(now_value), "%.2f", ratio);
+        snprintf(goal_value, sizeof(goal_value), "%s%.2f", target >= 3 ? ">=" : ">",
+                 gate.coop_ratio);
+        gate_row("co-op ratio", ratio_known, true, now_value, goal_value,
+                 target >= 3 ? ratio >= gate.coop_ratio : ratio > gate.coop_ratio);
+        // The last two grades also want the game's own mission-rank flag, which
+        // is a verdict the evaluator hands back rather than a counter.
+        if (target >= 4) {
+            const bool flag = target == 5 ? stats.pw_codename_grade5_ok
+                                          : stats.pw_codename_grade4_ok;
+            gate_row("mission ranks", stats.pw_codename_result_ok, true,
+                     flag ? "met" : "not met", "met", flag);
         }
         ImGui::EndTable();
+    }
+    if (stats.pw_codename_missions_required > 0) {
+        ImGui::TextDisabled("ratio = %d / %d missions counted",
+                            stats.pw_codename_missions_counted,
+                            stats.pw_codename_missions_required);
     }
 }
 

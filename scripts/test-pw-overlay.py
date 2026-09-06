@@ -84,9 +84,12 @@ int main() {
     assert(codenames.find("120") != std::string::npos);
     assert(codenames.find("100%") != std::string::npos);
     assert(codenames.find("109%") == std::string::npos); // Ungrouped slot belongs in lethality denominator.
-    assert(codenames.find("Grade pending mission evaluation") != std::string::npos);
+    assert(codenames.find("No grade yet") != std::string::npos);
+    assert(codenames.find("grade 1 needs") != std::string::npos);
     stats.pw_codename_result_ok = true;
-    assert(draw(stats, 3).find("Projected grade") != std::string::npos);
+    codenames = draw(stats, 3);
+    assert(codenames.find("Grade 0 / 5") != std::string::npos);
+    assert(codenames.find("co-op ratio") != std::string::npos);
     for (int scroll : {0, 1, 1}) draw(stats, 1, scroll);
     bool scrolled = false;
     for (auto* window : ImGui::GetCurrentContext()->Windows)

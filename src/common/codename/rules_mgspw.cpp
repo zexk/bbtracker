@@ -393,10 +393,11 @@ PwGrade pw_grade(const GameStats& s)
 {
     PwGrade out;
     const PwProfile p = pw_profile(s);
+    const bool all_weapons = p.dominant == WeaponClass::All;
+    out.all_weapons = all_weapons;
     if (p.total <= 0 || !s.pw_codename_result_ok) {
         return out;
     }
-    const bool all_weapons = p.dominant == WeaponClass::All;
     const bool coop = s.pw_camaraderie > 10000;
     const double ratio = pw_coop_ratio(s);
     const int heroism = s.pw_heroism;

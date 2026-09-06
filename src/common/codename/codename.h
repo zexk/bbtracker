@@ -191,6 +191,8 @@ struct PwGrade {
     const char* blocker = nullptr;  // what stops `next`, null when nothing does
     double have = 0.0;    // current value of the blocking input
     double need = 0.0;    // value it must reach
+    // All-weapons titles are the only ones the Heroism floor gates.
+    bool all_weapons = false;
 };
 
 PwGrade pw_grade(const GameStats& s);
