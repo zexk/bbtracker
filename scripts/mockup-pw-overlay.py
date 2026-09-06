@@ -206,18 +206,26 @@ void draw_window(const GameStats& stats, int tab)
     ImGui::End();
 }
 
-int main(int argc, char** argv)
+// A save the probe has only partly resolved: what the panels look like on a
+// fresh profile, before the descriptors are found and with nothing earned.
+GameStats fresh_profile()
 {
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = nullptr;
-    io.DisplaySize = ImVec2(480, 900);
-    io.DeltaTime = 1.0f / 60;
-    io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
-    apply_game_theme();
+    GameStats stats{};
+    stats.pw_stage_play = 300 * 34;
+    stats.pw_total_play = 41 * 60;
+    std::strcpy(stats.pw_stage, "w01s03a");
+    stats.pw_mission_id = 3;
+    stats.pw_player_hp = 6600;
+    stats.pw_player_max_hp = 8000;
+    stats.pw_heroism = 210;
+    stats.pw_gmp = 12500;
+    return stats;
+}
 
-    // A mid-run profile: a mission underway on a career that is most of the
-    // way to FOXHOUND, so every state the panels colour for is on screen.
+// A mid-run profile: a mission underway on a career that is most of the
+// way to FOXHOUND, so every state the panels colour for is on screen.
+GameStats mid_profile()
+{
     GameStats stats{};
     stats.pw_stage_play = 300 * 227 + 140;
     stats.pw_total_play = 41 * 3600 + 12 * 60;
@@ -281,7 +289,59 @@ int main(int argc, char** argv)
     stats.pw_codename_result_ok = true;
     stats.pw_codename_missions_required = 20;
     stats.pw_codename_missions_counted = 17;
+    return stats;
+}
 
+// The end state: FOXHOUND at grade 5, on a clean run, every family done.
+GameStats elite_profile()
+{
+    GameStats stats = mid_profile();
+    stats.pw_stage_play = 300 * 96;
+    stats.pw_cur_rank = 0;
+    stats.pw_cur_best = 300 * 118;
+    stats.pw_player_hp = 8000;
+    stats.pw_player_max_hp = 8000;
+    stats.pw_m_kills = 0;
+    stats.pw_m_headshots = 0;
+    stats.pw_m_tranq = 24;
+    stats.pw_kills = 0;
+    stats.pw_body_kills = 0;
+    stats.pw_heroism = 892000;
+    stats.pw_camaraderie = 640000;
+    stats.pw_insignias = 110;
+    stats.pw_holdups = 1400;
+    stats.pw_headshots = 4200;
+    stats.pw_fulton_recoveries = 2100;
+    stats.pw_nokill_clears = 600;
+    stats.pw_noalert_clears = 600;
+    stats.pw_noitem_clears = 600;
+    // Every class carried, non-lethal throughout: the "all weapons" spread
+    // FOXHOUND is keyed on.
+    for (int slot = 0; slot < 12; ++slot) {
+        stats.pw_codename_axes[0][slot] = 0;
+        stats.pw_codename_axes[1][slot] = 300;
+        stats.pw_codename_axes[2][slot] = 120;
+    }
+    for (int id = 1; id <= 24; ++id) stats.pw_codename_state[id] = 1;
+    stats.pw_codename_grade4_ok = true;
+    stats.pw_codename_grade5_ok = true;
+    stats.pw_codename_missions_counted = 40;
+    return stats;
+}
+
+int main(int argc, char** argv)
+{
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+    io.DisplaySize = ImVec2(480, 900);
+    io.DeltaTime = 1.0f / 60;
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
+    apply_game_theme();
+
+    const GameStats profiles[] = {fresh_profile(), mid_profile(), elite_profile()};
+    for (int profile = 0; profile < 3; ++profile) {
+    const GameStats& stats = profiles[profile];
     for (int tab = 0; tab < 4; ++tab) {
         Canvas canvas;
         canvas.init(int(io.DisplaySize.x), int(io.DisplaySize.y));
@@ -299,8 +359,9 @@ int main(int argc, char** argv)
         }
         raster(canvas, ImGui::GetDrawData());
         char path[512];
-        snprintf(path, sizeof(path), "%s/tab%d.ppm", argv[1], tab);
+        snprintf(path, sizeof(path), "%s/%d-%d.ppm", argv[1], profile, tab);
         write_ppm(canvas, path, int(g_panel_size.x) + 48, int(g_panel_size.y) + 48);
+    }
     }
     ImGui::DestroyContext();
     (void)argc;
@@ -339,10 +400,10 @@ with tempfile.TemporaryDirectory() as directory:
     ], check=True)
     subprocess.run([str(path / "mock"), str(path)], check=True)
     out_dir.mkdir(parents=True, exist_ok=True)
-    for name in ("summary", "career", "insignia", "codenames"):
-        raw = (path / f"tab{('summary', 'career', 'insignia', 'codenames').index(name)}.ppm").read_bytes()
-        parts = raw.split(b"\n", 3)
-        width, height = (int(value) for value in parts[1].split())
-        target = out_dir / f"pw-{name}.png"
-        png(target, width, height, parts[3], 2)
-        print(target)
+    for profile, profile_name in enumerate(("fresh", "mid", "elite")):
+        for tab, tab_name in enumerate(("summary", "career", "insignia", "codenames")):
+            parts = (path / f"{profile}-{tab}.ppm").read_bytes().split(b"\n", 3)
+            width, height = (int(value) for value in parts[1].split())
+            target = out_dir / f"pw-{profile_name}-{tab_name}.png"
+            png(target, width, height, parts[3], 2)
+            print(target)
