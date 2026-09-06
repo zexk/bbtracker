@@ -1192,7 +1192,7 @@ void draw_mgspw_summary(const GameStats& stats)
     if (ImGui::BeginTable("pw_current", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("this run", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("mission", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn("mission", ImGuiTableColumnFlags_WidthFixed, 84.0f);
         ImGui::TableHeadersRow();
         // The game keeps its own per-mission tally in each stat descriptor
         // (+0x18); it beats the client-side segment delta because the game
@@ -1230,8 +1230,7 @@ void draw_mgspw_summary(const GameStats& stats)
         // Full health is the deployed soldier's own maximum, not a constant.
         if (stats.pw_player_max_hp > 0) {
             const int hp_pct = stats.pw_player_hp * 100 / stats.pw_player_max_hp;
-            snprintf(buf, sizeof(buf), "%d%% (%d/%d)", hp_pct,
-                     stats.pw_player_hp, stats.pw_player_max_hp);
+            snprintf(buf, sizeof(buf), "%d%%", hp_pct);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextUnformatted("HP");
@@ -1307,7 +1306,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
     if (ImGui::BeginTable("pw_global", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("career", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("total", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn("total", ImGuiTableColumnFlags_WidthFixed, 126.0f);
         ImGui::TableHeadersRow();
         const auto count = [&](const char* label, int value) {
             if (value < 0) {
@@ -1319,7 +1318,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         };
         format_time(stats.pw_total_play, buf, sizeof(buf));
         stat_row("play time", buf);
-        snprintf(buf, sizeof(buf), "%d (%+d last)", stats.pw_heroism,
+        snprintf(buf, sizeof(buf), "%d (%+d)", stats.pw_heroism,
                  stats.pw_heroism_delta);
         stat_row("heroism", buf);
         snprintf(buf, sizeof(buf), "%u", stats.pw_gmp);
@@ -1409,7 +1408,7 @@ void draw_mgspw_insignia(const GameStats& stats)
     if (ImGui::BeginTable("pw_insignia_stats", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("counter", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("next", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("next", ImGuiTableColumnFlags_WidthFixed, 100.0f);
         ImGui::TableHeadersRow();
         const ImVec4 pending = unset_color();
         for (const auto& family : kFamilies) {
@@ -1621,7 +1620,7 @@ void draw_panel()
                             ImGuiCond_FirstUseEver, ImVec2(0.0f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(380, 480), ImGuiCond_FirstUseEver);
     if (g_game == Game::MGSPW) {
-        ImGui::SetNextWindowSizeConstraints(ImVec2(420, 0), ImVec2(420, FLT_MAX));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(320, 0), ImVec2(320, FLT_MAX));
     }
     ImGui::Begin(panel_title, &g.show,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);

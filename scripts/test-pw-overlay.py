@@ -74,7 +74,7 @@ int main() {
     summary = draw(stats, 0);
     assert(summary.find("Best rank S") != std::string::npos);
     assert(summary.find("Best time 1:01.150") != std::string::npos);
-    assert(summary.find("50% (4500/9000)") != std::string::npos);
+    assert(summary.find("50%") != std::string::npos);
     stats.pw_insignias = 110;
     stats.pw_headshots = 1000000;
     assert(draw(stats, 2).find("110 / 110 insignias earned") != std::string::npos);
