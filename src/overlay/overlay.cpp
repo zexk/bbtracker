@@ -880,6 +880,18 @@ void stat_row(const char* key, const char* value)
     ImGui::TextUnformatted(value);
 }
 
+// A row whose value the probe has not resolved. The label stays readable —
+// the row is still telling you the counter exists — and the dash reads as
+// absent rather than as a value.
+void unset_row(const char* key)
+{
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::TextUnformatted(key);
+    ImGui::TableNextColumn();
+    ImGui::TextDisabled("-");
+}
+
 // Same row, dimmed: context the panel shows but does not rank on.
 void dim_row(const char* key, const char* value)
 {
@@ -1210,7 +1222,7 @@ void draw_mgspw_summary(const GameStats& stats)
         };
         clean_row("kills", stats.pw_m_kills, stats.seg_kills);
         run_stat("headshots", stats.pw_m_headshots, stats.seg_headshots);
-        if (stats.pw_m_alerts < 0) stat_row("alerts", "-");
+        if (stats.pw_m_alerts < 0) unset_row("alerts");
         else clean_row("alerts", stats.pw_m_alerts, 0);
         run_stat("tranq", stats.pw_m_tranq, stats.seg_tranq);
         snprintf(buf, sizeof(buf), "%+d", stats.seg_heroism);
@@ -1227,7 +1239,7 @@ void draw_mgspw_summary(const GameStats& stats)
             ImGui::TextColored(hp_pct >= 50 ? id_green : hp_pct >= 25 ? id_yellow : id_red,
                                "%s", buf);
         } else {
-            stat_row("HP", "-");
+            unset_row("HP");
         }
         ImGui::EndTable();
     }
@@ -1245,11 +1257,24 @@ void draw_mgspw_summary(const GameStats& stats)
             } else {
                 snprintf(buf, sizeof(buf), "%.0f%s / %.0f%s", r.current, pct, r.limit, pct);
             }
+            // A goal to reach and a limit to stay under fail differently: not
+            // having reached a goal yet is progress, so it reads as pending
+            // until it is close, while going over a limit is a real red.
+            const auto op = static_cast<codename::Op>(r.op);
+            const bool reach = op == codename::Op::Ge || op == codename::Op::Gt;
+            const bool near_limit = !reach && r.limit != 0 && r.current >= r.limit * 0.75;
+            // A limit that fails at zero has nothing under it yet: the spread
+            // rules fail an empty profile, which is no data rather than a
+            // broken limit.
+            const ImVec4 color = r.pass ? (near_limit ? id_yellow : id_green)
+                : !reach                ? (r.current > 0 ? id_red : unset_color())
+                : r.limit > 0 && r.current >= r.limit * 0.5 ? id_yellow
+                                                            : unset_color();
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(r.label);
             ImGui::TableNextColumn();
-            ImGui::TextColored(r.pass ? id_green : id_red, "%s", buf);
+            ImGui::TextColored(color, "%s", buf);
         }
         // Context, not a requirement: the counters the axes are read from.
         const auto plain = [&](const char* key, int value) {
@@ -1286,7 +1311,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         ImGui::TableHeadersRow();
         const auto count = [&](const char* label, int value) {
             if (value < 0) {
-                stat_row(label, "-");
+                unset_row(label);
             } else {
                 snprintf(buf, sizeof(buf), "%d", value);
                 stat_row(label, buf);
@@ -1319,7 +1344,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
                      stats.pw_damage_taken / 8000.0);
             stat_row("damage taken", buf);
         } else {
-            stat_row("damage taken", "-");
+            unset_row("damage taken");
         }
         ImGui::EndTable();
     }
@@ -1380,6 +1405,7 @@ void draw_mgspw_insignia(const GameStats& stats)
         ImGui::PopStyleColor();
     }
     ImGui::Spacing();
+    bool unresolved = false;
     if (ImGui::BeginTable("pw_insignia_stats", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("counter", ImGuiTableColumnFlags_WidthStretch);
@@ -1407,6 +1433,7 @@ void draw_mgspw_insignia(const GameStats& stats)
             ImGui::TextUnformatted(family.label);
             ImGui::TableNextColumn();
             if (have < 0) {
+                unresolved = true;
                 ImGui::TextColored(pending, "-");
             } else if (target < 0) {
                 ImGui::TextColored(id_green, "%d  done", have);
@@ -1416,6 +1443,11 @@ void draw_mgspw_insignia(const GameStats& stats)
             }
         }
         ImGui::EndTable();
+    }
+    // Only worth saying while something is missing; on a resolved profile the
+    // dash never appears.
+    if (unresolved) {
+        ImGui::TextDisabled("- = counter not resolved yet");
     }
 }
 
@@ -1456,7 +1488,10 @@ void draw_mgspw_codenames(const GameStats& stats)
             ImGui::TextColored(value > 0 ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : pending,
                                "%s", label);
             ImGui::TableNextColumn();
-            ImGui::Text("%d", value);
+            // A zero is a class not carried, not a reading: it dims with its
+            // label rather than standing out as a number.
+            if (value > 0) ImGui::Text("%d", value);
+            else ImGui::TextDisabled("0");
             ImGui::TableNextColumn();
             if (total > 0) ImGui::TextColored(value > 0 ? share_color : pending, "%.0f%%", share);
             else ImGui::TextDisabled("-");
@@ -1542,8 +1577,13 @@ void draw_mgspw_codenames(const GameStats& stats)
         ImGui::TextDisabled("now");
         ImGui::TableNextColumn();
         char now_value[24];
-        format_thousands(stats.pw_camaraderie, now_value, sizeof(now_value));
-        ImGui::TextDisabled("%s", now_value);
+        if (stats.pw_camaraderie < 0) {
+            // The aggregate is only there once the native snapshot is read.
+            ImGui::TextDisabled("-");
+        } else {
+            format_thousands(stats.pw_camaraderie, now_value, sizeof(now_value));
+            ImGui::TextDisabled("%s", now_value);
+        }
         ImGui::TableNextColumn();
         format_thousands(stats.pw_heroism, now_value, sizeof(now_value));
         ImGui::TextDisabled("%s", now_value);
