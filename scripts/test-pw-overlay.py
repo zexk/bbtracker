@@ -30,7 +30,7 @@ bool (*g_clock_fn)(uint32_t&) = nullptr;
 const char* mgspw_area_name(const char*, int) { return "Puerto del Alba"; }
 '''
 code += block("struct IdColors", "void checklist")
-code += block("void draw_mgspw_summary", "void draw_panel")
+code += block("void draw_mgspw_run", "void draw_panel")
 code += r'''
 std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     ImGui::NewFrame();
@@ -58,6 +58,7 @@ int main() {
     unsigned char* pixels; int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
     GameStats stats;
+    stats.pw_in_mission = true;
     for (int tab = 0; tab < 4; ++tab) draw(stats, tab);
     auto summary = draw(stats, 0);
     // Unknown HP is not zero health. Scoped to the HP row: the requirements
@@ -75,6 +76,14 @@ int main() {
     assert(summary.find("Best rank S") != std::string::npos);
     assert(summary.find("Best time 1:01.150") != std::string::npos);
     assert(summary.find("50%") != std::string::npos);
+    // Out of a mission the run half is not drawn: its counters still hold the
+    // last sortie's tally, so none of them may read as this run.
+    GameStats idle = stats;
+    idle.pw_in_mission = false;
+    const auto menu = draw(idle, 0);
+    assert(menu.find("No mission running") != std::string::npos);
+    assert(menu.find("headshots") == std::string::npos);
+    assert(menu.find("FOX / FOXHOUND") != std::string::npos);
     stats.pw_insignias = 110;
     stats.pw_headshots = 1000000;
     assert(draw(stats, 2).find("110 / 110 insignias earned") != std::string::npos);

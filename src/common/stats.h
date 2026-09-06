@@ -92,6 +92,9 @@ struct GameStats {
     uint32_t pw_stage_play = 0;       // [SAVEROOT+0x88] stage play, ticks fast (ms?)
     char pw_stage[32] = {};           // [SAVEROOT+0x54] stage string
     int pw_region_id = -1;            // live region label key, st_regionNNNN
+    // A sortie is running: PW_REGIONOBJECT resolves per area and is null in
+    // menus, the lobby and results, so the live run values mean something.
+    bool pw_in_mission = false;
     int pw_player_hp = 0;             // [CHARARRAY[0]+0x11BE] u16, regenerates
     // [CHARARRAY[0]+0x11C0] u16. Full health is per soldier, not a constant
     // 8000: PW lets you deploy any MSF member and they do not share a maximum.

@@ -45,7 +45,7 @@ const char* mgspw_area_name(const char*, int) { return "El Cenagal: Jungle"; }
 '''
 code += block("void apply_game_theme()\n{", "bool init_imgui(IDXGISwapChain* swap_chain)")
 code += block("struct IdColors", "void checklist")
-code += block("void draw_mgspw_summary", "void draw_panel")
+code += block("void draw_mgspw_run", "void draw_panel")
 code += r'''
 // --- software rasterizer -------------------------------------------------
 // Enough of a renderer to look at: bilinear-sampled textured triangles with
@@ -214,6 +214,7 @@ GameStats fresh_profile()
     stats.pw_stage_play = 300 * 34;
     stats.pw_total_play = 41 * 60;
     std::strcpy(stats.pw_stage, "w01s03a");
+    stats.pw_in_mission = true;
     stats.pw_mission_id = 3;
     stats.pw_player_hp = 6600;
     stats.pw_player_max_hp = 8000;
@@ -230,6 +231,7 @@ GameStats mid_profile()
     stats.pw_stage_play = 300 * 227 + 140;
     stats.pw_total_play = 41 * 3600 + 12 * 60;
     std::strcpy(stats.pw_stage, "w01s04a");
+    stats.pw_in_mission = true;
     stats.pw_region_id = 3;
     stats.pw_mission_id = 42;
     stats.pw_cur_rank = 1;

@@ -641,6 +641,14 @@ bool poll_stats(GameStats& out)
         }
     }
 
+    // A sortie is only running while the region object resolves: it is null in
+    // the lobby, at Mother Base and on the results screen, where the live run
+    // values are the last mission's leftovers. Without the pattern, fall back
+    // to the stage code, since gameplay areas are wNNsNN and menus are words.
+    out.pw_in_mission = g_region_object
+        ? out.pw_region_id >= 0
+        : (out.pw_stage[0] == 'w' && out.pw_stage[1] >= '0' && out.pw_stage[1] <= '9');
+
     // Per-sortie segment: latch career baselines whenever the stage
     // string changes. Careers land at results tally (actions) or lobby
     // exit (heroism/XP/GMP), so segment deltas appear then, not live

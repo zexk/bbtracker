@@ -1135,12 +1135,12 @@ constexpr RequirementsFn kRequirementsFns[] = {
 static_assert(std::size(kEvaluateFns) == 7);
 static_assert(std::size(kRequirementsFns) == 7);
 
-void draw_mgspw_summary(const GameStats& stats)
+// The live half of the Summary: this sortie's clock and tally. Only drawn while
+// a mission is running, so nothing here is ever the previous run's leftovers.
+// Named rather than read from g_game: scripts/test-pw-overlay.py compiles
+// these panels without the hook that owns it.
+void draw_mgspw_run(const GameStats& stats)
 {
-    // The run clock is the centrepiece; the codename it all feeds lives on
-    // its own tab.
-    // Named rather than read from g_game: scripts/test-pw-overlay.py compiles
-    // these panels without the hook that owns it.
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     // Read straight from the game each frame rather than from the 10 Hz stats
     // snapshot, so the milliseconds move smoothly. The game ticks this at
@@ -1242,11 +1242,28 @@ void draw_mgspw_summary(const GameStats& stats)
         }
         ImGui::EndTable();
     }
+}
+
+void draw_mgspw_summary(const GameStats& stats)
+{
+    // The run clock is the centrepiece; the codename it all feeds lives on
+    // its own tab.
+    const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
+    char buf[64];
+    if (stats.pw_in_mission) {
+        draw_mgspw_run(stats);
+    } else {
+        // Between sorties the clock is stopped and every per-mission counter
+        // still holds the last run's tally, so none of it is drawn: the career
+        // requirements below are what still means something here.
+        ImGui::TextDisabled("No mission running");
+        ImGui::Separator();
+    }
 
     ImGui::Spacing();
     if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("have / need", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("have / need", ImGuiTableColumnFlags_WidthFixed, 100.0f);
         ImGui::TableHeadersRow();
         for (const codename::ReqStatus& r : codename::elite_requirements_mgspw(stats)) {
             const char* pct =
