@@ -14,6 +14,7 @@
 
 #include <cstdlib>
 #include <cfloat>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -828,7 +829,9 @@ IdColors id_colors(Game game)
     case Game::MGS2: return {{0.42f, 0.82f, 0.52f, 1}, {0.92f, 0.70f, 0.24f, 1}, {0.76f, 0.19f, 0.11f, 1}};
     case Game::MGS3: return {{0.66f, 0.78f, 0.42f, 1}, {0.88f, 0.72f, 0.28f, 1}, {0.82f, 0.32f, 0.24f, 1}};
     case Game::MGS4: return {{0.55f, 0.78f, 0.82f, 1}, {0.90f, 0.72f, 0.28f, 1}, {0.88f, 0.30f, 0.24f, 1}};
-    case Game::MGSPW: return {{0.76f, 0.80f, 0.66f, 1}, {0.85f, 0.75f, 0.42f, 1}, {0.89f, 0.13f, 0.15f, 1}};
+    // Green has to read as green next to the khaki body text, so it is
+    // pushed well off the theme's own colour rather than tinted with it.
+    case Game::MGSPW: return {{0.44f, 0.85f, 0.44f, 1}, {0.85f, 0.75f, 0.42f, 1}, {0.89f, 0.13f, 0.15f, 1}};
     }
     return {{0.42f, 0.90f, 0.45f, 1}, {1.0f, 0.82f, 0.25f, 1}, {0.95f, 0.35f, 0.35f, 1}};
 }
@@ -838,6 +841,19 @@ IdColors id_colors(Game game)
 ImVec4 unset_color()
 {
     return ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+}
+
+// Thousands as "50k" / "12.8k". The PW grade gates run to six figures, which
+// is more digits than the columns they sit in can carry.
+void format_thousands(double value, char* buf, size_t len)
+{
+    if (value < 1000) {
+        snprintf(buf, len, "%.0f", value);
+    } else if (std::fmod(value, 1000.0) == 0.0 || value >= 100000) {
+        snprintf(buf, len, "%.0fk", value / 1000.0);
+    } else {
+        snprintf(buf, len, "%.1fk", value / 1000.0);
+    }
 }
 
 // Up/Down move a scrolling panel by eight lines a press.
@@ -1122,6 +1138,8 @@ void draw_mgspw_summary(const GameStats& stats)
         g_clock_fn(ticks);
     }
     const unsigned long long stage_ms = static_cast<unsigned long long>(ticks) * 1000ULL / 300ULL;
+    const unsigned long long best_ms =
+        static_cast<unsigned long long>(stats.pw_cur_best) * 1000ULL / 300ULL;
     ImGui::SetWindowFontScale(2.0f);
     ImGui::Text("%llu:%02llu.%03llu", stage_ms / 60000, (stage_ms / 1000) % 60,
                 stage_ms % 1000);
@@ -1135,13 +1153,24 @@ void draw_mgspw_summary(const GameStats& stats)
         const char* rank = stats.pw_cur_rank >= 0 && stats.pw_cur_rank < 4
             ? rank_names[stats.pw_cur_rank] : "-";
         if (stats.pw_cur_best) {
-            const unsigned long long best_ms =
-                static_cast<unsigned long long>(stats.pw_cur_best) * 1000ULL / 300ULL;
             // Rank and time are separate bests and may come from different
             // runs, so they are labelled apart rather than read as one result.
             ImGui::TextDisabled("Mission %d | Best rank %s", stats.pw_mission_id, rank);
             ImGui::TextDisabled("Best time %llu:%02llu.%03llu", best_ms / 60000, (best_ms / 1000) % 60,
                                 best_ms % 1000);
+            // How the clock above stands against that record. The clock itself
+            // stays neutral: it is the reading, this is the judgement of it.
+            const double delta = (double(stage_ms) - double(best_ms)) / 1000.0;
+            const double size = delta < 0 ? -delta : delta;
+            char gap[24];
+            if (size < 60.0) {
+                snprintf(gap, sizeof(gap), "%c%.1fs", delta < 0 ? '-' : '+', size);
+            } else {
+                snprintf(gap, sizeof(gap), "%c%d:%04.1f", delta < 0 ? '-' : '+',
+                         int(size) / 60, std::fmod(size, 60.0));
+            }
+            ImGui::SameLine();
+            ImGui::TextColored(delta <= 0 ? id_green : id_red, "%s", gap);
         } else {
             ImGui::TextDisabled("Mission %d | No time recorded", stats.pw_mission_id);
         }
@@ -1151,7 +1180,7 @@ void draw_mgspw_summary(const GameStats& stats)
     if (ImGui::BeginTable("pw_current", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("this run", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn("mission", ImGuiTableColumnFlags_WidthFixed, 150.0f);
         ImGui::TableHeadersRow();
         // The game keeps its own per-mission tally in each stat descriptor
         // (+0x18); it beats the client-side segment delta because the game
@@ -1188,10 +1217,15 @@ void draw_mgspw_summary(const GameStats& stats)
         stat_row("heroism (area)", buf);
         // Full health is the deployed soldier's own maximum, not a constant.
         if (stats.pw_player_max_hp > 0) {
-            snprintf(buf, sizeof(buf), "%d%% (%d/%d)",
-                     stats.pw_player_hp * 100 / stats.pw_player_max_hp,
+            const int hp_pct = stats.pw_player_hp * 100 / stats.pw_player_max_hp;
+            snprintf(buf, sizeof(buf), "%d%% (%d/%d)", hp_pct,
                      stats.pw_player_hp, stats.pw_player_max_hp);
-            stat_row("HP", buf);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("HP");
+            ImGui::TableNextColumn();
+            ImGui::TextColored(hp_pct >= 50 ? id_green : hp_pct >= 25 ? id_yellow : id_red,
+                               "%s", buf);
         } else {
             stat_row("HP", "-");
         }
@@ -1201,7 +1235,7 @@ void draw_mgspw_summary(const GameStats& stats)
     ImGui::Spacing();
     if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("have / need", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         ImGui::TableHeadersRow();
         for (const codename::ReqStatus& r : codename::elite_requirements_mgspw(stats)) {
             const char* pct =
@@ -1317,8 +1351,10 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         weapon("placed explosives", stats.pw_placed_takedowns, -1);
         ImGui::EndTable();
     }
-    ImGui::TextDisabled("- = unavailable");
     ImGui::EndChild();
+    // Outside the scrolling region: the legend explains the whole tab, so it
+    // should not be something you have to scroll to the end to find.
+    ImGui::TextDisabled("- = unavailable");
 }
 
 void draw_mgspw_insignia(const GameStats& stats)
@@ -1336,7 +1372,14 @@ void draw_mgspw_insignia(const GameStats& stats)
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     if (stats.pw_insignias >= 0) {
         ImGui::Text("%d / 110 insignias earned", stats.pw_insignias);
+        // A meter rather than a filled block: the count above it is the
+        // reading, this is only its shape.
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
+                              ImVec4(id_green.x, id_green.y, id_green.z, 0.55f));
+        ImGui::ProgressBar(stats.pw_insignias / 110.0f, ImVec2(-FLT_MIN, 6.0f), "");
+        ImGui::PopStyleColor();
     }
+    ImGui::Spacing();
     if (ImGui::BeginTable("pw_insignia_stats", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("counter", ImGuiTableColumnFlags_WidthStretch);
@@ -1348,12 +1391,15 @@ void draw_mgspw_insignia(const GameStats& stats)
             // Tiers run C, B, A on a rising threshold; the first one not yet
             // beaten is the one being worked toward.
             int target = -1;
+            const char* tier_name = "";
             for (int tier = 0; tier < 3 && target < 0; ++tier) {
                 const int over = codename::pw_insignia(family.first_id + tier).over;
                 if (have <= over) {
                     // The grant test is strict, so the value to reach is one
                     // above the threshold.
                     target = over + 1;
+                    static constexpr const char* kTiers[] = {"C", "B", "A"};
+                    tier_name = kTiers[tier];
                 }
             }
             ImGui::TableNextRow();
@@ -1365,8 +1411,8 @@ void draw_mgspw_insignia(const GameStats& stats)
             } else if (target < 0) {
                 ImGui::TextColored(id_green, "%d  done", have);
             } else {
-                ImGui::TextColored(have * 4 >= target * 3 ? id_yellow : pending, "%d / %d",
-                                   have, target);
+                ImGui::TextColored(have * 4 >= target * 3 ? id_yellow : pending, "%d / %d  %s",
+                                   have, target, tier_name);
             }
         }
         ImGui::EndTable();
@@ -1394,12 +1440,12 @@ void draw_mgspw_codenames(const GameStats& stats)
             owned += stats.pw_codename_state[id] & 1;
         }
         ImGui::SameLine();
-        ImGui::TextDisabled("- %d / 24 earned", owned);
+        ImGui::TextDisabled("| %d / 24 earned", owned);
     }
     if (!axes.native) ImGui::TextDisabled("Estimated from available counters");
     if (ImGui::BeginTable("pw_class", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("takedowns", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+        ImGui::TableSetupColumn("count", ImGuiTableColumnFlags_WidthFixed, 50.0f);
         ImGui::TableSetupColumn("share", ImGuiTableColumnFlags_WidthFixed, 50.0f);
         ImGui::TableHeadersRow();
         const auto share_row = [&](const char* label, int value, int total,
@@ -1426,6 +1472,9 @@ void draw_mgspw_codenames(const GameStats& stats)
         ImGui::TextDisabled("%d", axes.total);
         ImGui::TableNextColumn();
         ImGui::TextDisabled("%s", axes.total > 0 ? "100%" : "-");
+        // The pair below counts the same takedowns a second way, so it is set
+        // apart from the per-class rows and their total.
+        ImGui::TableNextRow(ImGuiTableRowFlags_None, 6.0f);
         // FOXHOUND is a non-lethal title: non-lethal must beat twice lethal.
         share_row("lethal", axes.lethal, axes.lethal + axes.nonlethal, id_red);
         share_row("non-lethal", axes.nonlethal, axes.lethal + axes.nonlethal,
@@ -1439,7 +1488,24 @@ void draw_mgspw_codenames(const GameStats& stats)
     if (stats.pw_codename_result_ok) {
         ImGui::Text("Projected grade %d / 5", grade.grade);
         if (grade.blocker) {
-            ImGui::TextWrapped("Next grade %d: %s", grade.next, grade.blocker);
+            // The blocker names an input; on its own it reads as a cut-off
+            // sentence, so it carries the two numbers that decide it. The
+            // cooperation ratio is the one gate that is not a big integer.
+            if (std::strncmp(grade.blocker, "mission ranks", 13) == 0) {
+                // A flag, not a counter: it has no numbers worth printing.
+                ImGui::TextWrapped("Next grade %d: %s", grade.next, grade.blocker);
+            } else {
+                char have[24], need[24];
+                if (grade.need < 10.0) {
+                    snprintf(have, sizeof(have), "%.2f", grade.have);
+                    snprintf(need, sizeof(need), "%.2f", grade.need);
+                } else {
+                    format_thousands(grade.have, have, sizeof(have));
+                    format_thousands(grade.need, need, sizeof(need));
+                }
+                ImGui::TextWrapped("Next grade %d: %s %s (now %s)", grade.next, grade.blocker,
+                                   need, have);
+            }
         }
     } else {
         ImGui::TextDisabled("Grade pending mission evaluation");
@@ -1460,9 +1526,12 @@ void draw_mgspw_codenames(const GameStats& stats)
             ImGui::TableNextColumn();
             // A cooperation title needs camaraderie above the step, a solo one
             // at or below it.
-            ImGui::TextColored(color, "%s%d", coop ? ">" : "<=", gate.camaraderie);
+            char gate_value[24];
+            format_thousands(gate.camaraderie, gate_value, sizeof(gate_value));
+            ImGui::TextColored(color, "%s%s", coop ? ">" : "<=", gate_value);
             ImGui::TableNextColumn();
-            ImGui::TextColored(color, ">%d", gate.heroism);
+            format_thousands(gate.heroism, gate_value, sizeof(gate_value));
+            ImGui::TextColored(color, ">%s", gate_value);
             ImGui::TableNextColumn();
             // Grade 3 and up want the ratio to reach the gate, 1 and 2 to pass it.
             ImGui::TextColored(color, "%s%.2f", g >= 3 ? ">=" : ">", gate.coop_ratio);
@@ -1472,9 +1541,12 @@ void draw_mgspw_codenames(const GameStats& stats)
         ImGui::TableNextColumn();
         ImGui::TextDisabled("now");
         ImGui::TableNextColumn();
-        ImGui::TextDisabled("%d", stats.pw_camaraderie);
+        char now_value[24];
+        format_thousands(stats.pw_camaraderie, now_value, sizeof(now_value));
+        ImGui::TextDisabled("%s", now_value);
         ImGui::TableNextColumn();
-        ImGui::TextDisabled("%d", stats.pw_heroism);
+        format_thousands(stats.pw_heroism, now_value, sizeof(now_value));
+        ImGui::TextDisabled("%s", now_value);
         ImGui::TableNextColumn();
         if (stats.pw_codename_missions_required > 0) {
             ImGui::TextDisabled("%.2f",
