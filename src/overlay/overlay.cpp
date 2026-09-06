@@ -1862,25 +1862,36 @@ HRESULT STDMETHODCALLTYPE hk_resize_buffers(IDXGISwapChain* swap_chain, UINT buf
 
 bool hook_targets(void* present_target, void* resize_target, void* execute_target = nullptr)
 {
+    // Shared with qcamo: serialized installs let MinHook chain both detours.
+    HANDLE mutex = CreateMutexW(nullptr, FALSE, L"Local\\MGSModsDxgiHookInstall");
+    DWORD wait = mutex ? WaitForSingleObject(mutex, INFINITE) : WAIT_FAILED;
+    if (wait != WAIT_OBJECT_0 && wait != WAIT_ABANDONED) {
+        if (mutex) CloseHandle(mutex);
+        LOG_ERROR("DXGI hook mutex failed");
+        return false;
+    }
+
+    bool ok = true;
     if (MH_Initialize() != MH_OK) {
         LOG_ERROR("MH_Initialize failed");
-        return false;
-    }
-    if (MH_CreateHook(present_target, reinterpret_cast<void*>(&hk_present),
-                      reinterpret_cast<void**>(&oPresent)) != MH_OK
-        || MH_CreateHook(resize_target, reinterpret_cast<void*>(&hk_resize_buffers),
-                         reinterpret_cast<void**>(&oResizeBuffers)) != MH_OK
-        || (execute_target
-            && MH_CreateHook(execute_target, reinterpret_cast<void*>(&hk_execute_command_lists),
-                             reinterpret_cast<void**>(&oExecuteCommandLists)) != MH_OK)) {
+        ok = false;
+    } else if (MH_CreateHook(present_target, reinterpret_cast<void*>(&hk_present),
+                             reinterpret_cast<void**>(&oPresent)) != MH_OK
+               || MH_CreateHook(resize_target, reinterpret_cast<void*>(&hk_resize_buffers),
+                                reinterpret_cast<void**>(&oResizeBuffers)) != MH_OK
+               || (execute_target
+                   && MH_CreateHook(execute_target,
+                                    reinterpret_cast<void*>(&hk_execute_command_lists),
+                                    reinterpret_cast<void**>(&oExecuteCommandLists)) != MH_OK)) {
         LOG_ERROR("MH_CreateHook failed");
-        return false;
-    }
-    if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
+        ok = false;
+    } else if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
         LOG_ERROR("MH_EnableHook failed");
-        return false;
+        ok = false;
     }
-    return true;
+    ReleaseMutex(mutex);
+    CloseHandle(mutex);
+    return ok;
 }
 
 bool install_d3d11_hooks()
