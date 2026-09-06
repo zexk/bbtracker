@@ -200,8 +200,6 @@ void draw_window(const GameStats& stats, int tab)
         }
         ImGui::EndTabBar();
     }
-    ImGui::Separator();
-    ImGui::TextDisabled("F3 hide  |  F4 tabs  |  Up/Down scroll career");
     g_panel_size = ImGui::GetWindowSize();
     ImGui::End();
 }
