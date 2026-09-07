@@ -87,13 +87,14 @@ struct GameStats {
 
     // Peace Walker probe. Offsets are relative to SAVEROOT unless noted; the
     // per-field comments say what each one has been confirmed against.
-    uint64_t pw_mission_raw = 0;      // [PW_MISSIONTIME] ticks 300/s of active game time
+    uint64_t pw_mission_raw = 0;      // [PW_MISSIONTIME] total active-game ticks, 300/s
     uint32_t pw_total_play = 0;       // [SAVEROOT+0x84] total play, ticks ~1/s
-    uint32_t pw_stage_play = 0;       // [SAVEROOT+0x88] stage play, ticks fast (ms?)
+    uint32_t pw_mission_play = 0;     // [PW_MISSIONTIME+0x10] mission time, ticks 300/s
+    uint32_t pw_result_time = 0;      // [SAVEROOT+0x3C980] finalized run time, ticks 300/s
     char pw_stage[32] = {};           // [SAVEROOT+0x54] stage string
     int pw_region_id = -1;            // live region label key, st_regionNNNN
-    // A sortie is running: PW_REGIONOBJECT resolves per area and is null in
-    // menus, the lobby and results, so the live run values mean something.
+    // Current sortie remains consultable through area loads, cutscenes and
+    // results; cleared on confirmed hub/menu stages.
     bool pw_in_mission = false;
     int pw_player_hp = 0;             // [CHARARRAY[0]+0x11BE] u16, regenerates
     // [CHARARRAY[0]+0x11C0] u16. Full health is per soldier, not a constant
@@ -126,6 +127,7 @@ struct GameStats {
     // 0x442011F only when it had no kill. 0x44200DC moves on every clear.
     int pw_noitem_clears = -1;   // id 0x44200DC, "no recovery items used"
     int pw_holdups = -1;         // id 0x4420030, "Total Hold-ups"
+    int pw_cqc_uses = -1;        // id 0x442007B, "Total CQC Count"
     int pw_noalert_clears = -1;  // id 0x442011E
     int pw_nokill_clears = -1;   // id 0x442011F
     // Per-mission rank array (save+0x32B4, u16 by mission id): 0 = S,
@@ -146,6 +148,9 @@ struct GameStats {
     int pw_m_alerts = -1;
     int pw_m_tranq = -1;
     int pw_m_headshots = -1;
+    int pw_m_holdups = -1;
+    int pw_m_cqc_uses = -1;
+    int pw_m_heroism = -1;
     // Non-headshot kills (id 0x200ED). Kills minus this is the lethal
     // headshot count, and headshots minus that is the tranq headshot count.
     int pw_body_kills = -1;

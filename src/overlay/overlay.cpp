@@ -895,7 +895,7 @@ constexpr double kCloseGoalShare = 0.5;
 
 // Match results refreshed with the 10Hz stats snapshot. draw_panel renders
 // every Present, but nothing re-matches between snapshots; only genuinely
-// live values (the PW stage clock) are read per frame at their use site.
+// live values (the PW mission clock) are read per frame at their use site.
 // Lives in this block for the same harness reason as the bands above.
 struct EvalCache {
     std::optional<codename::Match> match;
@@ -1236,16 +1236,18 @@ void draw_mgspw_run(const GameStats& stats)
     // Read straight from the game each frame rather than from the 10 Hz stats
     // snapshot, so the milliseconds move smoothly. The game ticks this at
     // 300 Hz, well above any frame rate it will be drawn at.
-    uint32_t ticks = stats.pw_stage_play;
-    if (g_clock_fn) {
+    const bool results = std::strcmp(stats.pw_stage, "result") == 0;
+    uint32_t ticks = results && stats.pw_result_time
+        ? stats.pw_result_time : stats.pw_mission_play;
+    if (!results && g_clock_fn) {
         g_clock_fn(ticks);
     }
-    const unsigned long long stage_ms = static_cast<unsigned long long>(ticks) * 1000ULL / 300ULL;
+    const unsigned long long mission_ms = static_cast<unsigned long long>(ticks) * 1000ULL / 300ULL;
     const unsigned long long best_ms =
         static_cast<unsigned long long>(stats.pw_cur_best) * 1000ULL / 300ULL;
     ImGui::SetWindowFontScale(2.0f);
-    ImGui::Text("%llu:%02llu.%03llu", stage_ms / 60000, (stage_ms / 1000) % 60,
-                stage_ms % 1000);
+    ImGui::Text("%llu:%02llu.%03llu", mission_ms / 60000, (mission_ms / 1000) % 60,
+                mission_ms % 1000);
     ImGui::SetWindowFontScale(1.0f);
     ImGui::Separator();
     ImGui::Spacing();
@@ -1263,7 +1265,7 @@ void draw_mgspw_run(const GameStats& stats)
                                 best_ms % 1000);
             // How the clock above stands against that record. The clock itself
             // stays neutral: it is the reading, this is the judgement of it.
-            const double delta = (double(stage_ms) - double(best_ms)) / 1000.0;
+            const double delta = (double(mission_ms) - double(best_ms)) / 1000.0;
             const double size = delta < 0 ? -delta : delta;
             char gap[24];
             if (size < 60.0) {
@@ -1313,11 +1315,18 @@ void draw_mgspw_run(const GameStats& stats)
         };
         clean_row("kills", stats.pw_m_kills, stats.seg_kills);
         run_stat("headshots", stats.pw_m_headshots, stats.seg_headshots);
+        if (stats.pw_m_holdups < 0) unset_row("hold-ups");
+        else run_stat("hold-ups", stats.pw_m_holdups, 0);
+        if (stats.pw_m_cqc_uses < 0) unset_row("CQC uses");
+        else run_stat("CQC uses", stats.pw_m_cqc_uses, 0);
         if (stats.pw_m_alerts < 0) unset_row("alerts");
         else clean_row("alerts", stats.pw_m_alerts, 0);
         run_stat("tranq", stats.pw_m_tranq, stats.seg_tranq);
-        snprintf(buf, sizeof(buf), "%+d", stats.seg_heroism);
-        stat_row("heroism (area)", buf);
+        const bool mission_heroism = stats.pw_m_heroism >= 0;
+        snprintf(buf, sizeof(buf), "%+d%s",
+                 mission_heroism ? stats.pw_m_heroism : stats.seg_heroism,
+                 mission_heroism ? "" : " (area)");
+        stat_row("heroism", buf);
         // Full health is the deployed soldier's own maximum, not a constant.
         if (stats.pw_player_max_hp > 0) {
             constexpr int kHpGreenPct = 50;
@@ -1346,9 +1355,7 @@ void draw_mgspw_summary(const GameStats& stats)
     if (stats.pw_in_mission) {
         draw_mgspw_run(stats);
     } else {
-        // Between sorties the clock is stopped and every per-mission counter
-        // still holds the last run's tally, so none of it is drawn: the career
-        // requirements below are what still means something here.
+        // Later menus may still hold last run's tally. Hide it once results ends.
         ImGui::TextDisabled("No mission running");
         ImGui::Separator();
     }
@@ -1445,6 +1452,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         count("enemy Fultons", stats.pw_fulton_recoveries);
         count("prisoners extracted", stats.pw_prisoner_extractions);
         count("hold-ups", stats.pw_holdups);
+        count("CQC uses", stats.pw_cqc_uses);
         count("no-kill clears", stats.pw_nokill_clears);
         count("no-alert clears", stats.pw_noalert_clears);
         count("no-recovery-item clears", stats.pw_noitem_clears);

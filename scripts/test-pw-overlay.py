@@ -68,7 +68,12 @@ int main() {
     assert(!std::regex_search(summary, std::regex(R"(HP[\s|{}]*0%)")));
     assert(std::regex_search(summary, std::regex(R"(HP[\s|{}]*-)")));
     assert(std::regex_search(summary, std::regex(R"(alerts[\s|{}]*-)")));
+    assert(std::regex_search(summary, std::regex(R"(hold-ups[\s|{}]*-)")));
+    assert(std::regex_search(summary, std::regex(R"(CQC uses[\s|{}]*-)")));
     assert(summary.find("+0 (area)") != std::string::npos);
+    stats.pw_m_holdups = 3;
+    stats.pw_m_cqc_uses = 2;
+    stats.pw_m_heroism = 22;
     stats.pw_mission_id = 7;
     stats.pw_cur_rank = 0;
     stats.pw_cur_best = 18345;
@@ -78,10 +83,20 @@ int main() {
     assert(summary.find("Best rank S") != std::string::npos);
     assert(summary.find("Best time 1:01.150") != std::string::npos);
     assert(summary.find("50%") != std::string::npos);
-    // Out of a mission the run half is not drawn: its counters still hold the
-    // last sortie's tally, so none of them may read as this run.
+    assert(std::regex_search(summary, std::regex(R"(hold-ups[\s|{}]*3)")));
+    assert(std::regex_search(summary, std::regex(R"(CQC uses[\s|{}]*2)")));
+    assert(std::regex_search(summary, std::regex(R"(heroism[\s|{}]*\+22)")));
+    // Results keeps completed sortie visible and frozen.
     GameStats idle = stats;
+    std::strcpy(idle.pw_stage, "result");
+    idle.pw_result_time = 15930;
+    const auto results = draw(idle, 0);
+    assert(results.find("0:53.100") != std::string::npos);
+    assert(results.find("Best rank S") != std::string::npos);
+    assert(std::regex_search(results, std::regex(R"(hold-ups[\s|{}]*3)")));
+    // Leaving results flushes run display even if game memory retains values.
     idle.pw_in_mission = false;
+    std::strcpy(idle.pw_stage, "my_outer");
     const auto menu = draw(idle, 0);
     assert(menu.find("No mission running") != std::string::npos);
     assert(menu.find("headshots") == std::string::npos);

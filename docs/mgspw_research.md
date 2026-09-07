@@ -87,11 +87,11 @@ Timers are 300 Hz ticks unless stated.
 | `+0x22` | `u16` | mission-scoped counter, twinned with achievement id 11 |
 | `+0x54` | `char[24]` | stage code (e.g. `w00s01a`, `my_outer`, `result`) |
 | `+0x84` | `u32` | total play seconds |
-| `+0x88` | `u32` | stage play, 300 Hz (mirrors `PW_MISSIONTIME+0x14`) |
+| `+0x88` | `u32` | stage play, 300 Hz (mirrors `PW_MISSIONTIME+0x14`); resets on area change and is not mission time |
 | `+0x250`, `+0x264` | `u32` | best score of a score-attack mission (`8000`); mirrors at `+0x1FBCC`, `+0x1FBE0` |
 | `+0x278` | `u32` | best score of another score-attack mission (`6000`); mirrors at `+0x2A0`, `+0x1FBF4`, `+0x1FC1C` |
 | `+0x420..+0x45C` | `u16[]` | score config block: `9999`, `8000` x3, `1`, `6000` x3, `1`, `1000` x8, `100` |
-| `+0x3C980` | `u32` | last results: run time (300 Hz) |
+| `+0x3C980` | `u32` | finalized run time (300 Hz); freeze overlay to this on `result` |
 | `+0x3C9A8` | `u32` | last results: mission score |
 | `+0x3CA20` | `u32` | last results: previous best time (drives the `NEW` tag) |
 | `+0x29B4 + 4*id` | `u32` | per-mission best time, `0xFFFFFFFF` = none |
@@ -207,7 +207,9 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x442011E` | missions cleared with no alerts |
 | `0x442011F` | missions cleared with no kills |
 | `0x44200DC` | missions cleared with no recovery items used |
-| `0x4420030` | total hold-ups |
+| `0x4420030` | hold-ups; mission tally is `PW_STATARRAY+0x788` |
+| `0x442007B` | CQC uses; mission tally is `PW_STATARRAY+0x1340` |
+| `0x4420077` | Heroism; mission tally is `PW_STATARRAY+0x12A0` |
 | `0x200ED`, `0x2002F` | provisionally non-headshot (body) kills; `0x200ED` is axis 1 slot 3 and the label is disputed - see "Validation and unknowns" |
 
 Per-type counters live in the sparse block `0x200DD..0x20110` and are listed
@@ -262,10 +264,11 @@ Ids are data-driven; only two code sites embed one as an immediate.
 | ---: | --- | --- |
 | `+0x00` | `u64` | high-resolution total play clock at 300 Hz - **not** the mission timer |
 | `+0x08` | `u64` | ticks 28-60/s depending on phase; role unknown |
-| `+0x10` | `u32` | not a plain mirror of `+0x14`; diverges and can run backwards |
-| `+0x14` | `u32` | equals `save+0x88` |
+| `+0x10` | `u32` | mission timer, 300 Hz; drives mission results/grade |
+| `+0x14` | `u32` | stage timer; equals `save+0x88` |
 
-Per-mission time is the stage segment (total since the stage string changed).
+Per-mission time is `PW_MISSIONTIME+0x10`. Unlike stage timer, it survives
+area changes and stops when mission ends.
 Best times store 3.33 ms resolution while the UI floors to whole seconds, so
 same-second improvements still override correctly - compare raw integers.
 

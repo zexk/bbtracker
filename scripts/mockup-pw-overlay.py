@@ -211,7 +211,7 @@ void draw_window(const GameStats& stats, int tab)
 GameStats fresh_profile()
 {
     GameStats stats{};
-    stats.pw_stage_play = 300 * 34;
+    stats.pw_mission_play = 300 * 34;
     stats.pw_total_play = 41 * 60;
     std::strcpy(stats.pw_stage, "w01s03a");
     stats.pw_in_mission = true;
@@ -228,7 +228,7 @@ GameStats fresh_profile()
 GameStats mid_profile()
 {
     GameStats stats{};
-    stats.pw_stage_play = 300 * 227 + 140;
+    stats.pw_mission_play = 300 * 227 + 140;
     stats.pw_total_play = 41 * 3600 + 12 * 60;
     std::strcpy(stats.pw_stage, "w01s04a");
     stats.pw_in_mission = true;
@@ -240,6 +240,9 @@ GameStats mid_profile()
     stats.pw_player_max_hp = 7800;
     stats.pw_m_kills = 2;
     stats.pw_m_headshots = 6;
+    stats.pw_m_holdups = 3;
+    stats.pw_m_cqc_uses = 2;
+    stats.pw_m_heroism = 22;
     stats.pw_m_alerts = 0;
     stats.pw_m_tranq = 11;
     stats.seg_kills = 2;
@@ -298,13 +301,16 @@ GameStats mid_profile()
 GameStats elite_profile()
 {
     GameStats stats = mid_profile();
-    stats.pw_stage_play = 300 * 96;
+    stats.pw_mission_play = 300 * 96;
     stats.pw_cur_rank = 0;
     stats.pw_cur_best = 300 * 118;
     stats.pw_player_hp = 8000;
     stats.pw_player_max_hp = 8000;
     stats.pw_m_kills = 0;
     stats.pw_m_headshots = 0;
+    stats.pw_m_holdups = 18;
+    stats.pw_m_cqc_uses = 7;
+    stats.pw_m_heroism = 53;
     stats.pw_m_tranq = 24;
     stats.pw_kills = 0;
     stats.pw_body_kills = 0;

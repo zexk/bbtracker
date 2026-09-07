@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iterator>
+#include <string_view>
 
 #include "../../common/log.h"
 #include "../../common/mem.h"
@@ -60,7 +61,8 @@ constexpr int kMissionTimeDisp = 3;
 constexpr size_t kStageOff = 0x54;
 constexpr size_t kStageLen = 24;
 constexpr size_t kTotalPlayOff = 0x84;
-constexpr size_t kStagePlayOff = 0x88;
+constexpr size_t kMissionPlayOff = 0x10;
+constexpr size_t kResultTimeOff = 0x3C980;
 constexpr size_t kWeaponArrayOff = 0xBD3C;
 constexpr size_t kWeaponStride = 0x1C;
 constexpr size_t kWeaponUseOff = 0x14;
@@ -72,9 +74,9 @@ constexpr size_t kMaxHpOff = 0x11C0;  // u16, the deployed soldier's own maximum
 constexpr int kNominalMaxHp = 8000;   // Snake's, and the damage-counter scale
 constexpr size_t kWeaponIdOff = 0x14B8;
 
-// Address holding save-block pointer; stage-clock reads it from render thread.
+// Render thread reads both clocks after poll_stats resolves their anchors.
 std::atomic_uintptr_t g_saveroot_ptr = 0;
-uintptr_t g_mission_time = 0;   // address of qword elapsed timer
+std::atomic_uintptr_t g_mission_time = 0; // timer block: total +0x00, mission +0x10
 uintptr_t g_chararray_ptr = 0;  // address holding character-pointer-array
 uintptr_t g_mission_id = 0;     // address of current mission id (-1 outside a mission)
 uintptr_t g_stat_array = 0;     // address holding the stat descriptor array pointer
@@ -132,6 +134,17 @@ constexpr size_t kStatStride = 0x28;
 constexpr uintptr_t kStatArrayBias = 0x10;
 constexpr uint32_t kStatIndexMax = 0x123;  // the getter's own bounds check
 
+constexpr bool run_flush_stage(std::string_view stage)
+{
+    return stage.substr(0, 8) == "my_outer" || stage == "ms_lobby"
+        || stage == "vs_lobby" || stage == "vs_result" || stage == "title"
+        || stage == "r_title" || stage == "browser";
+}
+
+static_assert(run_flush_stage("my_outer_trade"));
+static_assert(!run_flush_stage("result"));
+static_assert(!run_flush_stage("w01s04a"));
+
 // Span covering every descriptor the indexed paths touch: family ids stop
 // at the getter's bound above, and the 0xDD..0x110 codename axes sit below
 // it. Validated once per poll instead of once per record.
@@ -174,6 +187,8 @@ constexpr uint32_t kFultonIds[] = {0x2008E};    // Fulton: enemies
 constexpr uint32_t kPrisonerIds[] = {0x2008F};  // Fulton: prisoners
 constexpr uint32_t kNoItemClearIds[] = {0x44200DC};  // "no recovery items used"
 constexpr uint32_t kHoldUpIds[] = {0x4420030};       // "Total Hold-ups"
+constexpr uint32_t kCqcUseIds[] = {0x442007B};       // "Total CQC Count"
+constexpr uint32_t kHeroismIds[] = {0x4420077};
 constexpr uint32_t kNoAlertClearIds[] = {0x442011E};
 constexpr uint32_t kNoKillClearIds[] = {0x442011F};
 constexpr uint32_t kAlertIds[] = {0x420002};
@@ -211,7 +226,9 @@ void read_stat_families(uintptr_t block, GameStats& out)
         {kFultonIds, std::size(kFultonIds), &out.pw_fulton_recoveries, nullptr},
         {kPrisonerIds, std::size(kPrisonerIds), &out.pw_prisoner_extractions, nullptr},
         {kNoItemClearIds, std::size(kNoItemClearIds), &out.pw_noitem_clears, nullptr},
-        {kHoldUpIds, std::size(kHoldUpIds), &out.pw_holdups, nullptr},
+        {kHoldUpIds, std::size(kHoldUpIds), &out.pw_holdups, &out.pw_m_holdups},
+        {kCqcUseIds, std::size(kCqcUseIds), &out.pw_cqc_uses, &out.pw_m_cqc_uses},
+        {kHeroismIds, std::size(kHeroismIds), &out.pw_heroism, &out.pw_m_heroism},
         {kNoAlertClearIds, std::size(kNoAlertClearIds), &out.pw_noalert_clears, nullptr},
         {kNoKillClearIds, std::size(kNoKillClearIds), &out.pw_nokill_clears, nullptr},
     };
@@ -446,18 +463,13 @@ void ensure_resolved()
 // it, so one validation covers the whole block per poll.
 constexpr size_t kSaveBlockSpan = kInsigniaStateOff + kInsigniaCount + 1;
 
-bool poll_stage_clock(uint32_t& ticks)
+bool poll_mission_clock(uint32_t& ticks)
 {
-    const uintptr_t saveroot_ptr = g_saveroot_ptr.load();
-    if (!saveroot_ptr || !range_readable(saveroot_ptr, sizeof(uintptr_t))) {
+    const uintptr_t mission_time = g_mission_time.load();
+    if (!mission_time || !range_readable(mission_time + kMissionPlayOff, 4)) {
         return false;
     }
-    const uintptr_t save_block =
-        *reinterpret_cast<volatile const uintptr_t*>(saveroot_ptr);
-    if (!save_block || !range_readable(save_block + kStagePlayOff, 4)) {
-        return false;
-    }
-    ticks = *reinterpret_cast<volatile const uint32_t*>(save_block + kStagePlayOff);
+    ticks = *reinterpret_cast<volatile const uint32_t*>(mission_time + kMissionPlayOff);
     return true;
 }
 
@@ -465,7 +477,8 @@ bool poll_stats(GameStats& out)
 {
     out = {};
     ensure_resolved();
-    if (!g_saveroot_ptr && !g_mission_time && !g_chararray_ptr) {
+    const uintptr_t mission_time = g_mission_time.load();
+    if (!g_saveroot_ptr && !mission_time && !g_chararray_ptr) {
         return false;
     }
 
@@ -485,9 +498,11 @@ bool poll_stats(GameStats& out)
         }
     }
 
-    if (g_mission_time && range_readable(g_mission_time, 0x18)) {
+    if (mission_time && range_readable(mission_time, 0x18)) {
         out.pw_mission_raw =
-            *reinterpret_cast<volatile const uint64_t*>(g_mission_time);
+            *reinterpret_cast<volatile const uint64_t*>(mission_time);
+        out.pw_mission_play =
+            *reinterpret_cast<volatile const uint32_t*>(mission_time + kMissionPlayOff);
         // Measured: raw ticks 300/s of active game time (a +42600 delta over
         // an interval where total play advanced exactly +142s). 3.33ms
         // resolution still breaks same-second best-time ties.
@@ -496,7 +511,7 @@ bool poll_stats(GameStats& out)
         if (!g_dumped) {
             g_dumped = true;
             LOG_INFO("MGSPW mission timer block:");
-            log_hex_dump(reinterpret_cast<const uint8_t*>(g_mission_time - 0x20), 0x60);
+            log_hex_dump(reinterpret_cast<const uint8_t*>(mission_time - 0x20), 0x60);
         }
     }
 
@@ -519,8 +534,8 @@ bool poll_stats(GameStats& out)
         any = true;
         out.pw_total_play =
             *reinterpret_cast<volatile const uint32_t*>(save_block + kTotalPlayOff);
-        out.pw_stage_play =
-            *reinterpret_cast<volatile const uint32_t*>(save_block + kStagePlayOff);
+        out.pw_result_time =
+            *reinterpret_cast<volatile const uint32_t*>(save_block + kResultTimeOff);
         constexpr size_t kHeroismOff = 0x64F4;
         constexpr size_t kHeroismDeltaOff = 0x64EC;
         constexpr size_t kGmpOff = 0xB52C;
@@ -648,13 +663,15 @@ bool poll_stats(GameStats& out)
         }
     }
 
-    // A sortie is only running while the region object resolves: it is null in
-    // the lobby, at Mother Base and on the results screen, where the live run
-    // values are the last mission's leftovers. Without the pattern, fall back
-    // to the stage code, since gameplay areas are wNNsNN and menus are words.
-    out.pw_in_mission = g_region_object
+    // Region object disappears during cutscenes, loads and results. Latch run
+    // display across those gaps; clear only after a confirmed hub/menu stage.
+    const bool gameplay = g_region_object
         ? out.pw_region_id >= 0
         : (out.pw_stage[0] == 'w' && out.pw_stage[1] >= '0' && out.pw_stage[1] <= '9');
+    static bool run_visible = false;
+    if (gameplay) run_visible = true;
+    else if (run_flush_stage(out.pw_stage)) run_visible = false;
+    out.pw_in_mission = run_visible;
 
     // Per-sortie segment: latch career baselines whenever the stage
     // string changes. Careers land at results tally (actions) or lobby
