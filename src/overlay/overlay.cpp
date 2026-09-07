@@ -25,6 +25,7 @@
 #include <filesystem>
 
 #include "../common/codename/codename.h"
+#include "../common/codename/rules_mgs4.h"
 #include "../common/log.h"
 #include "../games/mgspw/names.h"
 
@@ -1041,32 +1042,38 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
                 row(name, goal, text);
             };
             char text[96];
-            count("BEAR", "100 CQC chokes", stats.cqc_chokes, 100);
-            count("EAGLE", "150 headshots", stats.headshots, 150);
-            snprintf(text, sizeof(text), "knife %d / 50\nCQC %d / 50\nalerts %d / 25",
-                     stats.knife_defeats, stats.cqc_holds, stats.alerts);
+            // Goals come from the shared mgs4_goals table so the panel cannot
+            // drift from what the ranks match on; the strings stay literal
+            // display text.
+            namespace goals = codename::mgs4_goals;
+            count("BEAR", "100 CQC chokes", stats.cqc_chokes, goals::kBearChokes);
+            count("EAGLE", "150 headshots", stats.headshots, goals::kEagleHeadshots);
+            snprintf(text, sizeof(text), "knife %d / %d\nCQC %d / %d\nalerts %d / %d",
+                      stats.knife_defeats, goals::kAssassinKnife,
+                      stats.cqc_holds, goals::kAssassinCqcHolds,
+                      stats.alerts, goals::kAssassinMaxAlerts);
             row("ASSASSIN", "50 knife, 50 CQC, max 25 alerts", text);
             snprintf(text, sizeof(text), "%d kills", stats.kills);
             row("PIGEON", "No kills", text);
-            count("BLUE BIRD", "Give allies 50 items", stats.items_given, 50);
-            count("HAWK", "Earn 25 ally praises", stats.praises, 25);
-            count("LITTLE GRAY", "Acquire 69 weapons", stats.weapons_acquired, 69);
-            count("ANT", "Search 50 held-up enemies", stats.body_searches, 50);
-            count("GIBBON", "Hold up 50 enemies", stats.hold_ups, 50);
-            time("TORTOISE", "60 min in box or drum", stats.box_time_seconds, 60 * 60);
-            count("RABBIT", "Turn 100 magazine pages", stats.magazine_pages, 100);
-            count("BEE", "50 Syringe / Scanning Plug uses", stats.syringe_uses, 50);
-            time("GECKO", "60 min against walls", stats.wall_time_seconds, 60 * 60);
-            count("SCARAB", "100 prone side rolls", stats.side_rolls, 100);
-            count("FROG", "200 forward rolls", stats.forward_rolls, 200);
-            time("INCH WORM", "Crawl for 60 min", stats.crawl_time_seconds, 60 * 60);
-            time("LOBSTER", "Crouch for 150 min", stats.crouch_time_seconds, 150 * 60);
-            count("HYENA", "Pick up 400 weapons / items", stats.pickups, 400);
-            count("HOG", "Enter Combat High 10 times", stats.combat_highs, 10);
-            count("PIG", "Use 40 recovery items", stats.rations_used, 40);
-            count("COW", "Trigger 100 alerts", stats.alerts, 100);
-            count("CROCODILE", "Kill 400 enemies", stats.kills, 400);
-            time("GIANT PANDA", "Play for 30 hours", stats.play_time_seconds, 30 * 60 * 60);
+            count("BLUE BIRD", "Give allies 50 items", stats.items_given, goals::kBlueBirdItems);
+            count("HAWK", "Earn 25 ally praises", stats.praises, goals::kHawkPraises);
+            count("LITTLE GRAY", "Acquire 69 weapons", stats.weapons_acquired, goals::kLittleGrayWeapons);
+            count("ANT", "Search 50 held-up enemies", stats.body_searches, goals::kAntSearches);
+            count("GIBBON", "Hold up 50 enemies", stats.hold_ups, goals::kGibbonHoldUps);
+            time("TORTOISE", "60 min in box or drum", stats.box_time_seconds, goals::kTortoiseBoxMinutes * 60);
+            count("RABBIT", "Turn 100 magazine pages", stats.magazine_pages, goals::kRabbitPages);
+            count("BEE", "50 Syringe / Scanning Plug uses", stats.syringe_uses, goals::kBeeSyringeUses);
+            time("GECKO", "60 min against walls", stats.wall_time_seconds, goals::kGeckoWallMinutes * 60);
+            count("SCARAB", "100 prone side rolls", stats.side_rolls, goals::kScarabSideRolls);
+            count("FROG", "200 forward rolls", stats.forward_rolls, goals::kFrogForwardRolls);
+            time("INCH WORM", "Crawl for 60 min", stats.crawl_time_seconds, goals::kInchWormCrawlMinutes * 60);
+            time("LOBSTER", "Crouch for 150 min", stats.crouch_time_seconds, goals::kLobsterCrouchMinutes * 60);
+            count("HYENA", "Pick up 400 weapons / items", stats.pickups, goals::kHyenaPickups);
+            count("HOG", "Enter Combat High 10 times", stats.combat_highs, goals::kHogCombatHighs);
+            count("PIG", "Use 40 recovery items", stats.rations_used, goals::kPigRations);
+            count("COW", "Trigger 100 alerts", stats.alerts, goals::kCowAlerts);
+            count("CROCODILE", "Kill 400 enemies", stats.kills, goals::kCrocodileKills);
+            time("GIANT PANDA", "Play for 30 hours", stats.play_time_seconds, goals::kGiantPandaHours * 60 * 60);
             ImGui::EndTable();
         }
     }
@@ -1583,7 +1590,7 @@ void draw_mgspw_codenames(const GameStats& stats)
 
     ImGui::Spacing();
     const codename::PwGrade grade = codename::pw_grade(stats);
-    const bool coop = stats.pw_camaraderie > 10000;
+    const bool coop = stats.pw_camaraderie > codename::kPwCoopCamaraderie;
     // The grade being worked towards: the first one that fails, the one held
     // once that is 5, and 1 before any evaluation has happened.
     const int target = grade.next ? grade.next : grade.grade ? grade.grade : 1;

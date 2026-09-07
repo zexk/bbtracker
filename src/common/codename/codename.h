@@ -236,6 +236,9 @@ struct PwGradeGate {
     double coop_ratio;
 };
 
+// Camaraderie above this line marks a co-op career for title and grade use.
+inline constexpr int kPwCoopCamaraderie = 10000;
+
 PwGradeGate pw_grade_gate(int grade); // 1..5
 
 std::optional<Match> evaluate_mgspw(const GameStats& s);

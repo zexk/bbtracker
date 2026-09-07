@@ -398,7 +398,7 @@ PwGrade pw_grade(const GameStats& s)
     if (p.total <= 0 || !s.pw_codename_result_ok) {
         return out;
     }
-    const bool coop = s.pw_camaraderie > 10000;
+    const bool coop = s.pw_camaraderie > kPwCoopCamaraderie;
     const double ratio = pw_coop_ratio(s);
     const int heroism = s.pw_heroism;
 
@@ -454,7 +454,7 @@ std::optional<Match> evaluate_mgspw(const GameStats& s)
     if (p.total <= 0) {
         return std::nullopt;
     }
-    const bool coop = s.pw_camaraderie > 10000;
+    const bool coop = s.pw_camaraderie > kPwCoopCamaraderie;
     const bool nonlethal = p.nonlethal > 2 * p.lethal;
     for (const PwTitle& t : kPwTitles) {
         if (t.cls == p.dominant && t.coop == coop && t.nonlethal == nonlethal) {

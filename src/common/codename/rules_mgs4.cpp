@@ -59,31 +59,32 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& pool)
     add("RAVEN", kAllTiers, Kind::Elite, {{StatId::PlayTimeHours, Op::Le, 5}}, true);
     add("OCTOPUS", kAllTiers, Kind::Elite, {{StatId::Alerts, Op::Eq, 0}});
 
-    add("BEAR", kAllTiers, Kind::Special, {{StatId::CqcChokes, Op::Ge, 100}});
-    add("EAGLE", kAllTiers, Kind::Special, {{StatId::Headshots, Op::Ge, 150}});
+    add("BEAR", kAllTiers, Kind::Special, {{StatId::CqcChokes, Op::Ge, mgs4_goals::kBearChokes}});
+    add("EAGLE", kAllTiers, Kind::Special, {{StatId::Headshots, Op::Ge, mgs4_goals::kEagleHeadshots}});
     add("ASSASSIN", kAllTiers, Kind::Special,
-        {{StatId::KnifeDefeats, Op::Ge, 50}, {StatId::CqcHolds, Op::Ge, 50},
-         {StatId::Alerts, Op::Le, 25}});
+        {{StatId::KnifeDefeats, Op::Ge, mgs4_goals::kAssassinKnife},
+         {StatId::CqcHolds, Op::Ge, mgs4_goals::kAssassinCqcHolds},
+         {StatId::Alerts, Op::Le, mgs4_goals::kAssassinMaxAlerts}});
     add("PIGEON", kAllTiers, Kind::Special, {{StatId::Kills, Op::Eq, 0}});
-    add("BLUE BIRD", kAllTiers, Kind::Special, {{StatId::ItemsGiven, Op::Ge, 50}});
-    add("HAWK", kAllTiers, Kind::Special, {{StatId::Praises, Op::Ge, 25}});
-    add("LITTLE GRAY", kAllTiers, Kind::Special, {{StatId::WeaponsAcquired, Op::Ge, 69}});
-    add("ANT", kAllTiers, Kind::Special, {{StatId::BodySearches, Op::Ge, 50}});
-    add("GIBBON", kAllTiers, Kind::Special, {{StatId::HoldUps, Op::Ge, 50}});
-    add("TORTOISE", kAllTiers, Kind::Special, {{StatId::BoxTimeMinutes, Op::Ge, 60}});
-    add("RABBIT", kAllTiers, Kind::Special, {{StatId::MagazinePages, Op::Ge, 100}});
-    add("BEE", kAllTiers, Kind::Special, {{StatId::SyringeUses, Op::Ge, 50}});
-    add("GECKO", kAllTiers, Kind::Special, {{StatId::WallTimeMinutes, Op::Ge, 60}});
-    add("SCARAB", kAllTiers, Kind::Special, {{StatId::SideRolls, Op::Ge, 100}});
-    add("FROG", kAllTiers, Kind::Special, {{StatId::ForwardRolls, Op::Ge, 200}});
-    add("INCH WORM", kAllTiers, Kind::Special, {{StatId::CrawlTimeMinutes, Op::Ge, 60}});
-    add("LOBSTER", kAllTiers, Kind::Special, {{StatId::CrouchTimeMinutes, Op::Ge, 150}});
-    add("HYENA", kAllTiers, Kind::Special, {{StatId::Pickups, Op::Ge, 400}});
-    add("HOG", kAllTiers, Kind::Special, {{StatId::CombatHighs, Op::Ge, 10}});
-    add("PIG", kAllTiers, Kind::Special, {{StatId::RationsUsed, Op::Ge, 40}});
-    add("COW", kAllTiers, Kind::Special, {{StatId::Alerts, Op::Ge, 100}});
-    add("CROCODILE", kAllTiers, Kind::Special, {{StatId::Kills, Op::Ge, 400}});
-    add("GIANT PANDA", kAllTiers, Kind::Special, {{StatId::PlayTimeHours, Op::Ge, 30}}, true);
+    add("BLUE BIRD", kAllTiers, Kind::Special, {{StatId::ItemsGiven, Op::Ge, mgs4_goals::kBlueBirdItems}});
+    add("HAWK", kAllTiers, Kind::Special, {{StatId::Praises, Op::Ge, mgs4_goals::kHawkPraises}});
+    add("LITTLE GRAY", kAllTiers, Kind::Special, {{StatId::WeaponsAcquired, Op::Ge, mgs4_goals::kLittleGrayWeapons}});
+    add("ANT", kAllTiers, Kind::Special, {{StatId::BodySearches, Op::Ge, mgs4_goals::kAntSearches}});
+    add("GIBBON", kAllTiers, Kind::Special, {{StatId::HoldUps, Op::Ge, mgs4_goals::kGibbonHoldUps}});
+    add("TORTOISE", kAllTiers, Kind::Special, {{StatId::BoxTimeMinutes, Op::Ge, mgs4_goals::kTortoiseBoxMinutes}});
+    add("RABBIT", kAllTiers, Kind::Special, {{StatId::MagazinePages, Op::Ge, mgs4_goals::kRabbitPages}});
+    add("BEE", kAllTiers, Kind::Special, {{StatId::SyringeUses, Op::Ge, mgs4_goals::kBeeSyringeUses}});
+    add("GECKO", kAllTiers, Kind::Special, {{StatId::WallTimeMinutes, Op::Ge, mgs4_goals::kGeckoWallMinutes}});
+    add("SCARAB", kAllTiers, Kind::Special, {{StatId::SideRolls, Op::Ge, mgs4_goals::kScarabSideRolls}});
+    add("FROG", kAllTiers, Kind::Special, {{StatId::ForwardRolls, Op::Ge, mgs4_goals::kFrogForwardRolls}});
+    add("INCH WORM", kAllTiers, Kind::Special, {{StatId::CrawlTimeMinutes, Op::Ge, mgs4_goals::kInchWormCrawlMinutes}});
+    add("LOBSTER", kAllTiers, Kind::Special, {{StatId::CrouchTimeMinutes, Op::Ge, mgs4_goals::kLobsterCrouchMinutes}});
+    add("HYENA", kAllTiers, Kind::Special, {{StatId::Pickups, Op::Ge, mgs4_goals::kHyenaPickups}});
+    add("HOG", kAllTiers, Kind::Special, {{StatId::CombatHighs, Op::Ge, mgs4_goals::kHogCombatHighs}});
+    add("PIG", kAllTiers, Kind::Special, {{StatId::RationsUsed, Op::Ge, mgs4_goals::kPigRations}});
+    add("COW", kAllTiers, Kind::Special, {{StatId::Alerts, Op::Ge, mgs4_goals::kCowAlerts}});
+    add("CROCODILE", kAllTiers, Kind::Special, {{StatId::Kills, Op::Ge, mgs4_goals::kCrocodileKills}});
+    add("GIANT PANDA", kAllTiers, Kind::Special, {{StatId::PlayTimeHours, Op::Ge, mgs4_goals::kGiantPandaHours}}, true);
 
     struct GridRow { const char* name; bool high_alerts; bool high_kills; bool high_continues; };
     constexpr GridRow grid[] = {
