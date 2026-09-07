@@ -8,6 +8,9 @@ namespace bb::mem {
 
 inline bool range_readable(uintptr_t addr, size_t len)
 {
+    if (len > UINTPTR_MAX - addr) {
+        return false;
+    }
     const uintptr_t end = addr + len;
     while (addr < end) {
         MEMORY_BASIC_INFORMATION mbi{};
