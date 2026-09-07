@@ -510,21 +510,25 @@ void apply_game_theme()
     // blended — the console had no alpha, so the plates stay flat and only the
     // window itself is translucent enough to play under.
     if (g_game == Game::Babel) {
-        // Only the chrome this panel draws: no tabs, no scrollbar or resize
-        // grip under AlwaysAutoResize, no frames, headers or selectables. The
-        // button colors are here for the title bar's close box.
+        // Ghost Babel's title menu: black ground, white text, the live entry in
+        // the menu green, the second entry in pure red, and unavailable entries
+        // in flat gray. There is no yellow on that screen, so the middle band is
+        // inferred from the same flat, fully saturated GBC palette.
+        // Only the chrome this panel draws: no tabs, no scrollbar or resize grip
+        // under AlwaysAutoResize, no frames, headers or selectables. The button
+        // colors are here for the title bar's close box.
         colors[ImGuiCol_Text]              = ImVec4(0.97f, 0.97f, 0.97f, 1.00f);
-        colors[ImGuiCol_TextDisabled]      = ImVec4(0.48f, 0.44f, 0.34f, 1.00f);
+        colors[ImGuiCol_TextDisabled]      = ImVec4(0.56f, 0.56f, 0.56f, 1.00f);
         colors[ImGuiCol_WindowBg]          = ImVec4(0.00f, 0.00f, 0.00f, 0.88f);
-        colors[ImGuiCol_Border]            = ImVec4(0.94f, 0.63f, 0.16f, 1.00f);
+        colors[ImGuiCol_Border]            = ImVec4(0.00f, 0.63f, 0.36f, 1.00f);
         colors[ImGuiCol_TitleBg]           = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-        colors[ImGuiCol_TitleBgActive]     = ImVec4(0.24f, 0.15f, 0.03f, 1.00f);
-        colors[ImGuiCol_Button]            = ImVec4(0.14f, 0.09f, 0.02f, 1.00f);
-        colors[ImGuiCol_ButtonHovered]     = ImVec4(0.35f, 0.22f, 0.05f, 1.00f);
-        colors[ImGuiCol_ButtonActive]      = ImVec4(0.55f, 0.35f, 0.08f, 1.00f);
-        colors[ImGuiCol_Separator]         = ImVec4(0.94f, 0.63f, 0.16f, 0.55f);
-        colors[ImGuiCol_TableBorderLight]  = ImVec4(0.62f, 0.41f, 0.10f, 0.40f);
-        colors[ImGuiCol_TableRowBgAlt]     = ImVec4(0.10f, 0.07f, 0.02f, 0.55f);
+        colors[ImGuiCol_TitleBgActive]     = ImVec4(0.00f, 0.20f, 0.11f, 1.00f);
+        colors[ImGuiCol_Button]            = ImVec4(0.00f, 0.16f, 0.09f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]     = ImVec4(0.00f, 0.42f, 0.24f, 1.00f);
+        colors[ImGuiCol_ButtonActive]      = ImVec4(0.00f, 0.63f, 0.36f, 1.00f);
+        colors[ImGuiCol_Separator]         = ImVec4(0.00f, 0.63f, 0.36f, 0.55f);
+        colors[ImGuiCol_TableBorderLight]  = ImVec4(0.56f, 0.56f, 0.56f, 0.35f);
+        colors[ImGuiCol_TableRowBgAlt]     = ImVec4(0.06f, 0.06f, 0.06f, 0.55f);
         return;
     }
 
@@ -941,9 +945,10 @@ IdColors id_colors(Game game)
     // The red is the menu red the theme is built on; green and amber only have
     // to carry a verdict against near-white text on black.
     case Game::MGSPW: return {{0.30f, 0.86f, 0.40f, 1}, {0.96f, 0.78f, 0.24f, 1}, {0.95f, 0.11f, 0.14f, 1}};
-    // Straight off the Ghost Babel HUD: the LIFE bar's teal, the frame amber,
-    // and the pure red the empty item slots are drawn in.
-    case Game::Babel: return {{0.20f, 0.82f, 0.63f, 1}, {0.94f, 0.63f, 0.16f, 1}, {0.97f, 0.09f, 0.00f, 1}};
+    // Straight off the Ghost Babel title menu: NEW GAME's green and CONTINUE's
+    // red. That screen has no yellow, so the middle band is inferred at the
+    // same saturation.
+    case Game::Babel: return {{0.00f, 0.63f, 0.36f, 1}, {0.94f, 0.78f, 0.00f, 1}, {0.97f, 0.00f, 0.00f, 1}};
     }
     return {{0.42f, 0.90f, 0.45f, 1}, {1.0f, 0.82f, 0.25f, 1}, {0.95f, 0.35f, 0.35f, 1}};
 }
