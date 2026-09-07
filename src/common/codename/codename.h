@@ -84,6 +84,38 @@ constexpr TierMask kH = 1u << 3;
 constexpr TierMask kX = 1u << 4;
 constexpr TierMask kAllTiers = kVe | kE | kN | kH | kX;
 
+// The animal-named ranks MGS2 and MGS3 award per difficulty tier, best tier
+// first. Both games use the same names and only differ in tier masks, so
+// the strings live here once and each game's rules index them. MGS1
+// Integral reuses most of these but renames the lowest fast tier, so it
+// keeps its own table.
+struct AnimalTierNames {
+    const char* top;
+    const char* high;
+    const char* normal;
+    const char* low;
+};
+
+struct AnimalTiers {
+    AnimalTierNames worst;
+    AnimalTierNames low_alerts;
+    AnimalTierNames fast;
+    AnimalTierNames kills;
+    AnimalTierNames meals;
+    AnimalTierNames time;
+    AnimalTierNames saves;
+};
+
+inline constexpr AnimalTiers kAnimalTiers{
+    {"Ostrich", "Rabbit", "Mouse", "Chicken"},
+    {"Night Owl", "Flying Fox", "Bat", "Flying Squirrel"},
+    {"Eagle", "Hawk", "Falcon", "Swallow"},
+    {"Orca", "Jaws", "Shark", "Piranha"},
+    {"Whale", "Mammoth", "Elephant", "Pig"},
+    {"Giant Panda", "Sloth", "Capybara", "Koala"},
+    {"Hippopotamus", "Zebra", "Deer", "Cat"},
+};
+
 struct RankRule {
     const char* name;
     TierMask tiers;

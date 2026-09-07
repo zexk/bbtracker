@@ -254,6 +254,64 @@ void test_regular_tp_grid_dimensions()
     CHECK(std::string_view(best(s)) == "KOMODO DRAGON");
 }
 
+void test_animal_tier_names()
+{
+    // Every special family awards the shared table's names at each tier.
+    // Base stats isolate one family: Tanker mission, off the elite ladder
+    // (wrong mission), off PIGEON (one kill), off the fast board (one hour).
+    const Difficulty tiers[4] = {Difficulty::Extreme, Difficulty::Hard,
+                                 Difficulty::Normal, Difficulty::Easy};
+    struct Family {
+        const char* names[4]; // Extreme, Hard, Normal, Easy
+        GameStats stats;
+    };
+    auto tanker = [] {
+        GameStats s{};
+        s.mission = 16;
+        s.alerts = 1;
+        s.kills = 1;
+        s.play_time_seconds = 3600.0;
+        return s;
+    };
+    GameStats low_alerts = tanker();
+    low_alerts.alerts = 0;
+    low_alerts.kills = 0;
+    GameStats fast = tanker();
+    fast.play_time_seconds = 600.0;
+    GameStats kills = tanker();
+    kills.kills = 50;
+    GameStats meals = tanker();
+    meals.rations_used = 31;
+    GameStats time = tanker();
+    time.play_time_seconds = 300.0 * 60.0;
+    GameStats saves = tanker();
+    saves.saves = 25;
+    GameStats worst{};
+    worst.mission = 32;
+    worst.alerts = 250;
+    worst.kills = 250;
+    worst.rations_used = 31;
+    worst.play_time_seconds = 1800.0 * 60.0;
+    worst.continues = 60;
+    worst.saves = 100;
+    const Family families[] = {
+        {{"Ostrich", "Rabbit", "Mouse", "Chicken"}, worst},
+        {{"Night Owl", "Flying Fox", "Bat", "Flying Squirrel"}, low_alerts},
+        {{"Eagle", "Hawk", "Falcon", "Swallow"}, fast},
+        {{"Orca", "Jaws", "Shark", "Piranha"}, kills},
+        {{"Whale", "Mammoth", "Elephant", "Pig"}, meals},
+        {{"Giant Panda", "Sloth", "Capybara", "Koala"}, time},
+        {{"Hippopotamus", "Zebra", "Deer", "Cat"}, saves},
+    };
+    for (const Family& f : families) {
+        for (int i = 0; i < 4; ++i) {
+            GameStats s = f.stats;
+            s.difficulty = tiers[i];
+            CHECK(std::string_view(best(s)) == f.names[i]);
+        }
+    }
+}
+
 } // namespace
 
 int main()
@@ -275,6 +333,7 @@ int main()
         {"gazelle_thresholds", test_gazelle_thresholds},
         {"regular_tanker_scorpion", test_regular_tanker_scorpion},
         {"regular_tp_grid_dimensions", test_regular_tp_grid_dimensions},
+        {"animal_tier_names", test_animal_tier_names},
     };
 
     return bb::test::run("mgs2", tests);

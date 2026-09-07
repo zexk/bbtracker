@@ -294,6 +294,65 @@ void test_elite_requirements_statuses()
     CHECK(passing == 9);
 }
 
+void test_animal_tier_names()
+{
+    // Every shared family awards the shared table's names at each tier.
+    // Base stats isolate one family: off the elite ladder (one kill),
+    // off Chameleon/Pigeon (one alert, one kill), off the low-injury
+    // board (twenty injuries), off the fast board (six hours).
+    const Difficulty tiers[4] = {Difficulty::Extreme, Difficulty::Hard,
+                                 Difficulty::Normal, Difficulty::VeryEasy};
+    struct Family {
+        const char* names[4]; // Extreme, Hard, Normal, VeryEasy
+        GameStats stats;
+    };
+    auto calm = [] {
+        GameStats s{};
+        s.alerts = 1;
+        s.kills = 1;
+        s.severe_injuries = 20;
+        s.play_time_seconds = 3600.0 * 6;
+        return s;
+    };
+    GameStats low_injury = calm();
+    low_injury.severe_injuries = 0;
+    GameStats fast = calm();
+    fast.play_time_seconds = 3600.0;
+    GameStats meals = calm();
+    meals.meals_eaten = 251;
+    GameStats kills = calm();
+    kills.kills = 251;
+    GameStats time = calm();
+    time.play_time_seconds = 3600.0 * 51;
+    GameStats saves = calm();
+    saves.saves = 101;
+    GameStats worst{};
+    worst.alerts = 251;
+    worst.kills = 251;
+    worst.play_time_seconds = 3600.0 * 51;
+    worst.continues = 61;
+    worst.saves = 101;
+    worst.damage_taken_bars = 31;
+    worst.severe_injuries = 251;
+    worst.life_med_used = 11;
+    const Family families[] = {
+        {{"Ostrich", "Rabbit", "Mouse", "Chicken"}, worst},
+        {{"Night Owl", "Flying Fox", "Bat", "Flying Squirrel"}, low_injury},
+        {{"Eagle", "Hawk", "Falcon", "Swallow"}, fast},
+        {{"Orca", "Jaws", "Shark", "Piranha"}, kills},
+        {{"Whale", "Mammoth", "Elephant", "Pig"}, meals},
+        {{"Giant Panda", "Sloth", "Capybara", "Koala"}, time},
+        {{"Hippopotamus", "Zebra", "Deer", "Cat"}, saves},
+    };
+    for (const Family& f : families) {
+        for (int i = 0; i < 4; ++i) {
+            GameStats s = f.stats;
+            s.difficulty = tiers[i];
+            CHECK(std::string_view(best(s)) == f.names[i]);
+        }
+    }
+}
+
 } // namespace
 
 int main()
@@ -318,6 +377,7 @@ int main()
         {"regular_fallback", test_regular_fallback},
         {"tier_gating", test_tier_gating},
         {"elite_requirements_statuses", test_elite_requirements_statuses},
+        {"animal_tier_names", test_animal_tier_names},
     };
 
     return bb::test::run("mgs3", tests);

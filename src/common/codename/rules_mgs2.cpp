@@ -51,10 +51,18 @@ struct Mgs2Tier {
 };
 
 constexpr Mgs2Tier kTiers[4] = {
-    {kX | kEE, "Ostrich", "Night Owl", "Eagle", "Orca", "Whale", "Giant Panda", "Hippopotamus"},
-    {kH, "Rabbit", "Flying Fox", "Hawk", "Jaws", "Mammoth", "Sloth", "Zebra"},
-    {kN, "Mouse", "Bat", "Falcon", "Shark", "Elephant", "Capybara", "Deer"},
-    {kEV, "Chicken", "Flying Squirrel", "Swallow", "Piranha", "Pig", "Koala", "Cat"},
+    {kX | kEE, kAnimalTiers.worst.top, kAnimalTiers.low_alerts.top,
+     kAnimalTiers.fast.top, kAnimalTiers.kills.top, kAnimalTiers.meals.top,
+     kAnimalTiers.time.top, kAnimalTiers.saves.top},
+    {kH, kAnimalTiers.worst.high, kAnimalTiers.low_alerts.high,
+     kAnimalTiers.fast.high, kAnimalTiers.kills.high, kAnimalTiers.meals.high,
+     kAnimalTiers.time.high, kAnimalTiers.saves.high},
+    {kN, kAnimalTiers.worst.normal, kAnimalTiers.low_alerts.normal,
+     kAnimalTiers.fast.normal, kAnimalTiers.kills.normal, kAnimalTiers.meals.normal,
+     kAnimalTiers.time.normal, kAnimalTiers.saves.normal},
+    {kEV, kAnimalTiers.worst.low, kAnimalTiers.low_alerts.low,
+     kAnimalTiers.fast.low, kAnimalTiers.kills.low, kAnimalTiers.meals.low,
+     kAnimalTiers.time.low, kAnimalTiers.saves.low},
 };
 
 std::vector<Cond> elite_conds(int strictness)
