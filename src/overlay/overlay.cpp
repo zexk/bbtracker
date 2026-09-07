@@ -85,12 +85,6 @@ constexpr UINT kExecuteCommandListsIndex = 10;
 constexpr UINT kToggleKey = VK_F3;
 constexpr UINT kTabKey = VK_F4;
 
-// Requirement-row verdict bands, shared by the Peace Walker and generic
-// panels: this far into a stay-under limit reads as near the limit, and
-// this far toward a reach goal reads as getting close.
-constexpr double kNearLimitShare = 0.75;
-constexpr double kCloseGoalShare = 0.5;
-
 bool key_pressed(UINT key)
 {
     static bool was_down[256]{};
@@ -874,6 +868,13 @@ struct IdColors {
     ImVec4 yellow;
     ImVec4 red;
 };
+
+// Requirement-row verdict bands, shared by the Peace Walker and generic
+// panels: this far into a stay-under limit reads as near the limit, and
+// this far toward a reach goal reads as getting close. They sit here, next
+// to IdColors, because the headless harnesses compile this block.
+constexpr double kNearLimitShare = 0.75;
+constexpr double kCloseGoalShare = 0.5;
 
 IdColors id_colors(Game game)
 {
