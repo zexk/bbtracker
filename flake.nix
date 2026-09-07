@@ -21,7 +21,7 @@
     let
       systems = [ "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
-      version = "0.3.0";
+      version = "0.3.1";
     in
     {
       packages = forAllSystems (system:
