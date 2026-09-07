@@ -11,6 +11,19 @@ constexpr TierMask kHardUp = kH | kX;
 constexpr TierMask kSolidUp = kN | kHardUp;
 constexpr TierMask kNakedUp = kE | kSolidUp;
 
+// Single source for the BIG BOSS ladder: the requirements panel reads the
+// rows, the rank matches on the derived conds.
+constexpr std::array<ReqRow, 6> kBigBossRows{{
+    {"alerts", StatId::Alerts, Op::Eq, 0, ReqFmt::Count},
+    {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
+    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
+    {"recovery items", StatId::RationsUsed, Op::Eq, 0, ReqFmt::Count},
+    {"play time", StatId::PlayTimeHours, Op::Le, 5, ReqFmt::Time},
+    {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
+}};
+
+constexpr std::array<Cond, 6> kBigBossConds = conds_from_rows(kBigBossRows);
+
 std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& pool)
 {
     std::vector<RankRule> rules;
@@ -30,7 +43,10 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& pool)
              {StatId::PlayTimeHours, Op::Le, hours},
              {StatId::SpecialItemUsed, Op::Eq, 0}}, true);
     };
-    elite("BIG BOSS", kX, 0, 5, true);
+    // BIG BOSS matches on the shared ladder conds; the looser elites keep
+    // their parameterized rows.
+    add("BIG BOSS", kX, Kind::Elite,
+        {kBigBossConds.begin(), kBigBossConds.end()}, true);
     elite("FOX HOUND", kHardUp, 3, 5.5);
     elite("FOX", kSolidUp, 5, 6);
     elite("HOUND", kNakedUp, 10, 6.5);
@@ -90,15 +106,6 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& pool)
     return rules;
 }
 
-constexpr std::array<ReqRow, 6> kBigBossReqs{{
-    {"alerts", StatId::Alerts, Op::Eq, 0, ReqFmt::Count},
-    {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
-    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
-    {"recovery items", StatId::RationsUsed, Op::Eq, 0, ReqFmt::Count},
-    {"play time", StatId::PlayTimeHours, Op::Le, 5, ReqFmt::Time},
-    {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
-}};
-
 } // namespace
 
 std::span<const RankRule> mgs4_rules()
@@ -120,7 +127,12 @@ std::vector<Match> all_matches_mgs4(const GameStats& s)
 
 std::vector<ReqStatus> elite_requirements_mgs4(const GameStats& s)
 {
-    return requirements_from_rows(s, kBigBossReqs, false);
+    return requirements_from_rows(s, mgs4_elite_rows(), false);
+}
+
+std::span<const ReqRow> mgs4_elite_rows()
+{
+    return kBigBossRows;
 }
 
 } // namespace bb::codename

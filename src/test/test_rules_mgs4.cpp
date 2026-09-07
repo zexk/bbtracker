@@ -125,6 +125,31 @@ void test_chicken_priority()
     CHECK(std::string_view(best(stats)) == "PIG");
 }
 
+void test_elite_requirements_mirror_big_boss()
+{
+    // The requirements panel reads the same ladder the rank matches on:
+    // a clean run passes every row, one alert fails exactly the alerts row.
+    GameStats stats{};
+    stats.difficulty = Difficulty::Extreme;
+    stats.play_time_seconds = 4 * 3600;
+    const auto clean = elite_requirements_mgs4(stats);
+    CHECK(clean.size() == 6);
+    for (const ReqStatus& r : clean) {
+        CHECK(r.pass);
+    }
+    stats.alerts = 1;
+    const auto dirty = elite_requirements_mgs4(stats);
+    CHECK(dirty.size() == 6);
+    int fails = 0;
+    for (const ReqStatus& r : dirty) {
+        if (!r.pass) {
+            ++fails;
+            CHECK(std::string_view(r.label) == "alerts");
+        }
+    }
+    CHECK(fails == 1);
+}
+
 } // namespace
 
 int main()
@@ -136,6 +161,7 @@ int main()
         {"regular_grid_boundaries", test_regular_grid_boundaries},
         {"other_inclusive_boundaries", test_other_inclusive_boundaries},
         {"chicken_priority", test_chicken_priority},
+        {"elite_requirements_mirror_big_boss", test_elite_requirements_mirror_big_boss},
     };
 
     return bb::test::run("mgs4", tests);

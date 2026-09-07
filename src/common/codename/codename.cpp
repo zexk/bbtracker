@@ -7,6 +7,7 @@
 #include "rules_mgs1.h"
 #include "rules_mgs2.h"
 #include "rules_mgs3.h"
+#include "rules_mgs4.h"
 
 namespace bb::codename {
 namespace {
