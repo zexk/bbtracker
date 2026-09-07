@@ -7,11 +7,8 @@ namespace {
 
 constexpr TierMask kTier[4] = {kX, kH, kN, kE | kVe};
 
-constexpr Cond kLadder[] = {
-    {StatId::Alerts, Op::Lt, 4},      {StatId::Kills, Op::Lt, 25},
-    {StatId::RationsUsed, Op::Le, 1}, {StatId::Continues, Op::Eq, 0},
-    {StatId::PlayTimeHours, Op::Lt, 3},
-};
+// Integral drops the radar requirement and keeps the rest of the ladder,
+// so it matches on the shared table without its first row.
 constexpr Cond kScorpion[] = {{StatId::Alerts, Op::Lt, 30}, {StatId::Kills, Op::Lt, 17}};
 constexpr Cond kJaguar[] = {{StatId::Alerts, Op::Lt, 30}, {StatId::Kills, Op::Gt, 62}};
 constexpr Cond kEagle[] = {{StatId::PlayTimeHours, Op::Lt, 2.5}};
@@ -35,10 +32,10 @@ constexpr Cond kWorst[] = {{StatId::Kills, Op::Gt, 130},
                            {StatId::PlayTimeHours, Op::Gt, 18}};
 
 const std::array<RankRule, 64> kRules{{
-    {"BIG BOSS", kTier[0], Kind::Elite, kLadder, true},
-    {"FOX", kTier[1], Kind::Elite, kLadder, true},
-    {"DOBERMAN", kTier[2], Kind::Elite, kLadder, true},
-    {"HOUND", kTier[3], Kind::Elite, kLadder, true},
+    {"BIG BOSS", kTier[0], Kind::Elite, mgs1_elite_conds().subspan(1), true},
+    {"FOX", kTier[1], Kind::Elite, mgs1_elite_conds().subspan(1), true},
+    {"DOBERMAN", kTier[2], Kind::Elite, mgs1_elite_conds().subspan(1), true},
+    {"HOUND", kTier[3], Kind::Elite, mgs1_elite_conds().subspan(1), true},
 
     {"Scorpion", kTier[0], Kind::Special, kScorpion},
     {"Centipede", kTier[1], Kind::Special, kScorpion},

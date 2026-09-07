@@ -7,17 +7,19 @@ namespace {
 
 constexpr TierMask kAny = kVe | kE | kN | kH | kX;
 
-constexpr Cond kFox[] = {
-    {StatId::Alerts, Op::Lt, 4},      {StatId::Kills, Op::Lt, 25},
-    {StatId::RationsUsed, Op::Le, 1}, {StatId::Continues, Op::Eq, 0},
-    {StatId::PlayTimeHours, Op::Lt, 3},
-};
+// Single source for the elite ladder: the requirements panel reads the
+// rows, the rank rules match on the derived conds. Integral matches on
+// everything past the radar row.
+constexpr std::array<ReqRow, 6> kEliteLadder{{
+    {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
+    {"discovered", StatId::Alerts, Op::Lt, 4, ReqFmt::Count},
+    {"kills", StatId::Kills, Op::Lt, 25, ReqFmt::Count},
+    {"rations used", StatId::RationsUsed, Op::Le, 1, ReqFmt::Count},
+    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
+    {"play time", StatId::PlayTimeHours, Op::Lt, 3, ReqFmt::Time},
+}};
 
-constexpr Cond kBigBoss[] = {
-    {StatId::RadarOff, Op::Eq, 1},    {StatId::Alerts, Op::Lt, 4},
-    {StatId::Kills, Op::Lt, 25},      {StatId::RationsUsed, Op::Le, 1},
-    {StatId::Continues, Op::Eq, 0},   {StatId::PlayTimeHours, Op::Lt, 3},
-};
+constexpr std::array<Cond, 6> kEliteConds = conds_from_rows(kEliteLadder);
 
 constexpr Cond kFalcon[] = {{StatId::PlayTimeHours, Op::Lt, 2.5}};
 constexpr Cond kJaws[] = {{StatId::Kills, Op::Gt, 250}};
@@ -74,8 +76,8 @@ constexpr Cond kGridL3Y3[] = {{StatId::Alerts, Op::Ge, 55},
 constexpr Cond kGridL3Y4[] = {{StatId::Alerts, Op::Ge, 55}, {StatId::DiscoveryRatio, Op::Ge, 20}};
 
 const std::array<RankRule, 23> kMgs1Rules{{
-    RankRule{"BIG BOSS", kX, Kind::Elite, kBigBoss},
-    RankRule{"FOX", kH, Kind::Elite, kFox, true},
+    RankRule{"BIG BOSS", kX, Kind::Elite, std::span(kEliteConds)},
+    RankRule{"FOX", kH, Kind::Elite, std::span(kEliteConds).subspan(1), true},
 
     RankRule{"Falcon", kAny, Kind::Special, kFalcon, true},
     RankRule{"Jaws", kAny, Kind::Special, kJaws},
@@ -110,6 +112,16 @@ static_assert(std::size(kMgs1Rules) == 23);
 std::span<const RankRule> mgs1_rules()
 {
     return kMgs1Rules;
+}
+
+std::span<const ReqRow> mgs1_elite_rows()
+{
+    return kEliteLadder;
+}
+
+std::span<const Cond> mgs1_elite_conds()
+{
+    return kEliteConds;
 }
 
 }

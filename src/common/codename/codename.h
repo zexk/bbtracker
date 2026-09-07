@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <optional>
 #include <span>
 #include <string>
@@ -138,6 +139,19 @@ struct ReqRow {
     double limit;
     ReqFmt fmt;
 };
+
+// Derive match conds from a display ladder so an elite rank's thresholds
+// live in exactly one table: the ReqRow array carries labels and formats
+// for the requirements panel, and the rules match on these conds.
+template <size_t N>
+constexpr std::array<Cond, N> conds_from_rows(const std::array<ReqRow, N>& rows)
+{
+    std::array<Cond, N> out{};
+    for (size_t i = 0; i < N; ++i) {
+        out[i] = Cond{rows[i].stat, rows[i].op, rows[i].limit};
+    }
+    return out;
+}
 
 inline ReqStatus make_req_status(const GameStats& s, const ReqRow& row, bool time_gated)
 {
