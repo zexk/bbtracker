@@ -209,6 +209,10 @@ inline std::vector<ReqStatus> requirements_from_rows(const GameStats& s,
 
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s);
 
+std::optional<Match> evaluate_babel(const GameStats& s);
+
+std::vector<ReqStatus> elite_requirements_babel(const GameStats& s);
+
 // One insignia record, by the game's own insignia id (1..110). `over` is the
 // value the counter must exceed (the test is strict); -1 means the grant is
 // not a simple counter compare. `heroism` is the award. Names come from the

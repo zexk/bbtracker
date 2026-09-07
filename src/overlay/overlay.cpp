@@ -300,7 +300,7 @@ void apply_game_theme()
     if (g_game != Game::MG1 && g_game != Game::MG2
         && g_game != Game::MGS1 && g_game != Game::MGS2
         && g_game != Game::MGS3 && g_game != Game::MGS4
-        && g_game != Game::MGSPW) {
+        && g_game != Game::MGSPW && g_game != Game::Babel) {
         return;
     }
 
@@ -917,6 +917,7 @@ IdColors id_colors(Game game)
     // The red is the menu red the theme is built on; green and amber only have
     // to carry a verdict against near-white text on black.
     case Game::MGSPW: return {{0.30f, 0.86f, 0.40f, 1}, {0.96f, 0.78f, 0.24f, 1}, {0.95f, 0.11f, 0.14f, 1}};
+    case Game::Babel: return {{0.42f, 0.72f, 0.38f, 1}, {0.80f, 0.62f, 0.12f, 1}, {0.82f, 0.20f, 0.10f, 1}};
     }
     return {{0.42f, 0.90f, 0.45f, 1}, {1.0f, 0.82f, 0.25f, 1}, {0.95f, 0.35f, 0.35f, 1}};
 }
@@ -1211,6 +1212,7 @@ constexpr EvaluateFn kEvaluateFns[] = {
     [static_cast<int>(Game::MGS3)] = codename::evaluate_mgs3,
     [static_cast<int>(Game::MGS4)] = codename::evaluate_mgs4,
     [static_cast<int>(Game::MGSPW)] = codename::evaluate_mgspw,
+    [static_cast<int>(Game::Babel)] = codename::evaluate_babel,
 };
 
 constexpr RequirementsFn kRequirementsFns[] = {
@@ -1221,10 +1223,11 @@ constexpr RequirementsFn kRequirementsFns[] = {
     [static_cast<int>(Game::MGS3)] = codename::elite_requirements_mgs3,
     [static_cast<int>(Game::MGS4)] = codename::elite_requirements_mgs4,
     [static_cast<int>(Game::MGSPW)] = codename::elite_requirements_mgspw,
+    [static_cast<int>(Game::Babel)] = codename::elite_requirements_babel,
 };
 
-static_assert(std::size(kEvaluateFns) == 7);
-static_assert(std::size(kRequirementsFns) == 7);
+static_assert(std::size(kEvaluateFns) == 8);
+static_assert(std::size(kRequirementsFns) == 8);
 
 // The live half of the Summary: this sortie's clock and tally. Only drawn while
 // a mission is running, so nothing here is ever the previous run's leftovers.
@@ -1815,7 +1818,15 @@ void draw_panel()
     const auto& match = g_eval.match;
 
     const auto [id_green, id_yellow, id_red] = id_colors(g_game);
+    // Ghost Babel names its top rank per difficulty — HOUND, DOBERMAN, FOX,
+    // BIG BOSS are all rank 0 — so the verdict comes from the kind, not the
+    // name. Matching by name would paint Hard's FOX amber and Normal's
+    // DOBERMAN as an also-ran.
     const ImVec4 codename_color = !match ? unset_color()
+        : g_game == Game::Babel
+            ? (match->kind == codename::Kind::Elite ? id_green
+               : match->kind == codename::Kind::Worst ? id_red
+                                                      : ImGui::GetStyleColorVec4(ImGuiCol_Text))
         : std::strcmp(match->name, "FOX") == 0 ? id_yellow
         : std::strcmp(match->name, "BIG BOSS") == 0 || std::strcmp(match->name, "FOXHOUND") == 0
             ? id_green : match->kind == codename::Kind::Worst ? id_red
@@ -1834,6 +1845,7 @@ void draw_panel()
         if (!stats.mgs1_japanese_original) {
             const bool classic_mg = g_game == Game::MG1 || g_game == Game::MG2;
             const bool known_difficulty = classic_mg
+                || g_game == Game::Babel
                 || g_game == Game::MGS1 || g_game == Game::MGS4
                 || stats.difficulty_game_byte % 10 == 0;
             const bool valid_difficulty = known_difficulty
@@ -1845,9 +1857,12 @@ void draw_panel()
             ImGui::TableNextColumn();
             ImGui::TextUnformatted("difficulty");
             ImGui::TableNextColumn();
+            constexpr const char* babel_difficulties[]{"Easy", "Normal", "Hard", "Very Hard"};
             ImGui::TextColored(valid_difficulty ? id_green : id_red,
                                "%s%s", classic_mg
                                    ? (stats.difficulty == Difficulty::Extreme ? "Original" : "Easy")
+                                   : g_game == Game::Babel && stats.difficulty_raw < 4
+                                       ? babel_difficulties[stats.difficulty_raw]
                                    : difficulty_name(stats.difficulty),
                                known_difficulty ? "" : " (?)");
         }

@@ -1,7 +1,7 @@
 # bbtracker: Metal Gear rank tracker
 
 Live rank and codename tracker overlay for Metal Gear Solid: Master Collection.
-Tracks Metal Gear, Metal Gear 2, MGS1, MGS2, MGS3, MGS4, and Peace Walker runs
+Tracks Metal Gear, Metal Gear 2, Ghost Babel, MGS1, MGS2, MGS3, MGS4, and Peace Walker runs
 in real time, including projected rank, requirements, and run stats.
 
 Peace Walker has no rank. Its codename comes from the weapons a career is built
@@ -40,6 +40,7 @@ copy ASI into game directory:
 - `bbtracker_mgs3.asi` into `MGS3`
 - `bbtracker_mgs4.asi` into `METAL GEAR SOLID 4/MGS4`
 - `bbtracker_mgspw.asi` into `MGS_PW/mgspw`
+- `bbtracker_babel.asi` into `MGS_BC2`
 
 Follow fix project's Proton/Steam Deck DLL-override instructions when applicable.
 
