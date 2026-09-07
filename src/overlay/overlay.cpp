@@ -59,6 +59,7 @@ struct OverlayState {
     UINT64 next_fence12 = 0;
     std::vector<D3D12Frame> frames12;
     HWND hwnd = nullptr;
+    ImVec2 render_size{};
 };
 
 const char* g_label = "?";
@@ -141,8 +142,13 @@ bool create_rtv(IDXGISwapChain* swap_chain)
         || !back_buffer) {
         return false;
     }
+    D3D11_TEXTURE2D_DESC desc{};
+    back_buffer->GetDesc(&desc);
     HRESULT hr = g.device->CreateRenderTargetView(back_buffer, nullptr, &g.rtv);
     back_buffer->Release();
+    if (SUCCEEDED(hr)) {
+        g.render_size = {static_cast<float>(desc.Width), static_cast<float>(desc.Height)};
+    }
     return SUCCEEDED(hr);
 }
 
@@ -263,6 +269,8 @@ bool init_imgui_d3d12(IDXGISwapChain* swap_chain)
         release_d3d12();
         return false;
     }
+    const D3D12_RESOURCE_DESC back_desc = g.frames12[0].buffer->GetDesc();
+    g.render_size = {static_cast<float>(back_desc.Width), static_cast<float>(back_desc.Height)};
 
     begin_imgui();
     ImGui_ImplDX12_InitInfo info{};
@@ -2058,6 +2066,9 @@ HRESULT STDMETHODCALLTYPE hk_present(IDXGISwapChain* swap_chain, UINT sync_inter
     if (g.renderer == Renderer::D3D11) ImGui_ImplDX11_NewFrame();
     else ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
+    // Win32 reports client size, which can differ from swap-chain size under
+    // internal scaling. ImGui draws into the back buffer, so use its size.
+    ImGui::GetIO().DisplaySize = g.render_size;
     ImGui::NewFrame();
     draw_panel();
     ImGui::Render();
