@@ -151,25 +151,9 @@ const RankRule* find_mgs3(const char* name)
     return nullptr;
 }
 
-namespace {
-
-constexpr std::array<ReqRow, 9> kFoxhoundReqs{{
-    {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
-    {"alerts", StatId::Alerts, Op::Eq, 0, ReqFmt::Count},
-    {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
-    {"severe injuries", StatId::SevereInjuries, Op::Lt, 20, ReqFmt::Count},
-    {"damage", StatId::DamageBars, Op::Lt, 5, ReqFmt::Bars},
-    {"life medicine", StatId::LifeMedUsed, Op::Eq, 0, ReqFmt::Count},
-    {"play time", StatId::PlayTimeHours, Op::Lt, 5, ReqFmt::Time},
-    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
-    {"saves", StatId::Saves, Op::Lt, 25, ReqFmt::Count},
-}};
-
-} // namespace
-
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s)
 {
-    return requirements_from_rows(s, kFoxhoundReqs, false);
+    return requirements_from_rows(s, mgs3_elite_rows(), false);
 }
 
 std::optional<Match> evaluate_mgs2(const GameStats& s)

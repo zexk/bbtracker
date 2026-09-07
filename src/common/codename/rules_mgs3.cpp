@@ -13,14 +13,22 @@ constexpr TierMask kAllMgs3 = kAllTiers | (1u << 5);
 // The elite ladder runs on a diagonal: FOXHOUND sits at Extreme, FOX at Hard,
 // DOBERMAN at Normal, HOUND at Easy. Each rank clears step 0 at its own floor
 // difficulty and one step looser for every difficulty above that, so these four
-// bars serve all four ranks between them.
-constexpr Cond kEliteStep0[] = {
-    {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Eq, 0},
-    {StatId::Kills, Op::Eq, 0},           {StatId::SevereInjuries, Op::Lt, 20},
-    {StatId::DamageBars, Op::Lt, 5},      {StatId::LifeMedUsed, Op::Eq, 0},
-    {StatId::PlayTimeHours, Op::Lt, 5},   {StatId::Continues, Op::Eq, 0},
-    {StatId::Saves, Op::Lt, 25},
-};
+// bars serve all four ranks between them. Step 0 doubles as the requirements
+// panel rows, so it lives here once as ReqRows and the rules match on the
+// derived conds.
+constexpr std::array<ReqRow, 9> kEliteStep0Rows{{
+    {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
+    {"alerts", StatId::Alerts, Op::Eq, 0, ReqFmt::Count},
+    {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
+    {"severe injuries", StatId::SevereInjuries, Op::Lt, 20, ReqFmt::Count},
+    {"damage", StatId::DamageBars, Op::Lt, 5, ReqFmt::Bars},
+    {"life medicine", StatId::LifeMedUsed, Op::Eq, 0, ReqFmt::Count},
+    {"play time", StatId::PlayTimeHours, Op::Lt, 5, ReqFmt::Time},
+    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
+    {"saves", StatId::Saves, Op::Lt, 25, ReqFmt::Count},
+}};
+
+constexpr std::array<Cond, 9> kEliteStep0 = conds_from_rows(kEliteStep0Rows);
 
 constexpr Cond kEliteStep1[] = {
     {StatId::SpecialItemUsed, Op::Eq, 0}, {StatId::Alerts, Op::Le, 3},
@@ -201,6 +209,11 @@ const std::array<RankRule, 61> kMgs3Rules{{
 std::span<const RankRule> mgs3_rules()
 {
     return kMgs3Rules;
+}
+
+std::span<const ReqRow> mgs3_elite_rows()
+{
+    return kEliteStep0Rows;
 }
 
 }
