@@ -455,7 +455,7 @@ std::optional<Match> evaluate_mgspw(const GameStats& s)
         return std::nullopt;
     }
     const bool coop = s.pw_camaraderie > kPwCoopCamaraderie;
-    const bool nonlethal = p.nonlethal > 2 * p.lethal;
+    const bool nonlethal = pw_nonlethal_beats_lethal(p.lethal, p.nonlethal);
     for (const PwTitle& t : kPwTitles) {
         if (t.cls == p.dominant && t.coop == coop && t.nonlethal == nonlethal) {
             return Match{t.name, t.cls == WeaponClass::All ? Kind::Elite : Kind::Regular};

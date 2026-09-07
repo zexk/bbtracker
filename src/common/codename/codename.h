@@ -271,6 +271,13 @@ struct PwGradeGate {
 // Camaraderie above this line marks a co-op career for title and grade use.
 inline constexpr int kPwCoopCamaraderie = 10000;
 
+// FOXHOUND is a non-lethal title: non-lethal takedowns must beat twice
+// lethal. Shared by the evaluator and the overlay's takedown spread.
+inline bool pw_nonlethal_beats_lethal(int lethal, int nonlethal)
+{
+    return nonlethal > 2 * lethal;
+}
+
 PwGradeGate pw_grade_gate(int grade); // 1..5
 
 std::optional<Match> evaluate_mgspw(const GameStats& s);

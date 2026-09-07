@@ -85,6 +85,12 @@ constexpr UINT kExecuteCommandListsIndex = 10;
 constexpr UINT kToggleKey = VK_F3;
 constexpr UINT kTabKey = VK_F4;
 
+// Requirement-row verdict bands, shared by the Peace Walker and generic
+// panels: this far into a stay-under limit reads as near the limit, and
+// this far toward a reach goal reads as getting close.
+constexpr double kNearLimitShare = 0.75;
+constexpr double kCloseGoalShare = 0.5;
+
 bool key_pressed(UINT key)
 {
     static bool was_down[256]{};
@@ -1284,13 +1290,15 @@ void draw_mgspw_run(const GameStats& stats)
         stat_row("heroism (area)", buf);
         // Full health is the deployed soldier's own maximum, not a constant.
         if (stats.pw_player_max_hp > 0) {
+            constexpr int kHpGreenPct = 50;
+            constexpr int kHpYellowPct = 25;
             const int hp_pct = stats.pw_player_hp * 100 / stats.pw_player_max_hp;
             snprintf(buf, sizeof(buf), "%d%%", hp_pct);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextUnformatted("HP");
             ImGui::TableNextColumn();
-            ImGui::TextColored(hp_pct >= 50 ? id_green : hp_pct >= 25 ? id_yellow : id_red,
+            ImGui::TextColored(hp_pct >= kHpGreenPct ? id_green : hp_pct >= kHpYellowPct ? id_yellow : id_red,
                                "%s", buf);
         } else {
             unset_row("HP");
@@ -1333,14 +1341,14 @@ void draw_mgspw_summary(const GameStats& stats)
             // until it is close, while going over a limit is a real red.
             const auto op = static_cast<codename::Op>(r.op);
             const bool reach = op == codename::Op::Ge || op == codename::Op::Gt;
-            const bool near_limit = !reach && r.limit != 0 && r.current >= r.limit * 0.75;
+            const bool near_limit = !reach && r.limit != 0 && r.current >= r.limit * kNearLimitShare;
             // A limit that fails at zero has nothing under it yet: the spread
             // rules fail an empty profile, which is no data rather than a
             // broken limit.
             const ImVec4 color = r.pass ? (near_limit ? id_yellow : id_green)
                 : !reach                ? (r.current > 0 ? id_red : unset_color())
-                : r.limit > 0 && r.current >= r.limit * 0.5 ? id_yellow
-                                                            : unset_color();
+                : r.limit > 0 && r.current >= r.limit * kCloseGoalShare ? id_yellow
+                                                                             : unset_color();
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(r.label);
@@ -1584,7 +1592,8 @@ void draw_mgspw_codenames(const GameStats& stats)
         // FOXHOUND is a non-lethal title: non-lethal must beat twice lethal.
         share_row("lethal", axes.lethal, axes.lethal + axes.nonlethal, id_red);
         share_row("non-lethal", axes.nonlethal, axes.lethal + axes.nonlethal,
-                  axes.nonlethal > 2 * axes.lethal ? id_green : id_red);
+                  codename::pw_nonlethal_beats_lethal(axes.lethal, axes.nonlethal) ? id_green
+                                                                                   : id_red);
         ImGui::EndTable();
     }
 
@@ -1852,7 +1861,7 @@ void draw_panel()
             const bool over = !r.pass || radar_invalid;
             const auto op = static_cast<codename::Op>(r.op);
             const bool near_limit = !over && (op == codename::Op::Le || op == codename::Op::Lt)
-                && r.limit != 0 && r.current >= r.limit * 0.75;
+                && r.limit != 0 && r.current >= r.limit * kNearLimitShare;
             const ImVec4 state_col = over ? id_red : near_limit ? id_yellow : id_green;
 
             ImGui::TableNextRow();
@@ -1878,8 +1887,10 @@ void draw_panel()
             plain_count("saves", stats.saves);
             plain_pair("health", stats.current_health, stats.max_health);
             if (stats.diazepam_frames > 0) {
+                // The diazepam timer ticks at 30fps while game time runs at 60.
+                constexpr double kMgs1TimerFps = 30.0;
                 char buf[24];
-                snprintf(buf, sizeof(buf), "%.1fs", stats.diazepam_frames / 30.0);
+                snprintf(buf, sizeof(buf), "%.1fs", stats.diazepam_frames / kMgs1TimerFps);
                 dim_row("diazepam", buf);
             }
         } else if (g_game == Game::MGS2) {

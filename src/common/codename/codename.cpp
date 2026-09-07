@@ -62,11 +62,15 @@ double stat_value(const GameStats& s, StatId id)
     case StatId::Pickups: return s.pickups;
     case StatId::CombatHighs: return s.combat_highs;
     case StatId::DiscoveryRatio: {
-        if (s.kills < 25) {
+        // Below the kill floor the ratio reads perfect; above it each alert
+        // weighs ten against kills past the floor.
+        constexpr double kKillFloor = 25.0;
+        constexpr double kAlertWeight = 10.0;
+        if (s.kills < kKillFloor) {
             return 100.0;
         }
-        const double denom = static_cast<double>(s.kills - 25);
-        return static_cast<double>(s.alerts) * 10.0 / (denom < 1.0 ? 1.0 : denom);
+        const double denom = static_cast<double>(s.kills) - kKillFloor;
+        return static_cast<double>(s.alerts) * kAlertWeight / (denom < 1.0 ? 1.0 : denom);
     }
     }
     return 0.0;
