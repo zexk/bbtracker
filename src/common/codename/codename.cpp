@@ -177,27 +177,9 @@ std::optional<Match> evaluate_mgs2(const GameStats& s)
     return first_match(s, mgs2_rules());
 }
 
-namespace {
-
-constexpr std::array<ReqRow, 11> kBigBossReqs{{
-    {"story (Tanker + Plant)", StatId::MissionCode, Op::Eq, 32, ReqFmt::Count},
-    {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
-    {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
-    {"shots fired", StatId::ShotsFired, Op::Le, 700, ReqFmt::Count},
-    {"alerts", StatId::Alerts, Op::Le, 3, ReqFmt::Count},
-    {"damage", StatId::DamageBars, Op::Le, 10, ReqFmt::Bars},
-    {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
-    {"rations used", StatId::RationsUsed, Op::Eq, 0, ReqFmt::Count},
-    {"play time", StatId::PlayTimeHours, Op::Le, 3, ReqFmt::Time},
-    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
-    {"saves", StatId::Saves, Op::Le, 8, ReqFmt::Count},
-}};
-
-} // namespace
-
 std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s)
 {
-    return requirements_from_rows(s, kBigBossReqs, false);
+    return requirements_from_rows(s, mgs2_elite_rows(), false);
 }
 
 std::optional<Match> evaluate_mgs1(const GameStats& s)

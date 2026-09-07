@@ -20,6 +20,25 @@ Cond mission_cond(int mission)
     return Cond{StatId::MissionCode, Op::Eq, static_cast<double>(mission)};
 }
 
+// Single source for the BIG BOSS ladder: the requirements panel reads the
+// rows, strictness 0 matches on the derived conds. PlayTimeHours <= 3 is
+// exactly the old PlayTimeMinutes <= 180 (ceil(s/60) <= 180 iff s <= 10800).
+constexpr std::array<ReqRow, 11> kEliteLadder{{
+    {"story (Tanker + Plant)", StatId::MissionCode, Op::Eq, 32, ReqFmt::Count},
+    {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
+    {"radar", StatId::RadarOff, Op::Eq, 1, ReqFmt::Count},
+    {"shots fired", StatId::ShotsFired, Op::Le, 700, ReqFmt::Count},
+    {"alerts", StatId::Alerts, Op::Le, 3, ReqFmt::Count},
+    {"damage", StatId::DamageBars, Op::Le, 10, ReqFmt::Bars},
+    {"kills", StatId::Kills, Op::Eq, 0, ReqFmt::Count},
+    {"rations used", StatId::RationsUsed, Op::Eq, 0, ReqFmt::Count},
+    {"play time", StatId::PlayTimeHours, Op::Le, 3, ReqFmt::Time},
+    {"continues", StatId::Continues, Op::Eq, 0, ReqFmt::Count},
+    {"saves", StatId::Saves, Op::Le, 8, ReqFmt::Count},
+}};
+
+constexpr std::array<Cond, 11> kEliteConds = conds_from_rows(kEliteLadder);
+
 struct Mgs2Tier {
     TierMask mask;
     const char* worst_name;
@@ -44,15 +63,7 @@ std::vector<Cond> elite_conds(int strictness)
     c.push_back(mission_cond(kMissionTP));
     c.push_back({StatId::SpecialItemUsed, Op::Eq, 0});
     if (strictness == 0) {
-        c.push_back({StatId::RadarOff, Op::Eq, 1});
-        c.push_back({StatId::ShotsFired, Op::Le, 700});
-        c.push_back({StatId::DamageBars, Op::Le, 10});
-        c.push_back({StatId::PlayTimeMinutes, Op::Le, 180});
-        c.push_back({StatId::Alerts, Op::Le, 3});
-        c.push_back({StatId::Kills, Op::Eq, 0});
-        c.push_back({StatId::RationsUsed, Op::Eq, 0});
-        c.push_back({StatId::Continues, Op::Eq, 0});
-        c.push_back({StatId::Saves, Op::Le, 8});
+        return {kEliteConds.begin(), kEliteConds.end()};
     } else if (strictness == 1) {
         c.push_back({StatId::Alerts, Op::Le, 3});
         c.push_back({StatId::Kills, Op::Eq, 0});
@@ -282,6 +293,11 @@ std::span<const RankRule> mgs2_rules()
     static std::vector<std::vector<Cond>> cond_pool;
     static const std::vector<RankRule> kRules = build_rules(cond_pool);
     return kRules;
+}
+
+std::span<const ReqRow> mgs2_elite_rows()
+{
+    return kEliteLadder;
 }
 
 }
