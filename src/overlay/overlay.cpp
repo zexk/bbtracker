@@ -13,6 +13,7 @@
 #include <MinHook.h>
 
 #include <cstdlib>
+#include <atomic>
 #include <cfloat>
 #include <cmath>
 #include <cstdint>
@@ -49,7 +50,7 @@ struct OverlayState {
     ID3D11DeviceContext* context = nullptr;
     ID3D11RenderTargetView* rtv = nullptr;
     ID3D12Device* device12 = nullptr;
-    ID3D12CommandQueue* queue12 = nullptr;
+    std::atomic<ID3D12CommandQueue*> queue12 = nullptr;
     ID3D12GraphicsCommandList* command_list12 = nullptr;
     ID3D12DescriptorHeap* rtv_heap12 = nullptr;
     ID3D12DescriptorHeap* srv_heap12 = nullptr;
@@ -207,7 +208,8 @@ void free_srv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE,
 
 bool init_imgui_d3d12(IDXGISwapChain* swap_chain)
 {
-    if (!g.queue12
+    ID3D12CommandQueue* queue = g.queue12.load();
+    if (!queue
         || FAILED(swap_chain->GetDevice(__uuidof(ID3D12Device),
                                         reinterpret_cast<void**>(&g.device12)))) {
         return false;
@@ -265,7 +267,7 @@ bool init_imgui_d3d12(IDXGISwapChain* swap_chain)
     begin_imgui();
     ImGui_ImplDX12_InitInfo info{};
     info.Device = g.device12;
-    info.CommandQueue = g.queue12;
+    info.CommandQueue = queue;
     info.NumFramesInFlight = static_cast<int>(desc.BufferCount);
     info.RTVFormat = desc.BufferDesc.Format;
     info.DSVFormat = DXGI_FORMAT_UNKNOWN;
@@ -1987,10 +1989,10 @@ void draw_panel()
 void STDMETHODCALLTYPE hk_execute_command_lists(ID3D12CommandQueue* queue, UINT count,
                                                  ID3D12CommandList* const* lists)
 {
-    if (!g.queue12 && queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT) {
+    if (!g.queue12.load() && queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT) {
         queue->AddRef();
-        if (InterlockedCompareExchangePointer(reinterpret_cast<PVOID volatile*>(&g.queue12), queue,
-                                              nullptr)) {
+        ID3D12CommandQueue* expected = nullptr;
+        if (!g.queue12.compare_exchange_strong(expected, queue)) {
             queue->Release();
         } else {
             LOG_INFO("captured D3D12 direct command queue %p", reinterpret_cast<void*>(queue));
@@ -2030,9 +2032,10 @@ bool render_d3d12(IDXGISwapChain* swap_chain)
     if (FAILED(g.command_list12->Close())) return false;
 
     ID3D12CommandList* lists[] = {g.command_list12};
-    g.queue12->ExecuteCommandLists(1, lists);
+    ID3D12CommandQueue* queue = g.queue12.load();
+    queue->ExecuteCommandLists(1, lists);
     const UINT64 fence = ++g.next_fence12;
-    if (FAILED(g.queue12->Signal(g.fence12, fence))) return false;
+    if (FAILED(queue->Signal(g.fence12, fence))) return false;
     frame.fence_value = fence;
     return true;
 }
