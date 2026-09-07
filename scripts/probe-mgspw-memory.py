@@ -372,7 +372,7 @@ def self_test():
     fake = bytearray(0x3000)
     struct.pack_into("<i", fake, match + 3 - 0x0, disp)
     memory = io.BytesIO(bytes(fake))
-    got = match + 3 + 4 + disp
+    got = rip_target(match, 3, memory)
     assert got == 0x1000 + 3 + 4 + 0x1234
     # ms clock format check
     raw = 90123
