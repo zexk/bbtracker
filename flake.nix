@@ -42,7 +42,7 @@
             inherit imgui minhook;
 
             meta = with pkgs.lib; {
-              description = "Live codename tracker overlay for Metal Gear 1/2 and MGS1/2/3 Master Collection";
+              description = "Live rank and codename tracker for Metal Gear: Master Collection";
               license = licenses.mit;
               platforms = [ "x86_64-windows" ];
             };
