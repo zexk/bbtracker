@@ -179,6 +179,8 @@ ImVec2 g_panel_size;
 
 void draw_window(const GameStats& stats, int tab)
 {
+    // Mimic draw_panel's 10Hz tick: the panels read matches from the cache.
+    g_eval.reqs = codename::elite_requirements_mgspw(stats);
     ImGui::SetNextWindowPos(ImVec2(24, 24));
     ImGui::SetNextWindowSizeConstraints(ImVec2(420, 0), ImVec2(420, FLT_MAX));
     bool open = true;

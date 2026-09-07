@@ -33,6 +33,8 @@ code += block("struct IdColors", "void checklist")
 code += block("void draw_mgspw_run", "void draw_panel")
 code += r'''
 std::string draw(const GameStats& stats, int tab, int scroll = 0) {
+    // Mimic draw_panel's 10Hz tick: the panels read matches from the cache.
+    g_eval.reqs = codename::elite_requirements_mgspw(stats);
     ImGui::NewFrame();
     ImGui::SetNextWindowSize(ImVec2(420, 700));
     ImGui::Begin("PW");

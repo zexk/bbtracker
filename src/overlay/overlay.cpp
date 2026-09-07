@@ -876,6 +876,18 @@ struct IdColors {
 constexpr double kNearLimitShare = 0.75;
 constexpr double kCloseGoalShare = 0.5;
 
+// Match results refreshed with the 10Hz stats snapshot. draw_panel renders
+// every Present, but nothing re-matches between snapshots; only genuinely
+// live values (the PW stage clock) are read per frame at their use site.
+// Lives in this block for the same harness reason as the bands above.
+struct EvalCache {
+    std::optional<codename::Match> match;
+    std::vector<codename::Match> matches;
+    std::vector<codename::ReqStatus> reqs;
+};
+
+EvalCache g_eval;
+
 IdColors id_colors(Game game)
 {
     switch (game) {
@@ -1009,7 +1021,7 @@ void checklist(const char* id, const char* const* names, size_t count, uint64_t 
 
 void draw_mgs4_feats(const GameStats& stats, int scroll)
 {
-    const std::vector<codename::Match> matches = codename::all_matches_mgs4(stats);
+    const auto& matches = g_eval.matches;
     const auto matched = [&](const char* name) {
         for (const auto& match : matches) {
             if (std::strcmp(match.name, name) == 0) return true;
@@ -1329,7 +1341,7 @@ void draw_mgspw_summary(const GameStats& stats)
         ImGui::TableSetupColumn("FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("have / need", ImGuiTableColumnFlags_WidthFixed, 100.0f);
         ImGui::TableHeadersRow();
-        for (const codename::ReqStatus& r : codename::elite_requirements_mgspw(stats)) {
+        for (const codename::ReqStatus& r : g_eval.reqs) {
             const char* pct =
                 static_cast<codename::ReqFmt>(r.fmt) == codename::ReqFmt::Percent ? "%" : "";
             if (r.limit == 0) {
@@ -1697,6 +1709,14 @@ void draw_panel()
         stats = g_stats;
         have_stats = g_have_stats;
         ReleaseSRWLockShared(&g_stats_lock);
+        if (have_stats) {
+            const auto eval_fn = kEvaluateFns[static_cast<int>(g_game)];
+            g_eval.match = eval_fn ? eval_fn(stats) : std::optional<codename::Match>{};
+            const auto req_fn = kRequirementsFns[static_cast<int>(g_game)];
+            g_eval.reqs = req_fn ? req_fn(stats) : std::vector<codename::ReqStatus>{};
+            g_eval.matches = g_game == Game::MGS4 ? codename::all_matches_mgs4(stats)
+                                                  : std::vector<codename::Match>{};
+        }
         next_poll = now + 100;
     }
     const char* panel_title = g_game == Game::MGS3 || g_game == Game::MGSPW
@@ -1767,8 +1787,7 @@ void draw_panel()
     const bool summary = !tabs || ImGui::BeginTabItem(
         "Summary", nullptr, selected_tab == 0 ? ImGuiTabItemFlags_SetSelected : 0);
     if (summary) {
-    const auto eval_fn = kEvaluateFns[static_cast<int>(g_game)];
-    auto match = eval_fn ? eval_fn(stats) : std::optional<codename::Match>{};
+    const auto& match = g_eval.match;
 
     const auto [id_green, id_yellow, id_red] = id_colors(g_game);
     const ImVec4 codename_color = !match ? unset_color()
@@ -1808,10 +1827,7 @@ void draw_panel()
                                known_difficulty ? "" : " (?)");
         }
 
-        std::vector<codename::ReqStatus> reqs;
-        if (const auto req_fn = kRequirementsFns[static_cast<int>(g_game)]) {
-            reqs = req_fn(stats);
-        }
+        const auto& reqs = g_eval.reqs;
         for (const codename::ReqStatus& r : reqs) {
             char ratio[96];
             if (std::strcmp(r.label, "special items") == 0) {
