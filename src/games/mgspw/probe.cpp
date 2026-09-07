@@ -3,6 +3,7 @@
 
 #include <windows.h>
 
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <iterator>
@@ -71,7 +72,8 @@ constexpr size_t kMaxHpOff = 0x11C0;  // u16, the deployed soldier's own maximum
 constexpr int kNominalMaxHp = 8000;   // Snake's, and the damage-counter scale
 constexpr size_t kWeaponIdOff = 0x14B8;
 
-uintptr_t g_saveroot_ptr = 0;   // address holding save-block pointer
+// Address holding save-block pointer; stage-clock reads it from render thread.
+std::atomic_uintptr_t g_saveroot_ptr = 0;
 uintptr_t g_mission_time = 0;   // address of qword elapsed timer
 uintptr_t g_chararray_ptr = 0;  // address holding character-pointer-array
 uintptr_t g_mission_id = 0;     // address of current mission id (-1 outside a mission)
@@ -446,11 +448,12 @@ constexpr size_t kSaveBlockSpan = kInsigniaStateOff + kInsigniaCount + 1;
 
 bool poll_stage_clock(uint32_t& ticks)
 {
-    if (!g_saveroot_ptr || !range_readable(g_saveroot_ptr, sizeof(uintptr_t))) {
+    const uintptr_t saveroot_ptr = g_saveroot_ptr.load();
+    if (!saveroot_ptr || !range_readable(saveroot_ptr, sizeof(uintptr_t))) {
         return false;
     }
     const uintptr_t save_block =
-        *reinterpret_cast<volatile const uintptr_t*>(g_saveroot_ptr);
+        *reinterpret_cast<volatile const uintptr_t*>(saveroot_ptr);
     if (!save_block || !range_readable(save_block + kStagePlayOff, 4)) {
         return false;
     }
@@ -498,8 +501,9 @@ bool poll_stats(GameStats& out)
     }
 
     uintptr_t save_block = 0;
-    if (g_saveroot_ptr && range_readable(g_saveroot_ptr, sizeof(uintptr_t))) {
-        save_block = *reinterpret_cast<volatile const uintptr_t*>(g_saveroot_ptr);
+    const uintptr_t saveroot_ptr = g_saveroot_ptr.load();
+    if (saveroot_ptr && range_readable(saveroot_ptr, sizeof(uintptr_t))) {
+        save_block = *reinterpret_cast<volatile const uintptr_t*>(saveroot_ptr);
     }
     // One validation for the whole save block: every save-relative read
     // below lands inside this span, so the per-field checks collapse here.
