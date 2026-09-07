@@ -129,6 +129,22 @@ constexpr size_t kStatScanSize = 0x30000;
 constexpr size_t kStatStride = 0x28;
 constexpr uintptr_t kStatArrayBias = 0x10;
 constexpr uint32_t kStatIndexMax = 0x123;  // the getter's own bounds check
+
+// Span covering every descriptor the indexed paths touch: family ids stop
+// at the getter's bound above, and the 0xDD..0x110 codename axes sit below
+// it. Validated once per poll instead of once per record.
+constexpr size_t kStatRecordsSpan = (kStatIndexMax + 1) * kStatStride;
+
+// The stat descriptor array reallocates between missions: re-resolve its
+// records base each poll, or 0 when the pointer cell is unreadable.
+uintptr_t stat_records()
+{
+    if (!g_stat_array || !range_readable(g_stat_array, sizeof(uintptr_t))) {
+        return 0;
+    }
+    const uintptr_t array = *reinterpret_cast<volatile const uintptr_t*>(g_stat_array);
+    return array > kStatArrayBias ? array - kStatArrayBias : 0;
+}
 constexpr uint32_t kHeadshotIds[] = {0x4420031};
 constexpr uint32_t kKillIds[] = {0x420008};
 // Non-lethal takedown total. 0x200F9 is the pistol-only subset, so it is
@@ -205,43 +221,43 @@ void read_stat_families(uintptr_t block, GameStats& out)
     }
     // Direct index, the way the game's own getter does it. Falls back to the
     // linear scan below if the array pointer did not resolve.
-    if (g_stat_array && range_readable(g_stat_array, sizeof(uintptr_t))) {
-        const uintptr_t array =
-            *reinterpret_cast<volatile const uintptr_t*>(g_stat_array);
-        if (array > kStatArrayBias) {
-            const uintptr_t records = array - kStatArrayBias;
-            bool all_ok = true;
-            for (const Family& f : families) {
-                for (size_t i = 0; i < f.count; ++i) {
-                    const uint32_t index = f.ids[i] & 0xFFFF;
-                    if (index > kStatIndexMax) {
-                        continue;
-                    }
-                    const uintptr_t rec = records + index * kStatStride;
-                    if (!range_readable(rec, kStatStride)) {
-                        all_ok = false;
-                        continue;
-                    }
-                    const auto* words = reinterpret_cast<volatile const uint32_t*>(rec);
-                    // The index is derived from the id, so a record whose id
-                    // does not match means the array moved or the layout
-                    // changed - never trust the value in that case.
-                    if (words[4] != f.ids[i]) {
-                        all_ok = false;
-                        continue;
-                    }
-                    *f.field = static_cast<int>(words[8]);
-                    const int mission = static_cast<int>(words[6]);
-                    // Only the 0x042/0x442 families keep a real tally here;
-                    // the 0x002 copies leave junk in the slot.
-                    if (f.mission_field && mission >= 0 && mission < 10000) {
-                        *f.mission_field = mission;
-                    }
+    const uintptr_t records = stat_records();
+    if (records) {
+        // One validation for the whole descriptor span; the per-record id
+        // check below still guards against layout changes, and out-of-span
+        // indices keep their individual skip above.
+        const bool span_ok = range_readable(records, kStatRecordsSpan);
+        bool all_ok = true;
+        for (const Family& f : families) {
+            for (size_t i = 0; i < f.count; ++i) {
+                const uint32_t index = f.ids[i] & 0xFFFF;
+                if (index > kStatIndexMax) {
+                    continue;
+                }
+                const uintptr_t rec = records + index * kStatStride;
+                if (!span_ok && !range_readable(rec, kStatStride)) {
+                    all_ok = false;
+                    continue;
+                }
+                const auto* words = reinterpret_cast<volatile const uint32_t*>(rec);
+                // The index is derived from the id, so a record whose id
+                // does not match means the array moved or the layout
+                // changed - never trust the value in that case.
+                if (words[4] != f.ids[i]) {
+                    all_ok = false;
+                    continue;
+                }
+                *f.field = static_cast<int>(words[8]);
+                const int mission = static_cast<int>(words[6]);
+                // Only the 0x042/0x442 families keep a real tally here;
+                // the 0x002 copies leave junk in the slot.
+                if (f.mission_field && mission >= 0 && mission < 10000) {
+                    *f.mission_field = mission;
                 }
             }
-            if (all_ok) {
-                return;
-            }
+        }
+        if (all_ok) {
+            return;
         }
     }
     // One linear pass; readability checked per page (the table moves, but
@@ -288,10 +304,8 @@ constexpr uintptr_t kCodenameStateOff = 0x1BFF0;
 
 void read_codename_state(uintptr_t block, GameStats& out)
 {
+    // Precondition: block passed the save-span validation in poll_stats.
     const uintptr_t base = block + kCodenameStateOff;
-    if (!range_readable(base, sizeof(out.pw_codename_state))) {
-        return;
-    }
     for (size_t id = 1; id < std::size(out.pw_codename_state); ++id) {
         out.pw_codename_state[id] =
             *reinterpret_cast<volatile const uint8_t*>(base + id);
@@ -305,10 +319,8 @@ constexpr size_t kInsigniaCount = 110;
 
 void read_insignia_state(uintptr_t block, GameStats& out)
 {
+    // Precondition: block passed the save-span validation in poll_stats.
     const uintptr_t base = block + kInsigniaStateOff;
-    if (!range_readable(base, kInsigniaCount + 1)) {
-        return;
-    }
     int owned = 0;
     for (size_t index = 1; index <= kInsigniaCount; ++index) {
         owned += *reinterpret_cast<volatile const uint8_t*>(base + index) & 1;
@@ -318,15 +330,16 @@ void read_insignia_state(uintptr_t block, GameStats& out)
 
 void read_codename_axes(GameStats& out)
 {
-    if (!g_stat_array || !range_readable(g_stat_array, sizeof(uintptr_t))) return;
-    const uintptr_t array = *reinterpret_cast<volatile const uintptr_t*>(g_stat_array);
-    if (array <= kStatArrayBias) return;
-    const uintptr_t records = array - kStatArrayBias;
+    const uintptr_t records = stat_records();
+    if (!records) return;
+    // One validation for the whole axes span (a subset of the descriptor
+    // span above); per-record checks stay as the fallback.
+    const bool span_ok = range_readable(records, kStatRecordsSpan);
     for (int axis = 0; axis < 4; ++axis) {
         for (int slot = 0; slot < 12; ++slot) {
             const uint32_t index = 0xDD + axis * 13 + slot;
             const uintptr_t rec = records + index * kStatStride;
-            if (!range_readable(rec, kStatStride)) return;
+            if (!span_ok && !range_readable(rec, kStatStride)) return;
             out.pw_codename_axes[axis][slot] =
                 *reinterpret_cast<volatile const int32_t*>(rec + 0x20);
         }
@@ -426,6 +439,11 @@ void ensure_resolved()
 
 } // namespace
 
+// Highest save-relative read is the insignia state; the stage string, play
+// tallies, heroism, rank arrays, weapons and codename state all sit below
+// it, so one validation covers the whole block per poll.
+constexpr size_t kSaveBlockSpan = kInsigniaStateOff + kInsigniaCount + 1;
+
 bool poll_stage_clock(uint32_t& ticks)
 {
     if (!g_saveroot_ptr || !range_readable(g_saveroot_ptr, sizeof(uintptr_t))) {
@@ -483,72 +501,63 @@ bool poll_stats(GameStats& out)
     if (g_saveroot_ptr && range_readable(g_saveroot_ptr, sizeof(uintptr_t))) {
         save_block = *reinterpret_cast<volatile const uintptr_t*>(g_saveroot_ptr);
     }
-    if (save_block) {
-        if (range_readable(save_block + kStageOff, kStageLen)) {
-            char stage[32]{};
-            std::memcpy(stage, reinterpret_cast<const void*>(save_block + kStageOff),
-                        kStageLen);
-            stage[sizeof(stage) - 1] = '\0';
-            std::memcpy(out.pw_stage, stage, sizeof(out.pw_stage));
-            std::memcpy(out.area_code, stage, sizeof(out.area_code) - 1);
-            any = true;
-        }
-        if (range_readable(save_block + kTotalPlayOff, 8)) {
-            out.pw_total_play =
-                *reinterpret_cast<volatile const uint32_t*>(save_block + kTotalPlayOff);
-            out.pw_stage_play =
-                *reinterpret_cast<volatile const uint32_t*>(save_block + kStagePlayOff);
-        }
+    // One validation for the whole save block: every save-relative read
+    // below lands inside this span, so the per-field checks collapse here.
+    // A partially-mapped block reads as absent, the way each failed check
+    // below used to leave its fields at their init values.
+    if (save_block && range_readable(save_block, kSaveBlockSpan)) {
+        char stage[32]{};
+        std::memcpy(stage, reinterpret_cast<const void*>(save_block + kStageOff),
+                    kStageLen);
+        stage[sizeof(stage) - 1] = '\0';
+        std::memcpy(out.pw_stage, stage, sizeof(out.pw_stage));
+        std::memcpy(out.area_code, stage, sizeof(out.area_code) - 1);
+        any = true;
+        out.pw_total_play =
+            *reinterpret_cast<volatile const uint32_t*>(save_block + kTotalPlayOff);
+        out.pw_stage_play =
+            *reinterpret_cast<volatile const uint32_t*>(save_block + kStagePlayOff);
         constexpr size_t kHeroismOff = 0x64F4;
         constexpr size_t kHeroismDeltaOff = 0x64EC;
         constexpr size_t kGmpOff = 0xB52C;
         constexpr size_t kClearsOff = 0x656C;
-        if (range_readable(save_block + kHeroismDeltaOff, 8)) {
-            out.pw_heroism_delta =
-                *reinterpret_cast<volatile const int32_t*>(save_block + kHeroismDeltaOff);
-            out.pw_heroism =
-                *reinterpret_cast<volatile const int32_t*>(save_block + kHeroismOff);
-        }
-        if (range_readable(save_block + kGmpOff, 4)) {
-            out.pw_gmp =
-                *reinterpret_cast<volatile const uint32_t*>(save_block + kGmpOff);
-        }
-        if (range_readable(save_block + kClearsOff, 4)) {
-            out.pw_clears =
-                *reinterpret_cast<volatile const int32_t*>(save_block + kClearsOff);
-        }
+        out.pw_heroism_delta =
+            *reinterpret_cast<volatile const int32_t*>(save_block + kHeroismDeltaOff);
+        out.pw_heroism =
+            *reinterpret_cast<volatile const int32_t*>(save_block + kHeroismOff);
+        out.pw_gmp =
+            *reinterpret_cast<volatile const uint32_t*>(save_block + kGmpOff);
+        out.pw_clears =
+            *reinterpret_cast<volatile const int32_t*>(save_block + kClearsOff);
         // Per-mission rank array (u16 by mission id; 0 = S, 0xFFFF = never
         // cleared). Ids past the live list read as zeros, so stop at the
         // length that matches the confirmed clear/S counts.
         constexpr size_t kRankArrayOff = 0x32B4;
         constexpr size_t kRankArrayLen = 272;
         constexpr size_t kBestTimeOff = 0x29B4;
-        if (range_readable(save_block + kRankArrayOff, kRankArrayLen * 2)) {
-            const auto* ranks =
-                reinterpret_cast<volatile const uint16_t*>(save_block + kRankArrayOff);
-            int cleared = 0;
-            int s_missions = 0;
-            for (size_t i = 0; i < kRankArrayLen; ++i) {
-                const uint16_t r = ranks[i];
-                if (r == 0xFFFF) {
-                    continue;
-                }
-                ++cleared;
-                if (r == 0) {
-                    ++s_missions;
-                }
+        const auto* ranks =
+            reinterpret_cast<volatile const uint16_t*>(save_block + kRankArrayOff);
+        int cleared = 0;
+        int s_missions = 0;
+        for (size_t i = 0; i < kRankArrayLen; ++i) {
+            const uint16_t r = ranks[i];
+            if (r == 0xFFFF) {
+                continue;
             }
-            out.pw_unique_cleared = cleared;
-            out.pw_s_missions = s_missions;
+            ++cleared;
+            if (r == 0) {
+                ++s_missions;
+            }
         }
-        // Current mission: the id indexes both per-mission arrays, so the
-        // overlay can show this mission's stored rank and best time.
+        out.pw_unique_cleared = cleared;
+        out.pw_s_missions = s_missions;
+        // Current mission: the id indexes both per-mission arrays (subsets
+        // of the validated span), so the overlay can show this mission's
+        // stored rank and best time.
         if (g_mission_id && range_readable(g_mission_id, 4)) {
             const int id = *reinterpret_cast<volatile const int32_t*>(g_mission_id);
             out.pw_mission_id = id;
-            if (id > 0 && static_cast<size_t>(id) < kRankArrayLen
-                && range_readable(save_block + kRankArrayOff + id * 2, 2)
-                && range_readable(save_block + kBestTimeOff + id * 4, 4)) {
+            if (id > 0 && static_cast<size_t>(id) < kRankArrayLen) {
                 const uint16_t rank =
                     *reinterpret_cast<volatile const uint16_t*>(save_block + kRankArrayOff + id * 2);
                 const uint32_t best =
@@ -565,20 +574,14 @@ bool poll_stats(GameStats& out)
         read_codename_state(save_block, out);
         read_insignia_state(save_block, out);
         static uintptr_t last_dump_block = 0;
-        if (save_block != last_dump_block
-            && range_readable(save_block + 0x40, 0x60)) {
+        if (save_block != last_dump_block) {
             last_dump_block = save_block;
             LOG_INFO("MGSPW save header block %p:", reinterpret_cast<const void*>(save_block));
             log_hex_dump(reinterpret_cast<const uint8_t*>(save_block + 0x40), 0x60);
         }
         for (int i = 0; i < 16; ++i) {
-            const uintptr_t rec = save_block + kWeaponArrayOff + i * kWeaponStride;
-            if (!range_readable(rec, kWeaponStride)) {
-                out.pw_weapon_use[i] = -1;
-                continue;
-            }
-            const uint16_t use =
-                *reinterpret_cast<volatile const uint16_t*>(rec + kWeaponUseOff);
+            const uint16_t use = *reinterpret_cast<volatile const uint16_t*>(
+                save_block + kWeaponArrayOff + i * kWeaponStride + kWeaponUseOff);
             out.pw_weapon_use[i] = static_cast<int>(use);
         }
     }
