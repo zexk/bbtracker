@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "../../common/area.h"
+#include "../../common/difficulty.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
 
@@ -20,15 +21,17 @@ namespace {
 constexpr uintptr_t kLinkvarbufPointer = 0x1C28B28;
 constexpr size_t kLinkvarbufSize = 0x8344;
 
+// MGS4 shifts the collection codes: Naked Normal is 30, Solid Normal 35.
+constexpr DifficultyCode kDifficultyCodes[] = {
+    {20, Difficulty::VeryEasy},
+    {30, Difficulty::Easy},
+    {35, Difficulty::Normal},
+    {40, Difficulty::Hard},
+};
+
 Difficulty difficulty(uint16_t value)
 {
-    switch (value) {
-    case 20: return Difficulty::VeryEasy;
-    case 30: return Difficulty::Easy;
-    case 35: return Difficulty::Normal;
-    case 40: return Difficulty::Hard;
-    default: return Difficulty::Extreme;
-    }
+    return difficulty_from_table(value, kDifficultyCodes, Difficulty::Extreme);
 }
 
 constexpr bool ranked_stage(std::string_view stage)

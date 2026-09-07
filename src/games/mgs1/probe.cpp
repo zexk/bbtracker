@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "../../common/area.h"
+#include "../../common/difficulty.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
 
@@ -578,13 +579,14 @@ bool poll_stats(GameStats& out)
         g_last_diff = diff;
     }
     out.difficulty_game_byte = static_cast<uint8_t>(diff);
-    switch (diff) {
-    case -1: out.difficulty = Difficulty::VeryEasy; break;
-    case 0: out.difficulty = Difficulty::Easy; break;
-    case 1: out.difficulty = Difficulty::Normal; break;
-    case 2: out.difficulty = Difficulty::Hard; break;
-    default: out.difficulty = Difficulty::Extreme; break;
-    }
+    // The PSX difficulty byte runs -1..2; anything else is Extreme.
+    constexpr DifficultyCode kDifficultyCodes[] = {
+        {-1, Difficulty::VeryEasy},
+        {0, Difficulty::Easy},
+        {1, Difficulty::Normal},
+        {2, Difficulty::Hard},
+    };
+    out.difficulty = difficulty_from_table(diff, kDifficultyCodes, Difficulty::Extreme);
     out.difficulty_raw = static_cast<uint8_t>(diff);
 
     if (out.alerts == 0 && out.kills == 0 && out.saves == 0 && out.continues == 0) {

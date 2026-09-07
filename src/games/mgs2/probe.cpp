@@ -7,6 +7,7 @@
 #include <cstdlib>
 
 #include "../../common/area.h"
+#include "../../common/difficulty.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
 
@@ -231,15 +232,9 @@ bool poll_stats(GameStats& out)
         }
     }
 
-    switch (read_at<uint8_t>(player, StatOffsets::kDifficulty)) {
-    case 10: out.difficulty = Difficulty::VeryEasy; break;
-    case 20: out.difficulty = Difficulty::Easy; break;
-    case 30: out.difficulty = Difficulty::Normal; break;
-    case 40: out.difficulty = Difficulty::Hard; break;
-    case 60: out.difficulty = Difficulty::EuroExtreme; break;
-    default: out.difficulty = Difficulty::Extreme; break;
-    }
-    out.difficulty_raw = read_at<uint8_t>(player, StatOffsets::kDifficulty);
+    const uint8_t raw_difficulty = read_at<uint8_t>(player, StatOffsets::kDifficulty);
+    out.difficulty = master_collection_difficulty(raw_difficulty);
+    out.difficulty_raw = raw_difficulty;
 
     const uint8_t gametype = read_at<uint8_t>(player, StatOffsets::kGametype);
     static uint8_t last_gametype = 0xFF;

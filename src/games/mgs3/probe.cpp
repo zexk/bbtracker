@@ -8,6 +8,7 @@
 #include <iterator>
 
 #include "../../common/area.h"
+#include "../../common/difficulty.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
 
@@ -271,14 +272,7 @@ bool poll_stats(GameStats& out)
         g_last_diff04 = diff04;
     }
     out.difficulty_game_byte = diff06;
-    switch (diff06) {
-    case 10: out.difficulty = Difficulty::VeryEasy; break;
-    case 20: out.difficulty = Difficulty::Easy; break;
-    case 30: out.difficulty = Difficulty::Normal; break;
-    case 40: out.difficulty = Difficulty::Hard; break;
-    case 60: out.difficulty = Difficulty::EuroExtreme; break;
-    default: out.difficulty = Difficulty::Extreme; break;
-    }
+    out.difficulty = master_collection_difficulty(diff06);
     if (story_base && range_readable(story_base, 0x40)) {
         const uint16_t story_vm =
             *reinterpret_cast<volatile const uint16_t*>(story_base + 0x2);
