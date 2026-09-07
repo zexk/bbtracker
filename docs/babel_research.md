@@ -259,6 +259,32 @@ Everything in `C0xx..C6xx` is unbanked. Everything in `DExx..DFxx` needs
 bytes, plus `C0F3` and `C46C`. That pair of clears is the cleanest
 start-of-run signature the probe can watch for.
 
+## Continue
+
+Continue rolls the stage counters back but not the stage clock. One live
+session on stage 1, Normal, with WRAM snapshots taken while playing, on the
+game over screen, and after each resume:
+
+| | `C4EE` found | `C4F4` | `C4F9`/`C4FA` clock |
+| --- | ---: | ---: | ---: |
+| playing | 1 | `0x32` | 0:44 |
+| dead | 1 | `0x74` | 1:20 |
+| resumed | 1 | 0 | 1:51 |
+| after second continue | 0 | 2 | 6:17 |
+
+A third death, with 2 alerts standing, resumed with `C4EE` back to 0 while
+the clock ran on from 6:17 to 12:16. So the alert counter is restored from
+the checkpoint snapshot and the clock is not; a run with continues
+undercounts metrics 1-3 while keeping the full elapsed time. A later run
+with kills and rations on the counter confirmed `C4F0` and `C4F2` roll back
+the same way.
+
+No continue counter exists in WRAM. Diffing all four snapshots across
+`C000..CFFF` and banks 1-7 found no byte that steps once per continue: the
+only value changing at both continues in the same direction is `DF42`, the
+stage timer snapshot's minute byte. `C57C` looks like a candidate on one
+continue only, `0 -> 1`, then returns to 0; it is script-engine state.
+
 ## Tooling
 
 `scripts/gbdis.py` is a minimal SM83 disassembler with two extra modes:
@@ -272,13 +298,33 @@ scripts/gbdis.py rom.gbc dis 5ED8 5F4C 5ED8
 scripts/gbdis.py rom.gbc scan C4EE C4F0 C4F2
 ```
 
+## Live WRAM resolution
+
+The live memory-map record owns pointers for each Game Boy address window.
+It can be found without a build-specific host address: locate a writable ROM
+copy by its `METALGEARGB` header title, read the record pointer stored at
+`rom-0x24`, then validate that `record+0x58` points back to the ROM.
+
+| Record offset | Meaning |
+| ---: | --- |
+| `+0x58` | ROM base (`0000` window) |
+| `+0x70` | selected ROM bank (`4000` window) |
+| `+0xB8` | unbanked WRAM (`C000` window) |
+| `+0xD0` | selected bank's `D000` window pointer; changes during execution |
+
+Banked storage follows the unbanked block contiguously: bank 1 is
+`[record+0xB8] + 0x1000`, and bank 6 is `[record+0xB8] + 0x6000`. A September
+2026 live run resolved unbanked WRAM at `0x0940117C`; values matched gameplay:
+Normal, stage 1, 1 alert, 4 kills, 0 rations, and a running 47-minute stage clock.
+These addresses are observations only; the tracker uses the ROM signature and
+validated record relationship.
+
 ## Next targets
 
-1. Resolve Game Boy WRAM backing storage from a stable host signature. This
-   is the only remaining blocker for a probe; every field above is a WRAM
-   offset with no way to reach it yet.
-2. Confirm the values above against a live run, especially the difficulty
+1. Confirm the values above against a live run, especially the difficulty
    record layout and the stage-clear moment when `C503` is written.
-3. Identify `C4F4` and decide whether special missions reuse `C46C` or the
+2. Identify `C4F4` and decide whether special missions reuse `C46C` or the
    `C0F3` high nibble for their target times.
-4. Find the continue counter, if one exists; neither rank reads it.
+3. Check whether the checkpoint snapshot that restores `C4EE..C4F2` on
+   continue is reachable, so the probe can tell a rolled-back counter from
+   a genuine reset.
