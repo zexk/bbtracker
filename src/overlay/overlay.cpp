@@ -2114,6 +2114,9 @@ bool hook_targets(void* present_target, void* resize_target, void* execute_targe
         LOG_ERROR("MH_EnableHook failed");
         ok = false;
     }
+    if (!ok) {
+        MH_Uninitialize();
+    }
     ReleaseMutex(mutex);
     CloseHandle(mutex);
     return ok;
