@@ -167,17 +167,31 @@ struct StatOffsets {
 
 uintptr_t g_last_scan_tick = 0;
 
+HMODULE g_module = nullptr;
+
+// The player block moves, but its module does not: resolve once, and only
+// re-resolve after a module-relative read fails and drops the latch. A
+// null player pointer is normal during loads and keeps the latch.
+HMODULE game_module()
+{
+    if (!g_module) {
+        g_module = GetModuleHandleW(kModuleName);
+    }
+    return g_module;
+}
+
 } // namespace
 
 bool poll_stats(GameStats& out)
 {
-    HMODULE mod = GetModuleHandleW(kModuleName);
+    HMODULE mod = game_module();
     if (!mod) {
         return false;
     }
     const auto base = reinterpret_cast<uintptr_t>(mod);
     const uintptr_t slot = base + kPlayerPointerOffset;
     if (!range_readable(slot, sizeof(uintptr_t))) {
+        g_module = nullptr;
         return false;
     }
     const uintptr_t player = *reinterpret_cast<volatile const uintptr_t*>(slot);

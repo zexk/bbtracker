@@ -50,15 +50,26 @@ constexpr bool mg1_run_active(uint32_t state)
 static_assert(mg1_run_active(8));
 static_assert(!mg1_run_active(0));
 
+HMODULE g_mg1 = nullptr;
+HMODULE g_mg2 = nullptr;
+
 } // namespace
 
 bool poll_mg1(GameStats& out)
 {
-    const auto module = reinterpret_cast<uintptr_t>(GetModuleHandleW(L"mg1.dll"));
+    // The game dlls stay loaded for the session: resolve once each, and only
+    // re-resolve after a module-relative read fails and drops the latch.
+    if (!g_mg1) {
+        g_mg1 = GetModuleHandleW(L"mg1.dll");
+    }
+    const auto module = reinterpret_cast<uintptr_t>(g_mg1);
     constexpr uintptr_t first = 0x2F6A4;
     constexpr uintptr_t last = 0x2F780;
     if (!module || !range_readable(module + 0x2E260, sizeof(uint32_t))
-        || !range_readable(module + first, last - first + sizeof(uint32_t))) return false;
+        || !range_readable(module + first, last - first + sizeof(uint32_t))) {
+        g_mg1 = nullptr;
+        return false;
+    }
     set_common(out, read<uint32_t>(module + 0x2F6A4), read<uint32_t>(module + 0x2F768),
                read<uint32_t>(module + 0x2F76C), read<uint32_t>(module + 0x2F770),
                read<uint32_t>(module + 0x2F774), read<uint32_t>(module + 0x2F778),
@@ -68,10 +79,16 @@ bool poll_mg1(GameStats& out)
 
 bool poll_mg2(GameStats& out)
 {
-    const auto module = reinterpret_cast<uintptr_t>(GetModuleHandleW(L"mg2.dll"));
+    if (!g_mg2) {
+        g_mg2 = GetModuleHandleW(L"mg2.dll");
+    }
+    const auto module = reinterpret_cast<uintptr_t>(g_mg2);
     if (!module || !range_readable(module + 0x39170, sizeof(uint32_t))
         || !range_readable(module + 0x45790, 0x1C)
-        || !range_readable(module + 0x46DE0, sizeof(uintptr_t))) return false;
+        || !range_readable(module + 0x46DE0, sizeof(uintptr_t))) {
+        g_mg2 = nullptr;
+        return false;
+    }
     const uintptr_t state = read<uintptr_t>(module + 0x46DE0);
     if (!state || !range_readable(state + 0x88, sizeof(uint32_t))) return false;
     set_common(out, read<uint32_t>(state + 0x88), read<uint32_t>(module + 0x45790),

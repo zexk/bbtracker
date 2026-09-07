@@ -54,12 +54,22 @@ static_assert(!ranked_stage("r_sna01"));
 static_assert(!ranked_stage("title"));
 static_assert(!ranked_stage("s99a00l"));
 
+HMODULE g_module = nullptr;
+
 } // namespace
 
 bool poll_stats(GameStats& out)
 {
-    const auto module = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-    if (!module || !range_readable(module + kLinkvarbufPointer, sizeof(uintptr_t))) return false;
+    // mgs4.exe never unloads mid-process: resolve once, and only re-resolve
+    // after a module-relative read fails and drops the latch.
+    if (!g_module) {
+        g_module = GetModuleHandleW(nullptr);
+    }
+    const auto module = reinterpret_cast<uintptr_t>(g_module);
+    if (!module || !range_readable(module + kLinkvarbufPointer, sizeof(uintptr_t))) {
+        g_module = nullptr;
+        return false;
+    }
     const uintptr_t address = *reinterpret_cast<volatile const uintptr_t*>(module + kLinkvarbufPointer);
     if (!address || !range_readable(address, kLinkvarbufSize)) return false;
     const auto* data = reinterpret_cast<const uint8_t*>(address);

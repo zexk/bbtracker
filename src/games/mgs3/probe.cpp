@@ -57,6 +57,7 @@ struct StatOffsets {
 const uint8_t* g_stats = nullptr;
 uintptr_t g_last_block = 0;
 uintptr_t g_slot_addr = 0;
+HMODULE g_module = nullptr;
 unsigned g_zero_polls = 0;
 uint16_t g_last_dmg_raw = 0;
 uint16_t g_last_damage_bars = 0;
@@ -115,7 +116,13 @@ bool find_slot_via_sig(HMODULE mod, uintptr_t& out_slot)
 }
 bool resolve(uintptr_t& out_block, uintptr_t& out_story_base)
 {
-    HMODULE mod = GetModuleHandleW(kModuleName);
+    // The stats block moves, but its module does not: resolve once, and
+    // only re-resolve after a module-relative read fails and drops both
+    // latches. A null block pointer is normal during loads.
+    if (!g_module) {
+        g_module = GetModuleHandleW(kModuleName);
+    }
+    HMODULE mod = g_module;
     if (!mod) {
         return false;
     }
@@ -134,6 +141,7 @@ bool resolve(uintptr_t& out_block, uintptr_t& out_story_base)
     const uintptr_t slot = g_slot_addr;
     if (!range_readable(slot, 0x10 + sizeof(uintptr_t))) {
         g_slot_addr = 0;
+        g_module = nullptr;
         return false;
     }
     const uintptr_t ptr = *reinterpret_cast<volatile const uintptr_t*>(slot);
@@ -241,7 +249,7 @@ bool poll_stats(GameStats& out)
     }
 
     out.tsuchinoko_alive = false;
-    if (HMODULE mod = GetModuleHandleW(kModuleName)) {
+    if (HMODULE mod = g_module) {
         const uintptr_t food_slot = reinterpret_cast<uintptr_t>(mod) + kFoodSlotOffset;
         if (range_readable(food_slot, sizeof(uintptr_t))) {
             const uintptr_t food =
