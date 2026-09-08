@@ -20,6 +20,7 @@ ladder, and insignia progress.
 
 Press `F3` to toggle overlay. In MGS3, MGS4, and Peace Walker, press `F4` to cycle tabs.
 Use `Up`/`Down` to scroll checklists, MGS4 feats, and Peace Walker career stats.
+Overlay scales automatically for high-DPI displays and 4K rendering.
 
 ## Install
 
