@@ -22,6 +22,7 @@
 #include <array>
 #include <optional>
 #include <span>
+#include <string>
 #include <vector>
 #include <filesystem>
 
@@ -487,11 +488,12 @@ void apply_game_theme()
     // saturated red for anything selected or failing, and its tabs are the
     // only rounded ones in the series.
     if (g_game == Game::MGSPW) {
+        style.CellPadding = ImVec2(6.0f, 3.0f);
         style.TabRounding = 5.0f;
         style.ScrollbarRounding = 0.0f;
         colors[ImGuiCol_Text]              = ImVec4(0.93f, 0.93f, 0.90f, 1.00f);
-        colors[ImGuiCol_TextDisabled]      = ImVec4(0.45f, 0.46f, 0.45f, 1.00f);
-        colors[ImGuiCol_WindowBg]          = ImVec4(0.05f, 0.05f, 0.06f, 0.88f);
+        colors[ImGuiCol_TextDisabled]      = ImVec4(0.66f, 0.67f, 0.66f, 1.00f);
+        colors[ImGuiCol_WindowBg]          = ImVec4(0.05f, 0.05f, 0.06f, 0.96f);
         colors[ImGuiCol_Border]            = ImVec4(0.86f, 0.86f, 0.83f, 0.55f);
         colors[ImGuiCol_FrameBg]           = ImVec4(0.11f, 0.11f, 0.12f, 1.00f);
         colors[ImGuiCol_FrameBgHovered]    = ImVec4(0.55f, 0.05f, 0.07f, 1.00f);
@@ -1020,12 +1022,27 @@ void format_time(double seconds, char* buf, size_t len)
     snprintf(buf, len, "%d:%02d:%02d", total / 3600, (total / 60) % 60, total % 60);
 }
 
+void format_count(int64_t value, char* buf, size_t len)
+{
+    std::string text = std::to_string(value);
+    for (int pos = static_cast<int>(text.size()) - 3; pos > (value < 0 ? 1 : 0); pos -= 3)
+        text.insert(pos, ",");
+    snprintf(buf, len, "%s", text.c_str());
+}
+
+void align_value(const char* text)
+{
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX()
+        + std::fmax(0.0f, ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(text).x));
+}
+
 void stat_row(const char* key, const char* value)
 {
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
     ImGui::TextUnformatted(key);
     ImGui::TableNextColumn();
+    if (g_game == Game::MGSPW) align_value(value);
     ImGui::TextUnformatted(value);
 }
 
@@ -1038,6 +1055,7 @@ void unset_row(const char* key)
     ImGui::TableNextColumn();
     ImGui::TextUnformatted(key);
     ImGui::TableNextColumn();
+    if (g_game == Game::MGSPW) align_value("-");
     ImGui::TextDisabled("-");
 }
 
@@ -1048,6 +1066,7 @@ void dim_row(const char* key, const char* value)
     ImGui::TableNextColumn();
     ImGui::TextDisabled("%s", key);
     ImGui::TableNextColumn();
+    if (g_game == Game::MGSPW) align_value(value);
     ImGui::TextDisabled("%s", value);
 }
 
@@ -1387,9 +1406,12 @@ void draw_mgspw_run(const GameStats& stats)
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(k);
             ImGui::TableNextColumn();
+            align_value(buf);
             ImGui::TextColored(mission_value ? id_red : id_green, "%s", buf);
         };
         clean_row("kills", stats.pw_m_kills, stats.seg_kills);
+        if (stats.pw_m_alerts < 0) unset_row("alerts");
+        else clean_row("alerts", stats.pw_m_alerts, 0);
         run_stat("headshots", stats.pw_m_headshots, stats.seg_headshots);
         if (stats.pw_m_holdups < 0) unset_row("hold-ups");
         else run_stat("hold-ups", stats.pw_m_holdups, 0);
@@ -1397,8 +1419,6 @@ void draw_mgspw_run(const GameStats& stats)
         else run_stat("CQC uses", stats.pw_m_cqc_uses, 0);
         if (stats.pw_m_stun_rod_takedowns < 0) unset_row("stun rod KOs");
         else run_stat("stun rod KOs", stats.pw_m_stun_rod_takedowns, 0);
-        if (stats.pw_m_alerts < 0) unset_row("alerts");
-        else clean_row("alerts", stats.pw_m_alerts, 0);
         run_stat("tranq", stats.pw_m_tranq, stats.seg_tranq);
         const bool mission_heroism = stats.pw_m_heroism >= 0;
         snprintf(buf, sizeof(buf), "%+d%s",
@@ -1415,6 +1435,7 @@ void draw_mgspw_run(const GameStats& stats)
             ImGui::TableNextColumn();
             ImGui::TextUnformatted("HP");
             ImGui::TableNextColumn();
+            align_value(buf);
             ImGui::TextColored(hp_pct >= kHpGreenPct ? id_green : hp_pct >= kHpYellowPct ? id_yellow : id_red,
                                "%s", buf);
         } else {
@@ -1428,59 +1449,6 @@ void draw_mgspw_summary(const GameStats& stats)
 {
     // The run clock is the centrepiece; the codename it all feeds lives on
     // its own tab.
-    const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
-    char buf[64];
-    if (stats.pw_in_mission) {
-        draw_mgspw_run(stats);
-    } else {
-        // Later menus may still hold last run's tally. Hide it once results ends.
-        ImGui::TextDisabled("No mission running");
-        ImGui::Separator();
-    }
-
-    ImGui::Spacing();
-    if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("have / need", ImGuiTableColumnFlags_WidthFixed, ui_size(100));
-        ImGui::TableHeadersRow();
-        for (const codename::ReqStatus& r : g_eval.reqs) {
-            const char* pct =
-                static_cast<codename::ReqFmt>(r.fmt) == codename::ReqFmt::Percent ? "%" : "";
-            if (r.limit == 0) {
-                snprintf(buf, sizeof(buf), "%.0f%s", r.current, pct);
-            } else {
-                snprintf(buf, sizeof(buf), "%.0f%s / %.0f%s", r.current, pct, r.limit, pct);
-            }
-            // A goal to reach and a limit to stay under fail differently: not
-            // having reached a goal yet is progress, so it reads as pending
-            // until it is close, while going over a limit is a real red.
-            const auto op = static_cast<codename::Op>(r.op);
-            const bool reach = op == codename::Op::Ge || op == codename::Op::Gt;
-            const bool near_limit = !reach && r.limit != 0 && r.current >= r.limit * kNearLimitShare;
-            // A limit that fails at zero has nothing under it yet: the spread
-            // rules fail an empty profile, which is no data rather than a
-            // broken limit.
-            const ImVec4 color = r.pass ? (near_limit ? id_yellow : id_green)
-                : !reach                ? (r.current > 0 ? id_red : unset_color())
-                : r.limit > 0 && r.current >= r.limit * kCloseGoalShare ? id_yellow
-                                                                             : unset_color();
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(r.label);
-            ImGui::TableNextColumn();
-            ImGui::TextColored(color, "%s", buf);
-        }
-        // Context, not a requirement: the counters the axes are read from.
-        const auto plain = [&](const char* key, int value) {
-            snprintf(buf, sizeof(buf), "%d", value);
-            dim_row(key, buf);
-        };
-        if (stats.pw_camaraderie >= 0) {
-            plain("camaraderie", stats.pw_camaraderie);
-        }
-        ImGui::EndTable();
-    }
-
     const char* stage = stats.pw_stage[0] ? stats.pw_stage : "-";
     const char* name = mgspw_area_name(stage, stats.pw_region_id);
     ImGui::Spacing();
@@ -1491,57 +1459,39 @@ void draw_mgspw_summary(const GameStats& stats)
         ImGui::TextDisabled("%s", stage);
     }
     ImGui::PopTextWrapPos();
+
+    if (stats.pw_in_mission) {
+        draw_mgspw_run(stats);
+    } else {
+        // Later menus may still hold last run's tally. Hide it once results ends.
+        ImGui::TextDisabled("No mission running");
+        ImGui::Separator();
+    }
+
+    ImGui::Spacing();
+    const auto match = codename::evaluate_mgspw(stats);
+    ImGui::TextDisabled("Projected codename: %s", match ? match->name : "-");
 }
 
 void draw_mgspw_global(const GameStats& stats, int scroll)
 {
-    ImGui::BeginChild("pw_career_scroll", ImVec2(0, ui_size(420)));
+    ImGui::BeginChild("pw_career_scroll", ImVec2(0, ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing()));
     apply_scroll(scroll);
     char buf[64];
-    if (ImGui::BeginTable("pw_global", 2,
-                          ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("career", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("total", ImGuiTableColumnFlags_WidthFixed, ui_size(126));
-        ImGui::TableHeadersRow();
-        const auto count = [&](const char* label, int value) {
-            if (value < 0) {
-                unset_row(label);
-            } else {
-                snprintf(buf, sizeof(buf), "%d", value);
-                stat_row(label, buf);
-            }
-        };
-        format_time(stats.pw_total_play, buf, sizeof(buf));
-        stat_row("play time", buf);
-        snprintf(buf, sizeof(buf), "%d (%+d)", stats.pw_heroism,
-                 stats.pw_heroism_delta);
-        stat_row("heroism", buf);
-        snprintf(buf, sizeof(buf), "%u", stats.pw_gmp);
-        stat_row("GMP", buf);
-        count("camaraderie", stats.pw_camaraderie);
-        count("clears (with replays)", stats.pw_clears);
-        count("unique missions", stats.pw_unique_cleared);
-        count("S-ranked missions", stats.pw_s_missions);
+    const auto count = [&](const char* label, int value) {
+        if (value < 0) {
+            unset_row(label);
+        } else {
+            format_count(value, buf, sizeof(buf));
+            stat_row(label, buf);
+        }
+    };
+    if (ImGui::BeginTable("pw_totals", 2, ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("outcome", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("total", ImGuiTableColumnFlags_WidthFixed, ui_size(90));
         count("kills", stats.pw_kills);
         count("non-lethal takedowns", stats.pw_codename_axes_ok
               ? codename::pw_axes(stats).nonlethal : -1);
-        count("headshots", stats.pw_headshots);
-        count("alerts", stats.pw_alerts);
-        count("unseen kills", stats.pw_stealth_kills);
-        count("enemy Fultons", stats.pw_fulton_recoveries);
-        count("prisoners extracted", stats.pw_prisoner_extractions);
-        count("hold-ups", stats.pw_holdups);
-        count("CQC uses", stats.pw_cqc_uses);
-        count("no-kill clears", stats.pw_nokill_clears);
-        count("no-alert clears", stats.pw_noalert_clears);
-        count("no-recovery-item clears", stats.pw_noitem_clears);
-        if (stats.pw_damage_taken >= 0) {
-            snprintf(buf, sizeof(buf), "%d (%.1f bars)", stats.pw_damage_taken,
-                     stats.pw_damage_taken / 8000.0);
-            stat_row("damage taken", buf);
-        } else {
-            unset_row("damage taken");
-        }
         ImGui::EndTable();
     }
     ImGui::Spacing();
@@ -1562,8 +1512,11 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
             ImGui::TextUnformatted(label);
             for (int value : {lethal, nonlethal}) {
                 ImGui::TableNextColumn();
-                if (value < 0) ImGui::TextDisabled("-");
-                else ImGui::Text("%d", value);
+                if (value < 0) snprintf(buf, sizeof(buf), "-");
+                else format_count(value, buf, sizeof(buf));
+                align_value(buf);
+                if (value < 0) ImGui::TextDisabled("%s", buf);
+                else ImGui::TextUnformatted(buf);
             }
         };
         weapon("handguns", 2, stats.pw_pistol_lethal, stats.pw_pistol_takedowns);
@@ -1579,6 +1532,46 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         weapon("placed explosives", 11, stats.pw_placed_takedowns, -1);
         ImGui::EndTable();
     }
+    ImGui::Spacing();
+    if (ImGui::BeginTable("pw_global", 2,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("career", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("total", ImGuiTableColumnFlags_WidthFixed, ui_size(126));
+        ImGui::TableHeadersRow();
+        format_time(stats.pw_total_play, buf, sizeof(buf));
+        stat_row("play time", buf);
+        char total[16], delta[16];
+        format_count(stats.pw_heroism, total, sizeof(total));
+        format_count(stats.pw_heroism_delta, delta, sizeof(delta));
+        snprintf(buf, sizeof(buf), "%s (%s%s)", total,
+                 stats.pw_heroism_delta >= 0 ? "+" : "", delta);
+        stat_row("heroism", buf);
+        format_count(stats.pw_gmp, buf, sizeof(buf));
+        stat_row("GMP", buf);
+        count("camaraderie", stats.pw_camaraderie);
+        count("clears (with replays)", stats.pw_clears);
+        count("unique missions", stats.pw_unique_cleared);
+        count("S-ranked missions", stats.pw_s_missions);
+        count("headshots", stats.pw_headshots);
+        count("alerts", stats.pw_alerts);
+        count("unseen kills", stats.pw_stealth_kills);
+        count("enemy Fultons", stats.pw_fulton_recoveries);
+        count("prisoners extracted", stats.pw_prisoner_extractions);
+        count("hold-ups", stats.pw_holdups);
+        count("CQC uses", stats.pw_cqc_uses);
+        count("no-kill clears", stats.pw_nokill_clears);
+        count("no-alert clears", stats.pw_noalert_clears);
+        count("no-recovery-item clears", stats.pw_noitem_clears);
+        if (stats.pw_damage_taken >= 0) {
+            snprintf(buf, sizeof(buf), "%d (%.1f bars)", stats.pw_damage_taken,
+                     stats.pw_damage_taken / 8000.0);
+            stat_row("damage taken", buf);
+        } else {
+            unset_row("damage taken");
+        }
+        ImGui::EndTable();
+    }
+    ImGui::Spacing();
     ImGui::EndChild();
     // Outside the scrolling region: the legend explains the whole tab, so it
     // should not be something you have to scroll to the end to find.
@@ -1678,6 +1671,51 @@ void draw_mgspw_codenames(const GameStats& stats)
         ImGui::TextDisabled("| %d / 24 earned", owned);
     }
     if (!axes.native) ImGui::TextDisabled("Estimated from available counters");
+    char buf[64];
+    ImGui::Spacing();
+    if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("have / need", ImGuiTableColumnFlags_WidthFixed, ui_size(100));
+        ImGui::TableHeadersRow();
+        for (const codename::ReqStatus& r : g_eval.reqs) {
+            const char* pct =
+                static_cast<codename::ReqFmt>(r.fmt) == codename::ReqFmt::Percent ? "%" : "";
+            if (r.limit == 0) {
+                snprintf(buf, sizeof(buf), "%.0f%s", r.current, pct);
+            } else {
+                snprintf(buf, sizeof(buf), "%.0f%s / %.0f%s", r.current, pct, r.limit, pct);
+            }
+            // A goal to reach and a limit to stay under fail differently: not
+            // having reached a goal yet is progress, so it reads as pending
+            // until it is close, while going over a limit is a real red.
+            const auto op = static_cast<codename::Op>(r.op);
+            const bool reach = op == codename::Op::Ge || op == codename::Op::Gt;
+            const bool near_limit = !reach && r.limit != 0 && r.current >= r.limit * kNearLimitShare;
+            // A limit that fails at zero has nothing under it yet: the spread
+            // rules fail an empty profile, which is no data rather than a
+            // broken limit.
+            const ImVec4 color = r.pass ? (near_limit ? id_yellow : id_green)
+                : !reach                ? (r.current > 0 ? id_red : unset_color())
+                : r.limit > 0 && r.current >= r.limit * kCloseGoalShare ? id_yellow
+                                                                             : unset_color();
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(r.label);
+            ImGui::TableNextColumn();
+            align_value(buf);
+            ImGui::TextColored(color, "%s", buf);
+        }
+        // Context, not a requirement: the counters the axes are read from.
+        const auto plain = [&](const char* key, int value) {
+            format_count(value, buf, sizeof(buf));
+            dim_row(key, buf);
+        };
+        if (stats.pw_camaraderie >= 0) {
+            plain("camaraderie", stats.pw_camaraderie);
+        }
+        ImGui::EndTable();
+    }
+
     if (ImGui::BeginTable("pw_class", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("takedowns", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("count", ImGuiTableColumnFlags_WidthFixed, ui_size(50));
@@ -1693,11 +1731,15 @@ void draw_mgspw_codenames(const GameStats& stats)
             ImGui::TableNextColumn();
             // A zero is a class not carried, not a reading: it dims with its
             // label rather than standing out as a number.
-            if (value > 0) ImGui::Text("%d", value);
+            format_count(value, buf, sizeof(buf));
+            align_value(buf);
+            if (value > 0) ImGui::TextUnformatted(buf);
             else ImGui::TextDisabled("0");
             ImGui::TableNextColumn();
-            if (total > 0) ImGui::TextColored(value > 0 ? share_color : pending, "%.0f%%", share);
-            else ImGui::TextDisabled("-");
+            if (total > 0) snprintf(buf, sizeof(buf), "%.0f%%", share);
+            else snprintf(buf, sizeof(buf), "-");
+            align_value(buf);
+            ImGui::TextColored(value > 0 ? share_color : pending, "%s", buf);
         };
         // Grouped weapon shares; the Summary reports the native slot spread.
         for (int cls = 0; cls < 6; ++cls) {
@@ -1707,8 +1749,11 @@ void draw_mgspw_codenames(const GameStats& stats)
         ImGui::TableNextColumn();
         ImGui::TextDisabled("all");
         ImGui::TableNextColumn();
-        ImGui::TextDisabled("%d", axes.total);
+        format_count(axes.total, buf, sizeof(buf));
+        align_value(buf);
+        ImGui::TextDisabled("%s", buf);
         ImGui::TableNextColumn();
+        align_value(axes.total > 0 ? "100%" : "-");
         ImGui::TextDisabled("%s", axes.total > 0 ? "100%" : "-");
         // The pair below counts the same takedowns a second way, so it is set
         // apart from the per-class rows and their total.
@@ -1757,8 +1802,10 @@ void draw_mgspw_codenames(const GameStats& stats)
             ImGui::TextColored(judged ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : pending,
                                "%s", label);
             ImGui::TableNextColumn();
+            align_value(known ? now : "-");
             ImGui::TextColored(color, "%s", known ? now : "-");
             ImGui::TableNextColumn();
+            align_value(goal);
             ImGui::TextColored(color, "%s", goal);
         };
         char now_value[24], goal_value[32], gate_text[24];
@@ -1838,13 +1885,13 @@ void draw_panel()
     ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + ui_size(16),
                                   viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
                             initial_layout, ImVec2(0.0f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(ui_size(380), ui_size(480)), initial_layout);
+    ImGui::SetNextWindowSize(ImVec2(ui_size(g_game == Game::MGSPW ? 360 : 380), ui_size(480)), initial_layout);
     if (g_game == Game::MGSPW) {
-        ImGui::SetNextWindowSizeConstraints(ImVec2(ui_size(320), 0),
-                                            ImVec2(ui_size(320), FLT_MAX));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(ui_size(360), ui_size(300)),
+                                            ImVec2(FLT_MAX, FLT_MAX));
     }
     ImGui::Begin(panel_title, &g.show,
-                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+                 ImGuiWindowFlags_NoCollapse | (g_game == Game::MGSPW ? 0 : ImGuiWindowFlags_AlwaysAutoResize));
     g.reset_window = false;
 
     if (!have_stats) {

@@ -37,10 +37,11 @@ code += block("void draw_mgspw_run", "void draw_panel")
 code += r'''
 std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     // Mimic draw_panel's 10Hz tick: the panels read matches from the cache.
+    g_game = tab == 4 ? Game::MGS4 : Game::MGSPW;
     g_eval.reqs = codename::elite_requirements_mgspw(stats);
     g_eval.matches = codename::all_matches_mgs4(stats);
     ImGui::NewFrame();
-    ImGui::SetNextWindowSize(ImVec2(420, 700));
+    ImGui::SetNextWindowSize(ImVec2(360, 480));
     ImGui::Begin("PW");
     ImGui::LogToBuffer();
     switch (tab) {
@@ -57,6 +58,11 @@ std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     return text;
 }
 int main() {
+    char number[32];
+    format_count(1234567, number, sizeof(number));
+    assert(std::string(number) == "1,234,567");
+    format_count(-1234, number, sizeof(number));
+    assert(std::string(number) == "-1,234");
     ImGui::CreateContext();
     auto& io = ImGui::GetIO();
     io.IniFilename = nullptr;
@@ -110,7 +116,9 @@ int main() {
     assert(menu.find("No mission running") != std::string::npos);
     assert(menu.find("headshots") == std::string::npos);
     assert(menu.find("stun rod KOs") == std::string::npos);
-    assert(menu.find("FOX / FOXHOUND") != std::string::npos);
+    assert(menu.find("Projected codename:") != std::string::npos);
+    assert(menu.find("FOX / FOXHOUND") == std::string::npos);
+    assert(draw(stats, 3).find("FOX / FOXHOUND") != std::string::npos);
     stats.pw_insignias = 110;
     stats.pw_headshots = 1000000;
     assert(draw(stats, 2).find("110 / 110 insignias earned") != std::string::npos);
@@ -145,6 +153,7 @@ int main() {
     stats.pw_codename_axes[3][11] = 19;
     stats.pw_codename_axes[3][1] = 23;
     const auto career = draw(stats, 1);
+    assert(career.find("grenades") < career.find("play time"));
     for (const char* pattern : {R"(grenades[\s|{}]*5[\s|{}]*12)",
                                 R"(rockets[\s|{}]*0[\s|{}]*24)",
                                 R"(placed explosives[\s|{}]*0[\s|{}]*36)",

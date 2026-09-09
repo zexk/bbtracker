@@ -182,10 +182,10 @@ void draw_window(const GameStats& stats, int tab)
     // Mimic draw_panel's 10Hz tick: the panels read matches from the cache.
     g_eval.reqs = codename::elite_requirements_mgspw(stats);
     ImGui::SetNextWindowPos(ImVec2(24, 24));
-    ImGui::SetNextWindowSizeConstraints(ImVec2(420, 0), ImVec2(420, FLT_MAX));
+    ImGui::SetNextWindowSize(ImVec2(360, 480));
     bool open = true;
     ImGui::Begin("FOXHOUND tracker", &open,
-                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+                 ImGuiWindowFlags_NoCollapse);
     if (ImGui::BeginTabBar("tracker_tabs")) {
         const char* names[] = {"Summary", "Career", "Insignia", "Codenames"};
         for (int i = 0; i < 4; ++i) {
@@ -242,6 +242,7 @@ GameStats mid_profile()
     stats.pw_m_headshots = 6;
     stats.pw_m_holdups = 3;
     stats.pw_m_cqc_uses = 2;
+    stats.pw_m_stun_rod_takedowns = 1;
     stats.pw_m_heroism = 22;
     stats.pw_m_alerts = 0;
     stats.pw_m_tranq = 11;
