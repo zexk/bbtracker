@@ -10,6 +10,7 @@
 #include "../../common/difficulty.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
+#include "../../common/run_latch.h"
 
 namespace bb::mgs4 {
 
@@ -54,7 +55,19 @@ static_assert(!ranked_stage("r_sna01"));
 static_assert(!ranked_stage("title"));
 static_assert(!ranked_stage("s99a00l"));
 
+constexpr RunState run_state(std::string_view stage)
+{
+    if (ranked_stage(stage)) return RunState::Active;
+    if (stage == "title") return RunState::Inactive;
+    return RunState::Unknown;
+}
+
+static_assert(run_state("s01a10l") == RunState::Active);
+static_assert(run_state("r_sna01") == RunState::Unknown);
+static_assert(run_state("title") == RunState::Inactive);
+
 HMODULE g_module = nullptr;
+RunLatch g_run;
 
 } // namespace
 
@@ -68,16 +81,18 @@ bool poll_stats(GameStats& out)
     const auto module = reinterpret_cast<uintptr_t>(g_module);
     if (!module || !range_readable(module + kLinkvarbufPointer, sizeof(uintptr_t))) {
         g_module = nullptr;
-        return false;
+        return g_run.hold(out);
     }
     const uintptr_t address = *reinterpret_cast<volatile const uintptr_t*>(module + kLinkvarbufPointer);
-    if (!address || !range_readable(address, kLinkvarbufSize)) return false;
+    if (!address || !range_readable(address, kLinkvarbufSize)) return g_run.hold(out);
     const auto* data = reinterpret_cast<const uint8_t*>(address);
 
     const uint16_t raw_difficulty = read<uint16_t>(data, 0x006);
     const uint32_t progress = read<uint32_t>(data, 0x054);
     if ((raw_difficulty != 20 && raw_difficulty != 30 && raw_difficulty != 35
-         && raw_difficulty != 40 && raw_difficulty != 50) || progress > 291) return false;
+         && raw_difficulty != 40 && raw_difficulty != 50) || progress > 291) {
+        return g_run.hold(out);
+    }
 
     static uintptr_t last_address = 0;
     if (address != last_address) {
@@ -90,7 +105,6 @@ bool poll_stats(GameStats& out)
     char stage[8]{};
     std::memcpy(stage, data + 0x034, 7);
     const size_t stage_length = std::char_traits<char>::length(stage);
-    if (!ranked_stage({stage, stage_length})) return false;
     set_area(out, stage);
     out.difficulty_raw = static_cast<uint8_t>(raw_difficulty);
     out.difficulty_game_byte = static_cast<uint8_t>(raw_difficulty);
@@ -127,7 +141,7 @@ bool poll_stats(GameStats& out)
         const uint16_t state = read<uint16_t>(data, 0x1D4 + id * 2);
         out.weapons_acquired += state == 1 || state == 2;
     }
-    return true;
+    return g_run.update(out, run_state({stage, stage_length}));
 }
 
 } // namespace bb::mgs4

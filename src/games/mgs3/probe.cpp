@@ -6,11 +6,13 @@
 #include <cstdint>
 #include <cstdio>
 #include <iterator>
+#include <string_view>
 
 #include "../../common/area.h"
 #include "../../common/difficulty.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
+#include "../../common/run_latch.h"
 
 namespace bb::mgs3 {
 
@@ -58,6 +60,7 @@ const uint8_t* g_stats = nullptr;
 uintptr_t g_last_block = 0;
 uintptr_t g_slot_addr = 0;
 HMODULE g_module = nullptr;
+RunLatch g_run;
 unsigned g_zero_polls = 0;
 uint16_t g_last_dmg_raw = 0;
 uint16_t g_last_damage_bars = 0;
@@ -79,14 +82,25 @@ bool sig_match(const uint8_t* p, size_t avail)
     return true;
 }
 
-constexpr bool gameplay_area(const char* area)
+constexpr bool gameplay_area(std::string_view area)
 {
-    return area[0] == 's' || area[0] == 'v';
+    return !area.empty() && (area[0] == 's' || area[0] == 'v');
 }
 
 static_assert(gameplay_area("s001a"));
 static_assert(gameplay_area("v000a"));
 static_assert(!gameplay_area("title"));
+
+constexpr RunState run_state(std::string_view area)
+{
+    if (gameplay_area(area)) return RunState::Active;
+    if (area == "title") return RunState::Inactive;
+    return RunState::Unknown;
+}
+
+static_assert(run_state("s001a") == RunState::Active);
+static_assert(run_state("") == RunState::Unknown);
+static_assert(run_state("title") == RunState::Inactive);
 
 bool find_slot_via_sig(HMODULE mod, uintptr_t& out_slot)
 {
@@ -181,7 +195,7 @@ bool poll_stats(GameStats& out)
     uintptr_t block = 0;
     uintptr_t story_base = 0;
     if (!resolve(block, story_base)) {
-        return false;
+        return g_run.hold(out);
     }
     g_stats = reinterpret_cast<const uint8_t*>(block);
 
@@ -315,7 +329,7 @@ bool poll_stats(GameStats& out)
         g_zero_polls = 0;
     }
 
-    return gameplay_area(out.area_code);
+    return g_run.update(out, run_state(out.area_code));
 }
 
 } // namespace bb::mgs3

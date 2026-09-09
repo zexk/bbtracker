@@ -5,11 +5,13 @@
 #include <cstring>
 #include <cstdint>
 #include <cstdlib>
+#include <string_view>
 
 #include "../../common/area.h"
 #include "../../common/difficulty.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
+#include "../../common/run_latch.h"
 
 namespace bb::mgs2 {
 
@@ -46,6 +48,18 @@ static_assert(ranked_game(kGametypePlant));
 static_assert(ranked_game(kGametypeTankerAndPlant));
 static_assert(!ranked_game(0));
 static_assert(!ranked_game(0x40));
+
+constexpr RunState run_state(uint8_t gametype, std::string_view area)
+{
+    if (ranked_game(gametype)) return RunState::Active;
+    if (gametype == 0 && area.size() == 4 && area[0] == 'w') return RunState::Unknown;
+    return RunState::Inactive;
+}
+
+static_assert(run_state(kGametypeTanker, "w00a") == RunState::Active);
+static_assert(run_state(0, "w00a") == RunState::Unknown);
+static_assert(run_state(0, "") == RunState::Inactive);
+static_assert(run_state(0x40, "w00a") == RunState::Inactive);
 
 constexpr int codename_mission(uint16_t title_menu_status)
 {
@@ -168,6 +182,7 @@ struct StatOffsets {
 uintptr_t g_last_scan_tick = 0;
 
 HMODULE g_module = nullptr;
+RunLatch g_run;
 
 // The player block moves, but its module does not: resolve once, and only
 // re-resolve after a module-relative read fails and drops the latch. A
@@ -186,17 +201,17 @@ bool poll_stats(GameStats& out)
 {
     HMODULE mod = game_module();
     if (!mod) {
-        return false;
+        return g_run.hold(out);
     }
     const auto base = reinterpret_cast<uintptr_t>(mod);
     const uintptr_t slot = base + kPlayerPointerOffset;
     if (!range_readable(slot, sizeof(uintptr_t))) {
         g_module = nullptr;
-        return false;
+        return g_run.hold(out);
     }
     const uintptr_t player = *reinterpret_cast<volatile const uintptr_t*>(slot);
     if (!player || !range_readable(player, kPlayerRegionSize)) {
-        return false;
+        return g_run.hold(out);
     }
     if (player != g_last_player) {
         LOG_INFO("mgs2 player block %s%p", g_last_player ? "moved: " : "",
@@ -270,7 +285,7 @@ bool poll_stats(GameStats& out)
     }
     set_area(out, area);
 
-    return ranked_game(gametype);
+    return g_run.update(out, run_state(gametype, out.area_code));
 }
 
 } // namespace bb::mgs2

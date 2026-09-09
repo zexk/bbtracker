@@ -67,11 +67,12 @@ module base + 0x1C28B28 -> active linkvarbuf
 Active `varbuf` was `0x2800` bytes before active `linkvarbuf`. Snapshots retained
 older progress, confirming `0x1c28b28` selects live state.
 
-Probe accepts buffer only when difficulty is `20`, `30`, `35`, `40`, or `50`,
-scenario progress is at most `291`, and stage is a seven-character campaign
-code in families `s00` through `s05`, `s10`, `s20`, or `s30`. Menu stages,
-standalone Mission Briefing stages (`r_sna*`), and unknown `sNN` families return
-unavailable. Output is cleared before population to prevent stale values.
+Probe accepts buffer only when difficulty is `20`, `30`, `35`, `40`, or `50`
+and scenario progress is at most `291`. A seven-character campaign code in
+families `s00` through `s05`, `s10`, `s20`, or `s30` starts the visibility
+latch. Loading gaps and transitional stages, including standalone Mission
+Briefing stages (`r_sna*`), keep it visible; `title` clears it. When the live
+buffer disappears during a load, the probe retains the last complete snapshot.
 
 ## `linkvarbuf` layout
 
