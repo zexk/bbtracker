@@ -60,6 +60,8 @@ struct OverlayState {
     std::vector<D3D12Frame> frames12;
     HWND hwnd = nullptr;
     ImVec2 render_size{};
+    float ui_scale = 0.0f;
+    bool reset_window = false;
 };
 
 const char* g_label = "?";
@@ -124,6 +126,30 @@ void release_rtv()
 
 void apply_game_theme();
 
+constexpr float overlay_scale(float render_height, float dpi_scale)
+{
+    const float resolution_scale = render_height >= 2160.0f ? 2.0f : 1.0f;
+    return dpi_scale > resolution_scale ? dpi_scale : resolution_scale;
+}
+
+static_assert(overlay_scale(1080.0f, 1.0f) == 1.0f);
+static_assert(overlay_scale(2160.0f, 1.0f) == 2.0f);
+static_assert(overlay_scale(1080.0f, 1.5f) == 1.5f);
+
+void apply_ui_scale()
+{
+    const float scale = overlay_scale(g.render_size.y,
+                                      ImGui_ImplWin32_GetDpiScaleForHwnd(g.hwnd));
+    if (scale == g.ui_scale) return;
+
+    apply_game_theme();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.FontScaleDpi = scale;
+    style.ScaleAllSizes(scale);
+    g.ui_scale = scale;
+    g.reset_window = true;
+}
+
 // Context setup both backends share; only the renderer init differs.
 void begin_imgui()
 {
@@ -131,7 +157,7 @@ void begin_imgui()
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
     io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
-    apply_game_theme();
+    apply_ui_scale();
     ImGui_ImplWin32_Init(g.hwnd);
 }
 
@@ -196,6 +222,7 @@ void release_d3d12()
     g.fence_event12 = nullptr;
     g.device12 = nullptr;
     g.next_fence12 = 0;
+    g.ui_scale = 0.0f;
     g.imgui_ready = false;
     g.renderer = Renderer::Unknown;
 }
@@ -300,7 +327,7 @@ void apply_game_theme()
     if (g_game != Game::MG1 && g_game != Game::MG2
         && g_game != Game::MGS1 && g_game != Game::MGS2
         && g_game != Game::MGS3 && g_game != Game::MGS4
-        && g_game != Game::MGSPW) {
+        && g_game != Game::MGSPW && g_game != Game::Babel) {
         return;
     }
 
@@ -501,6 +528,34 @@ void apply_game_theme()
         colors[ImGuiCol_ScrollbarGrab]     = ImVec4(0.32f, 0.32f, 0.33f, 0.90f);
         colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.55f, 0.05f, 0.07f, 0.95f);
         colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.86f, 0.06f, 0.09f, 1.00f);
+        return;
+    }
+
+    // Ghost Babel's HUD is a Game Boy Color palette: pure black plates, a
+    // one-pixel amber frame with squared corners, white pixel text, the item
+    // slots in pure red, and the LIFE bar in teal. Nothing here is tinted or
+    // blended — the console had no alpha, so the plates stay flat and only the
+    // window itself is translucent enough to play under.
+    if (g_game == Game::Babel) {
+        // Ghost Babel's title menu: black ground, white text, the live entry in
+        // the menu green, the second entry in pure red, and unavailable entries
+        // in flat gray. There is no yellow on that screen, so the middle band is
+        // inferred from the same flat, fully saturated GBC palette.
+        // Only the chrome this panel draws: no tabs, no scrollbar or resize grip
+        // under AlwaysAutoResize, no frames, headers or selectables. The button
+        // colors are here for the title bar's close box.
+        colors[ImGuiCol_Text]              = ImVec4(0.97f, 0.97f, 0.97f, 1.00f);
+        colors[ImGuiCol_TextDisabled]      = ImVec4(0.56f, 0.56f, 0.56f, 1.00f);
+        colors[ImGuiCol_WindowBg]          = ImVec4(0.00f, 0.00f, 0.00f, 0.88f);
+        colors[ImGuiCol_Border]            = ImVec4(0.00f, 0.63f, 0.36f, 1.00f);
+        colors[ImGuiCol_TitleBg]           = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]     = ImVec4(0.00f, 0.20f, 0.11f, 1.00f);
+        colors[ImGuiCol_Button]            = ImVec4(0.00f, 0.16f, 0.09f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]     = ImVec4(0.00f, 0.42f, 0.24f, 1.00f);
+        colors[ImGuiCol_ButtonActive]      = ImVec4(0.00f, 0.63f, 0.36f, 1.00f);
+        colors[ImGuiCol_Separator]         = ImVec4(0.00f, 0.63f, 0.36f, 0.55f);
+        colors[ImGuiCol_TableBorderLight]  = ImVec4(0.56f, 0.56f, 0.56f, 0.35f);
+        colors[ImGuiCol_TableRowBgAlt]     = ImVec4(0.06f, 0.06f, 0.06f, 0.55f);
         return;
     }
 
@@ -886,6 +941,11 @@ struct IdColors {
     ImVec4 red;
 };
 
+float ui_size(float value)
+{
+    return value * ImGui::GetStyle().FontScaleDpi;
+}
+
 // Requirement-row verdict bands, shared by the Peace Walker and generic
 // panels: this far into a stay-under limit reads as near the limit, and
 // this far toward a reach goal reads as getting close. They sit here, next
@@ -917,6 +977,10 @@ IdColors id_colors(Game game)
     // The red is the menu red the theme is built on; green and amber only have
     // to carry a verdict against near-white text on black.
     case Game::MGSPW: return {{0.30f, 0.86f, 0.40f, 1}, {0.96f, 0.78f, 0.24f, 1}, {0.95f, 0.11f, 0.14f, 1}};
+    // Straight off the Ghost Babel title menu: NEW GAME's green and CONTINUE's
+    // red. That screen has no yellow, so the middle band is inferred at the
+    // same saturation.
+    case Game::Babel: return {{0.00f, 0.63f, 0.36f, 1}, {0.94f, 0.78f, 0.00f, 1}, {0.97f, 0.00f, 0.00f, 1}};
     }
     return {{0.42f, 0.90f, 0.45f, 1}, {1.0f, 0.82f, 0.25f, 1}, {0.95f, 0.35f, 0.35f, 1}};
 }
@@ -1025,7 +1089,7 @@ void checklist(const char* id, const char* const* names, size_t count, uint64_t 
 {
     const ImVec4 done_color = id_colors(g_game).green;
     const ImVec4 todo_color = unset_color();
-    if (ImGui::BeginChild(id, ImVec2(0, 360), true)) {
+    if (ImGui::BeginChild(id, ImVec2(0, ui_size(360)), true)) {
         apply_scroll(scroll);
         for (size_t i = 0; i < count; ++i) {
             const bool done = (mask & (uint64_t{1} << i)) != 0;
@@ -1045,12 +1109,12 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
         }
         return false;
     };
-    if (ImGui::BeginChild("mgs4_feats", ImVec2(0, 360), true)) {
+    if (ImGui::BeginChild("mgs4_feats", ImVec2(0, ui_size(360)), true)) {
         apply_scroll(scroll);
         if (ImGui::BeginTable("mgs4_feat_rows", 2,
                               ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
             ImGui::TableSetupColumn("emblem / requirement", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("progress", ImGuiTableColumnFlags_WidthFixed, 125.0f);
+            ImGui::TableSetupColumn("progress", ImGuiTableColumnFlags_WidthFixed, ui_size(125));
             const ImVec4 done_color = id_colors(g_game).green;
             const ImVec4 pending_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
             const auto row = [&](const char* name, const char* goal, const char* value) {
@@ -1110,6 +1174,16 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
             count("COW", "Trigger 100 alerts", stats.alerts, goals::kCowAlerts);
             count("CROCODILE", "Kill 400 enemies", stats.kills, goals::kCrocodileKills);
             time("GIANT PANDA", "Play for 30 hours", stats.play_time_seconds, goals::kGiantPandaHours * 60 * 60);
+            char current[16], target[16], chicken[192];
+            format_time(stats.play_time_seconds, current, sizeof(current));
+            format_time(goals::kChickenHours * 60 * 60, target, sizeof(target));
+            snprintf(chicken, sizeof(chicken),
+                     "alerts %d / %d\nkills %d / %d\ncontinues %d / %d\nrecovery %d / %d\n%s / %s",
+                     stats.alerts, goals::kChickenAlerts,
+                     stats.kills, goals::kChickenKills,
+                     stats.continues, goals::kChickenContinues,
+                     stats.rations_used, goals::kChickenRecoveryItems, current, target);
+            row("CHICKEN", "At least 150 alerts, 500 kills, 50 continues, 50 recovery items and 35 hours", chicken);
             ImGui::EndTable();
         }
     }
@@ -1211,6 +1285,7 @@ constexpr EvaluateFn kEvaluateFns[] = {
     [static_cast<int>(Game::MGS3)] = codename::evaluate_mgs3,
     [static_cast<int>(Game::MGS4)] = codename::evaluate_mgs4,
     [static_cast<int>(Game::MGSPW)] = codename::evaluate_mgspw,
+    [static_cast<int>(Game::Babel)] = codename::evaluate_babel,
 };
 
 constexpr RequirementsFn kRequirementsFns[] = {
@@ -1221,10 +1296,11 @@ constexpr RequirementsFn kRequirementsFns[] = {
     [static_cast<int>(Game::MGS3)] = codename::elite_requirements_mgs3,
     [static_cast<int>(Game::MGS4)] = codename::elite_requirements_mgs4,
     [static_cast<int>(Game::MGSPW)] = codename::elite_requirements_mgspw,
+    [static_cast<int>(Game::Babel)] = codename::elite_requirements_babel,
 };
 
-static_assert(std::size(kEvaluateFns) == 7);
-static_assert(std::size(kRequirementsFns) == 7);
+static_assert(std::size(kEvaluateFns) == 8);
+static_assert(std::size(kRequirementsFns) == 8);
 
 // The live half of the Summary: this sortie's clock and tally. Only drawn while
 // a mission is running, so nothing here is ever the previous run's leftovers.
@@ -1285,7 +1361,7 @@ void draw_mgspw_run(const GameStats& stats)
     if (ImGui::BeginTable("pw_current", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("this run", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("mission", ImGuiTableColumnFlags_WidthFixed, 84.0f);
+        ImGui::TableSetupColumn("mission", ImGuiTableColumnFlags_WidthFixed, ui_size(84));
         ImGui::TableHeadersRow();
         // The game keeps its own per-mission tally in each stat descriptor
         // (+0x18); it beats the client-side segment delta because the game
@@ -1363,7 +1439,7 @@ void draw_mgspw_summary(const GameStats& stats)
     ImGui::Spacing();
     if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("have / need", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableSetupColumn("have / need", ImGuiTableColumnFlags_WidthFixed, ui_size(100));
         ImGui::TableHeadersRow();
         for (const codename::ReqStatus& r : g_eval.reqs) {
             const char* pct =
@@ -1417,13 +1493,13 @@ void draw_mgspw_summary(const GameStats& stats)
 
 void draw_mgspw_global(const GameStats& stats, int scroll)
 {
-    ImGui::BeginChild("pw_career_scroll", ImVec2(0, 420));
+    ImGui::BeginChild("pw_career_scroll", ImVec2(0, ui_size(420)));
     apply_scroll(scroll);
     char buf[64];
     if (ImGui::BeginTable("pw_global", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("career", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("total", ImGuiTableColumnFlags_WidthFixed, 126.0f);
+        ImGui::TableSetupColumn("total", ImGuiTableColumnFlags_WidthFixed, ui_size(126));
         ImGui::TableHeadersRow();
         const auto count = [&](const char* label, int value) {
             if (value < 0) {
@@ -1469,8 +1545,8 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
     if (ImGui::BeginTable("pw_weapons", 3,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("takedowns", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("lethal", ImGuiTableColumnFlags_WidthFixed, 75.0f);
-        ImGui::TableSetupColumn("non-lethal", ImGuiTableColumnFlags_WidthFixed, 85.0f);
+        ImGui::TableSetupColumn("lethal", ImGuiTableColumnFlags_WidthFixed, ui_size(75));
+        ImGui::TableSetupColumn("non-lethal", ImGuiTableColumnFlags_WidthFixed, ui_size(85));
         ImGui::TableHeadersRow();
         const auto weapon = [](const char* label, int lethal, int nonlethal) {
             ImGui::TableNextRow();
@@ -1518,7 +1594,7 @@ void draw_mgspw_insignia(const GameStats& stats)
         // reading, this is only its shape.
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
                               ImVec4(id_green.x, id_green.y, id_green.z, 0.55f));
-        ImGui::ProgressBar(stats.pw_insignias / 110.0f, ImVec2(-FLT_MIN, 6.0f), "");
+        ImGui::ProgressBar(stats.pw_insignias / 110.0f, ImVec2(-FLT_MIN, ui_size(6)), "");
         ImGui::PopStyleColor();
     }
     ImGui::Spacing();
@@ -1526,7 +1602,7 @@ void draw_mgspw_insignia(const GameStats& stats)
     if (ImGui::BeginTable("pw_insignia_stats", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("counter", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("next", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableSetupColumn("next", ImGuiTableColumnFlags_WidthFixed, ui_size(100));
         ImGui::TableHeadersRow();
         const ImVec4 pending = unset_color();
         for (const auto& family : kFamilies) {
@@ -1594,8 +1670,8 @@ void draw_mgspw_codenames(const GameStats& stats)
     if (!axes.native) ImGui::TextDisabled("Estimated from available counters");
     if (ImGui::BeginTable("pw_class", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("takedowns", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("count", ImGuiTableColumnFlags_WidthFixed, 50.0f);
-        ImGui::TableSetupColumn("share", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+        ImGui::TableSetupColumn("count", ImGuiTableColumnFlags_WidthFixed, ui_size(50));
+        ImGui::TableSetupColumn("share", ImGuiTableColumnFlags_WidthFixed, ui_size(50));
         ImGui::TableHeadersRow();
         const auto share_row = [&](const char* label, int value, int total,
                                    const ImVec4& share_color) {
@@ -1626,7 +1702,7 @@ void draw_mgspw_codenames(const GameStats& stats)
         ImGui::TextDisabled("%s", axes.total > 0 ? "100%" : "-");
         // The pair below counts the same takedowns a second way, so it is set
         // apart from the per-class rows and their total.
-        ImGui::TableNextRow(ImGuiTableRowFlags_None, 6.0f);
+        ImGui::TableNextRow(ImGuiTableRowFlags_None, ui_size(6));
         // FOXHOUND is a non-lethal title: non-lethal must beat twice lethal.
         share_row("lethal", axes.lethal, axes.lethal + axes.nonlethal, id_red);
         share_row("non-lethal", axes.nonlethal, axes.lethal + axes.nonlethal,
@@ -1657,8 +1733,8 @@ void draw_mgspw_codenames(const GameStats& stats)
     snprintf(header, sizeof(header), "grade %d needs", target);
     if (ImGui::BeginTable("pw_ladder", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn(header, ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("now", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-        ImGui::TableSetupColumn("goal", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+        ImGui::TableSetupColumn("now", ImGuiTableColumnFlags_WidthFixed, ui_size(70));
+        ImGui::TableSetupColumn("goal", ImGuiTableColumnFlags_WidthFixed, ui_size(70));
         ImGui::TableHeadersRow();
         // A gate reads red only once it is known to fail: an unread counter is
         // no standing at all, and a gate this title is not judged on is spent
@@ -1748,15 +1824,18 @@ void draw_panel()
         ? "FOXHOUND tracker"
         : "BIG BOSS tracker";
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + 16.0f,
+    const ImGuiCond initial_layout = g.reset_window ? ImGuiCond_Always : ImGuiCond_FirstUseEver;
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + ui_size(16),
                                   viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
-                            ImGuiCond_FirstUseEver, ImVec2(0.0f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(380, 480), ImGuiCond_FirstUseEver);
+                            initial_layout, ImVec2(0.0f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(ui_size(380), ui_size(480)), initial_layout);
     if (g_game == Game::MGSPW) {
-        ImGui::SetNextWindowSizeConstraints(ImVec2(320, 0), ImVec2(320, FLT_MAX));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(ui_size(320), 0),
+                                            ImVec2(ui_size(320), FLT_MAX));
     }
     ImGui::Begin(panel_title, &g.show,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+    g.reset_window = false;
 
     if (!have_stats) {
         ImGui::TextDisabled("no active ranked run");
@@ -1815,7 +1894,15 @@ void draw_panel()
     const auto& match = g_eval.match;
 
     const auto [id_green, id_yellow, id_red] = id_colors(g_game);
+    // Ghost Babel names its top rank per difficulty — HOUND, DOBERMAN, FOX,
+    // BIG BOSS are all rank 0 — so the verdict comes from the kind, not the
+    // name. Matching by name would paint Hard's FOX amber and Normal's
+    // DOBERMAN as an also-ran.
     const ImVec4 codename_color = !match ? unset_color()
+        : g_game == Game::Babel
+            ? (match->kind == codename::Kind::Elite ? id_green
+               : match->kind == codename::Kind::Worst ? id_red
+                                                      : ImGui::GetStyleColorVec4(ImGuiCol_Text))
         : std::strcmp(match->name, "FOX") == 0 ? id_yellow
         : std::strcmp(match->name, "BIG BOSS") == 0 || std::strcmp(match->name, "FOXHOUND") == 0
             ? id_green : match->kind == codename::Kind::Worst ? id_red
@@ -1829,11 +1916,12 @@ void draw_panel()
 
     if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, ui_size(120));
 
         if (!stats.mgs1_japanese_original) {
             const bool classic_mg = g_game == Game::MG1 || g_game == Game::MG2;
             const bool known_difficulty = classic_mg
+                || g_game == Game::Babel
                 || g_game == Game::MGS1 || g_game == Game::MGS4
                 || stats.difficulty_game_byte % 10 == 0;
             const bool valid_difficulty = known_difficulty
@@ -1845,9 +1933,12 @@ void draw_panel()
             ImGui::TableNextColumn();
             ImGui::TextUnformatted("difficulty");
             ImGui::TableNextColumn();
+            constexpr const char* babel_difficulties[]{"Easy", "Normal", "Hard", "Very Hard"};
             ImGui::TextColored(valid_difficulty ? id_green : id_red,
                                "%s%s", classic_mg
                                    ? (stats.difficulty == Difficulty::Extreme ? "Original" : "Easy")
+                                   : g_game == Game::Babel && stats.difficulty_raw < 4
+                                       ? babel_difficulties[stats.difficulty_raw]
                                    : difficulty_name(stats.difficulty),
                                known_difficulty ? "" : " (?)");
         }
@@ -2077,6 +2168,7 @@ HRESULT STDMETHODCALLTYPE hk_present(IDXGISwapChain* swap_chain, UINT sync_inter
     // Win32 reports client size, which can differ from swap-chain size under
     // internal scaling. ImGui draws into the back buffer, so use its size.
     ImGui::GetIO().DisplaySize = g.render_size;
+    apply_ui_scale();
     ImGui::NewFrame();
     draw_panel();
     ImGui::Render();

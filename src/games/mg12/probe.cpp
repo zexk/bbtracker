@@ -44,10 +44,11 @@ static_assert(!mg2_run_active(41));
 
 constexpr bool mg1_run_active(uint32_t state)
 {
-    return state == 8;
+    return state != 0;
 }
 
 static_assert(mg1_run_active(8));
+static_assert(mg1_run_active(10));
 static_assert(!mg1_run_active(0));
 
 HMODULE g_mg1 = nullptr;

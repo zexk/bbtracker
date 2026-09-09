@@ -25,6 +25,7 @@ jobs:
         env:
           VERSION: ${{ github.ref_name }}
         run: |
+          echo "NEXUS_VERSION=${VERSION#v}" >> "$GITHUB_ENV"
           mkdir dist
           cp result/bin/bbtracker_*.asi dist/
           cp result-stage-selector/* dist/
@@ -42,3 +43,13 @@ jobs:
         with:
           generate_release_notes: true
           files: dist/*.zip
+
+      - name: Upload to Nexus Mods
+        uses: Nexus-Mods/upload-action@v1.0.0-beta.10
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          file_id: ${{ vars.NEXUSMODS_FILE_ID }}
+          filename: dist/bbtracker-${{ github.ref_name }}.zip
+          version: ${{ env.NEXUS_VERSION }}
+          archive_existing_version: true
+          update_mod_version: true

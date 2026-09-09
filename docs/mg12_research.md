@@ -116,10 +116,12 @@ as a clock-advance/active-tick query. It cannot serve as a visibility gate by it
 both pause and main menu can stop timer advancement, while pause must keep tracker
 visible.
 
-Live transition logging identified `mg1.dll+0x2E260` as an active-run state. It is `0`
-at main menu and `8` during gameplay. It remained `8` through pause and resume, then
-changed from `8` to `0` on return to main menu. Tracker now requires value `8` before
-publishing MG1 stats. Death, ending, and load screens still need validation.
+Live transition logging found `mg1.dll+0x2E260` at `0` on the main menu and `8` during
+early gameplay. It remained `8` through pause and resume, then changed from `8` to `0`
+on return to the main menu. Later room traversal changes the value, so it is not a
+single active-run state and may encode an area or screen. Tracker rejects only the
+known main-menu sentinel `0`. Death, ending, loading, and gameplay areas that use `0`
+still need live validation.
 
 Big Boss/Fox checks encoded by the evaluator:
 
@@ -158,6 +160,7 @@ matching probe and rules, and keep overlay unavailable until selected module and
 fields pass validation. Existing D3D11 overlay path is reusable.
 
 For run visibility, prefer an explicit lifecycle state over timer movement or nonzero
-counters. MG1 uses live-tested `+0x2E260 == 8`. MG2 rejects live-tested main-menu
-sentinel `+0x39170 == 41`. Loading either DLL proves selected game only,
-not an active ranked run.
+counters. No such MG1 field is known yet; `+0x2E260` is used only to reject the
+live-tested main-menu sentinel `0`. MG2 rejects live-tested main-menu sentinel
+`+0x39170 == 41`. Loading either DLL proves selected game only, not an active ranked
+run.

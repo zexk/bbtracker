@@ -249,4 +249,67 @@ std::vector<ReqStatus> elite_requirements_mg2(const GameStats& s)
     return requirements_from_rows(s, kMg2Reqs, true);
 }
 
+namespace {
+
+constexpr std::array<ReqRow, 4> kBabelReqs{{
+    {"play time", StatId::PlayTimeHours, Op::Le, 2.0, ReqFmt::Time},
+    {"alerts", StatId::Alerts, Op::Lt, 6, ReqFmt::Count},
+    {"kills", StatId::Kills, Op::Lt, 25, ReqFmt::Count},
+    {"rations used", StatId::RationsUsed, Op::Lt, 2, ReqFmt::Count},
+}};
+
+constexpr int category(int value, std::array<int, 4> thresholds)
+{
+    return static_cast<int>(std::ranges::count_if(
+        thresholds, [value](int threshold) { return value >= threshold; }));
+}
+
+} // namespace
+
+std::optional<Match> evaluate_babel(const GameStats& s)
+{
+    if (s.difficulty_raw > 3 || s.play_time_seconds <= 0.0) {
+        return std::nullopt;
+    }
+
+    const int found = category(s.alerts, {6, 26, 61, 121});
+    const int kills = category(s.kills, {25, 60, 120, 200});
+    const int ration_limit[] = {34, 33, 21, 12};
+    const int rations = category(s.rations_used, {2, 2, 2, ration_limit[s.difficulty_raw]});
+    const int saves = category(s.saves, {80, 80, 80, 80});
+    const int seconds = static_cast<int>(s.play_time_seconds);
+    const int time = category(seconds, {5401, 7201, 36000, 36000});
+
+    int rank;
+    if (found == 0 && kills == 0 && rations == 0 && time < 2) rank = 0;
+    else if (kills == 4 && rations == 4 && saves == 4 && time == 4) rank = 1;
+    else if (time == 0) rank = 2;
+    else if (found == 4) rank = 3;
+    else if (kills == 4) rank = 4;
+    else if (rations == 4) rank = 5;
+    else if (time == 4) rank = 6;
+    else {
+        constexpr int table[3][3]{{7, 8, 9}, {10, 8, 8}, {10, 8, 11}};
+        rank = table[found ? found - 1 : 0][kills ? kills - 1 : 0];
+    }
+
+    constexpr const char* names[4][12]{
+        {"HOUND", "CHICKEN", "SPARROW", "CICADA", "PIRANHA", "PIG", "SNAIL",
+         "SPIDER", "MONGOOSE", "PUMA", "BEAVER", "CHAMELEON"},
+        {"DOBERMAN", "MOUSE", "PIGEON", "MYNA", "SHARK", "ELEPHANT", "TURTLE",
+         "TARANTURA", "HYENA", "LEOPARD", "BAT", "IGUANA"},
+        {"FOX", "RABBIT", "SWALLOW", "PARROT", "JAWS", "MAMMOTH", "KOALA",
+         "CENTIPIDE", "JACKAL", "PANTHER", "MOLE", "ALLIGATOR"},
+        {"BIG BOSS", "OSTRICH", "FALCON", "PEACOCK", "ORCA", "WHALE", "SLOTH",
+         "SCORPION", "COYOTE", "JAGUAR", "CLOW", "CROCODILE"},
+    };
+    return Match{names[s.difficulty_raw][rank],
+                 rank == 0 ? Kind::Elite : rank == 1 ? Kind::Worst : Kind::Regular};
+}
+
+std::vector<ReqStatus> elite_requirements_babel(const GameStats& s)
+{
+    return requirements_from_rows(s, kBabelReqs, true);
+}
+
 } // namespace bb::codename

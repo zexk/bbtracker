@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Headless PW panel smoke check. Run with IMGUI_DIR and a native CXX set."""
+"""Headless PW and MGS4 panel smoke check. Run with IMGUI_DIR and a native CXX set."""
 import os
 from pathlib import Path
 import shlex
@@ -24,17 +24,21 @@ code = r'''
 #include <regex>
 #include <string>
 #include "common/codename/codename.h"
+#include "common/codename/rules_mgs4.h"
 #include "overlay/overlay.h"
 using namespace bb;
+Game g_game = Game::MGS4;
 bool (*g_clock_fn)(uint32_t&) = nullptr;
 const char* mgspw_area_name(const char*, int) { return "Puerto del Alba"; }
 '''
 code += block("struct IdColors", "void checklist")
+code += block("void draw_mgs4_feats", "constexpr const char* kMgs3Captures")
 code += block("void draw_mgspw_run", "void draw_panel")
 code += r'''
 std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     // Mimic draw_panel's 10Hz tick: the panels read matches from the cache.
     g_eval.reqs = codename::elite_requirements_mgspw(stats);
+    g_eval.matches = codename::all_matches_mgs4(stats);
     ImGui::NewFrame();
     ImGui::SetNextWindowSize(ImVec2(420, 700));
     ImGui::Begin("PW");
@@ -44,6 +48,7 @@ std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     case 1: draw_mgspw_global(stats, scroll); break;
     case 2: draw_mgspw_insignia(stats); break;
     case 3: draw_mgspw_codenames(stats); break;
+    case 4: draw_mgs4_feats(stats, scroll); break;
     }
     std::string text = ImGui::GetCurrentContext()->LogBuffer.c_str();
     ImGui::LogFinish();
@@ -122,6 +127,20 @@ int main() {
         if (std::strstr(window->Name, "pw_career_scroll")) scrolled |= window->Scroll.y > 0;
     assert(scrolled);
     draw(stats, 1, -1);
+    stats.alerts = 150;
+    stats.kills = 500;
+    stats.continues = 50;
+    stats.rations_used = 50;
+    stats.play_time_seconds = 35 * 3600;
+    const auto feats = draw(stats, 4);
+    const auto chicken = feats.find("CHICKEN");
+    assert(chicken != std::string::npos);
+    assert(feats.find("GIANT PANDA") < chicken);
+    const auto progress = feats.substr(chicken);
+    for (const char* value : {"alerts 150 / 150", "kills 500 / 500",
+                              "continues 50 / 50", "recovery 50 / 50",
+                              "35:00:00 / 35:00:00"})
+        assert(progress.find(value) != std::string::npos);
     ImGui::DestroyContext();
 }
 '''
@@ -138,4 +157,4 @@ with tempfile.TemporaryDirectory() as directory:
         "-o", str(path / "test"),
     ], check=True)
     subprocess.run([str(path / "test")], check=True)
-print("PW overlay smoke check passed")
+print("PW and MGS4 overlay smoke check passed")
