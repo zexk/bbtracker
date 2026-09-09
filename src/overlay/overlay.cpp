@@ -1174,6 +1174,16 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
             count("COW", "Trigger 100 alerts", stats.alerts, goals::kCowAlerts);
             count("CROCODILE", "Kill 400 enemies", stats.kills, goals::kCrocodileKills);
             time("GIANT PANDA", "Play for 30 hours", stats.play_time_seconds, goals::kGiantPandaHours * 60 * 60);
+            char current[16], target[16], chicken[192];
+            format_time(stats.play_time_seconds, current, sizeof(current));
+            format_time(goals::kChickenHours * 60 * 60, target, sizeof(target));
+            snprintf(chicken, sizeof(chicken),
+                     "alerts %d / %d\nkills %d / %d\ncontinues %d / %d\nrecovery %d / %d\n%s / %s",
+                     stats.alerts, goals::kChickenAlerts,
+                     stats.kills, goals::kChickenKills,
+                     stats.continues, goals::kChickenContinues,
+                     stats.rations_used, goals::kChickenRecoveryItems, current, target);
+            row("CHICKEN", "At least 150 alerts, 500 kills, 50 continues, 50 recovery items and 35 hours", chicken);
             ImGui::EndTable();
         }
     }

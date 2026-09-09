@@ -101,9 +101,11 @@ std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& pool)
     }
 
     add("CHICKEN", kAllTiers, Kind::Worst,
-        {{StatId::Alerts, Op::Ge, 150}, {StatId::Kills, Op::Ge, 500},
-         {StatId::Continues, Op::Ge, 50}, {StatId::RationsUsed, Op::Ge, 50},
-         {StatId::PlayTimeHours, Op::Ge, 35}}, true);
+        {{StatId::Alerts, Op::Ge, mgs4_goals::kChickenAlerts},
+         {StatId::Kills, Op::Ge, mgs4_goals::kChickenKills},
+         {StatId::Continues, Op::Ge, mgs4_goals::kChickenContinues},
+         {StatId::RationsUsed, Op::Ge, mgs4_goals::kChickenRecoveryItems},
+         {StatId::PlayTimeHours, Op::Ge, mgs4_goals::kChickenHours}}, true);
     return rules;
 }
 

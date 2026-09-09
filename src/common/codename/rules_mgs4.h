@@ -39,6 +39,11 @@ inline constexpr int kPigRations = 40;
 inline constexpr int kCowAlerts = 100;
 inline constexpr int kCrocodileKills = 400;
 inline constexpr int kGiantPandaHours = 30;
+inline constexpr int kChickenAlerts = 150;
+inline constexpr int kChickenKills = 500;
+inline constexpr int kChickenContinues = 50;
+inline constexpr int kChickenRecoveryItems = 50;
+inline constexpr int kChickenHours = 35;
 } // namespace mgs4_goals
 
 } // namespace bb::codename
