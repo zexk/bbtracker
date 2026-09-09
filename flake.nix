@@ -137,6 +137,7 @@
 
             buildPhase = ''
               python3 scripts/test-pw-overlay.py
+              python3 scripts/test-pw-probe.py
             '';
             installPhase = ''
               mkdir -p $out

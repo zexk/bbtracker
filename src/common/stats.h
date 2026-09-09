@@ -150,16 +150,14 @@ struct GameStats {
     int pw_m_headshots = -1;
     int pw_m_holdups = -1;
     int pw_m_cqc_uses = -1;
+    int pw_m_stun_rod_takedowns = -1;
     int pw_m_heroism = -1;
     // Non-headshot kills (id 0x200ED). Kills minus this is the lethal
     // headshot count, and headshots minus that is the tranq headshot count.
     int pw_body_kills = -1;
     int pw_m_body_kills = -1;
-    // Per-weapon-type takedowns. The game keeps one counter per type (11 of
-    // them, CQC and stun rod included); these two are the ones identified so
-    // far. pw_tranq/pw_kills are the non-lethal/lethal totals they roll into.
-    // Counters are per type AND per lethality: 0x200Ex is the lethal bank,
-    // 0x200Fx the non-lethal one.
+    // Per-weapon career counters used when the full native axes are unavailable.
+    // pw_tranq counts sleep/tranq only; the axes cover all four outcomes.
     int pw_pistol_takedowns = -1;   // id 0x200F9, non-lethal
     int pw_ar_takedowns = -1;       // id 0x200E0, lethal
     int pw_shotgun_takedowns = -1;  // id 0x200E4, lethal
@@ -168,12 +166,13 @@ struct GameStats {
     int pw_sniper_nonlethal = -1;   // id 0x200FB, non-lethal (Mosin)
     int pw_pistol_lethal = -1;      // id 0x200DF, lethal
     int pw_cqc_takedowns = -1;      // id 0x20104, chokes and slams alike
+    int pw_stun_rod_takedowns = -1; // id 0x20105
     int pw_grenade_takedowns = -1;  // id 0x200E6, lethal
     int pw_rocket_takedowns = -1;   // id 0x200E5, lethal
     int pw_placed_takedowns = -1;   // id 0x200E8, lethal (C4 and the like)
     int pw_stealth_kills = -1;      // id 0x2007C, kills on unaware enemies
     int pw_damage_taken = -1;       // id 0x20023, career damage taken (8000 = a full bar)
-    // Native codename evaluator axes, [kills/sleeps/stuns/incapacitations][slot].
+    // Native codename axes, [kills/other non-lethal/sleeps/stuns][weapon slot].
     int pw_codename_axes[4][12] = {};
     bool pw_codename_axes_ok = false;
     // Codename ownership, save+0x1BFF0 + id for evaluator ids 1..24:

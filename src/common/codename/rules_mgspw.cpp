@@ -147,9 +147,10 @@ PwProfile pw_profile(const GameStats& s)
     }
     // No native axes: rebuild the same twelve slots from the per-weapon career
     // counters, so the dominant type is picked the way the evaluator picks it.
-    // Slots 1 (stun rod), 6 and 10 have no counter resolved yet.
+    // Slots 6 and 10 are unavailable without the native axes.
     int slots[12]{};
     slots[0] = pw_count(s.pw_cqc_takedowns);
+    slots[1] = pw_count(s.pw_stun_rod_takedowns);
     slots[2] = pw_count(s.pw_pistol_lethal) + pw_count(s.pw_pistol_takedowns);
     slots[3] = pw_count(s.pw_ar_takedowns);
     slots[4] = pw_count(s.pw_sniper_takedowns) + pw_count(s.pw_sniper_nonlethal);
@@ -176,7 +177,8 @@ PwProfile pw_profile(const GameStats& s)
         && static_cast<double>(p.top) < static_cast<double>(p.total) * kPwSpreadShare;
     p.balanced = spread;
     p.dominant = spread ? WeaponClass::All : pw_dominant_class(slots, top_slot);
-    p.nonlethal = pw_count(s.pw_tranq) + pw_count(s.pw_cqc_takedowns);
+    p.nonlethal = pw_count(s.pw_tranq) + pw_count(s.pw_cqc_takedowns)
+        + pw_count(s.pw_stun_rod_takedowns);
     p.lethal = pw_count(s.pw_kills);
     return p;
 }

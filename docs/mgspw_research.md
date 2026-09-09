@@ -183,11 +183,15 @@ global by AOB on the getter, which matches exactly once.
 | ---: | --- | --- |
 | `+0x00` | `u32` | bound, `999999` |
 | `+0x10` | `u32` | stat id |
-| `+0x18` | `i32` | this mission's tally - ticks live during play |
+| `+0x18` | `i32` or pointer | inline mission tally for flag `0x40`; otherwise pointer to nine player tallies |
 | `+0x20` | `i32` | career value - settles during the results tally |
 
-Category matters: `0x042`/`0x442` ids keep a real tally at `+0x18`; `0x002`
-ids leave junk there (large negative values), so filter to a sane range.
+Category matters: `0x042`/`0x442` ids keep an inline tally at `+0x18`.
+For `0x002` ids, that field is a pointer to nine `i32` player tallies, not
+junk. Getter `0x1400E3B60` tests flag `0x40` to distinguish the layouts.
+Career commit `0x1400E4270` selects local player via byte `0x14121F000`
+(`0..8`); the probe resolves that byte from its load at `0x1400E42A7`.
+Mission-start reset `0x1400E37E0` clears either the scalar or all nine tallies.
 
 Confirmed ids, each pinned by runs with counted actions:
 
@@ -197,7 +201,8 @@ Confirmed ids, each pinned by runs with counted actions:
 | `0x2007C` | kills on enemies that never spotted the player |
 | `0x20023` | career damage taken, same 0-8000 scale as health |
 | `0x420002` | alerts |
-| `0x442002E` | non-lethal takedowns, total (body shots count, misses do not) |
+| `0x442002E` | sleep/tranq takedowns (excludes stun rod and CQC) |
+| `0x442002D` | stun takedowns, including stun rod and CQC |
 | `0x442007B` | CQC uses (career); a choke-then-slam sequence is one use |
 | `0x2006B` | ineffective CQC (a slam that fails to stun) |
 | `0x4420031` | headshots |
@@ -225,18 +230,49 @@ earlier reading of two 26-slot lethal/non-lethal banks.
 
 | slot | weapon class | lethal id | non-lethal id |
 | ---: | --- | --- | --- |
+| 1 | stun rod | `0x200DE` | `0x20105` (stun) |
 | 2 | pistol | `0x200DF` | `0x200F9` |
 | 3 | assault rifle | `0x200E0` | `0x200FA` |
 | 4 | sniper rifle | `0x200E1` | `0x200FB` |
 | 5 | LMG | `0x200E2` | `0x200FC` |
+| 6 | submachine gun | `0x200E3` | `0x200FD` (sleep), `0x2010A` (stun) |
 | 7 | shotgun | `0x200E4` | `0x200FE` |
-| 8 | rocket launcher | `0x200E5` | - |
-| 9 | grenade | `0x200E6` | `0x20100` |
-| 11 | placed explosive | `0x200E8` | `0x20102` |
+| 8 | rocket launcher | `0x200E5` | `0x200FF` (sleep), `0x2010C` (stun) |
+| 9 | grenade | `0x200E6` | `0x20100` (sleep), `0x2010D` (stun) |
+| 11 | placed explosive | `0x200E8` | `0x20102` (sleep), `0x2010F` (stun) |
 | 0 | CQC | - | `0x20104` |
 
 `0x200FB` was predicted from this arithmetic before the profile owned a Mosin
 Nagant, and a later 2-takedown Mosin run lifted exactly that address off zero.
+
+The September 9 issue #2 test confirmed `0x20105`: one stun-rod knockout
+changed local mission tally from `0` to `1` after the knockout animation
+finished. Career stayed `2` during play and became `3` at results, while the
+mission tally remained `1`. One alert and one mandatory Fulton were separate;
+tranq `0x442002E` stayed unchanged. A new mission reset the tally to `0` while
+career remained `3`. The overlay labels this **stun rod KOs**,
+not uses: a shock that does not knock out an enemy is not a takedown.
+
+Issue #3 was resolved without owning non-lethal grenades. Native writers
+`0x14037E210`, `0x14037EA40`, and `0x14037EAA0` all call weapon classifier
+`0x1400F1ED0`, then add the same class slot to `0xEA`, `0xF7`, or `0x104`.
+The classifier reads byte `+0x86` in a `0xA8`-byte weapon record. Its record
+index is `i16[0x140F4BCA0 + (weapon_id & 0x3FF)*2] + rank - 1`, where rank
+is `max(1, weapon_id >> 30)`; record table pointer is `0x141224D08`.
+Joining this table to the decoded weapon names proves:
+
+- Stun Rod (id `1`): slot `1`.
+- Stun Grenade (`253..257`) and Sleep Gas Grenade (`273..277`): slot `9`.
+- Fulton Sleep Gas Mine (`328`): slot `11`.
+- Carl Gustav M2 (Fulton Recovery) (`225..227`): slot `8`.
+- M1928A1/M10/MP5/Uz61 (`61..75`): slot `6`.
+
+The career panel now uses the same four-axis matrix as the codename evaluator:
+axis 0 is lethal, axes 1+2+3 are non-lethal. This includes both sleep and stun
+explosive counters; showing only the sleep bank would still omit stun grenades.
+Axis 1's exact outcome name remains unresolved, but its writer proves that
+weapon slots align with the other axes. Tests inject distinct values into
+each bank and verify the rendered sums without changing game memory or saves.
 
 CQC has no lethal counterpart. `0x20104` counts takedowns and `0x442007B`
 counts uses: an ineffective slam is a use with no takedown, a choke-then-slam
@@ -918,8 +954,9 @@ were named. Matched against a live read:
 | Heroism | 1029 | `0x4420077` |
 | missions cleared | 39 | `save+0x656C` |
 
-No screen lists per-weapon takedowns, so single-weapon runs remain the only way
-to name those. Every CO-OP and VS line reads `0` on a solo profile, which
+No screen lists per-weapon takedowns. Single-weapon runs validate live changes;
+the native weapon classifier and stat writers also establish class mappings
+without owning each weapon. Every CO-OP and VS line reads `0` on a solo profile, which
 accounts for much of the ~180 descriptor ids sitting at zero.
 
 Insignias award Heroism, so a run's Heroism delta mixes the mission award with
@@ -981,8 +1018,8 @@ Open items:
   zero on a solo profile except slot 3;
 - `0x200ED` is labelled body kills from a run of three body shots with a
   **pistol**, but it is axis 1 slot **3**, the assault-rifle slot, not slot 2.
-  Either that label is wrong or the same-slot-is-one-class rule does not hold
-  for axis 1. `0x2002F` moved identically on the same run and has the same
+  The native writer now proves same-slot-is-one-class for axis 1, so the
+  earlier body-kill label remains unverified. `0x2002F` moved identically on the same run and has the same
   doubt over it;
 - `+0x278` / `+0x250` twins behave exactly like per-mission best scores but are
   one test short: beat `6000` on Marksmanship Challenge and watch `+0x278`;
@@ -994,8 +1031,8 @@ Open items:
   indistinguishable;
 - `0x442002E` counts tranq-weapon takedowns, not all non-lethal ones; CQC never
   touches it across three runs;
-- unclaimed takedown slots: `6` is most likely SMG and `10` the other placed
-  type, neither owned on this profile;
+- takedown slot `10` remains unclassified; slot `6` is confirmed SMG by the
+  native weapon table (placed explosives and mines use slot `11`);
 - `save+0x22` and global `0x1415969F4` are mission-scoped; the event at
   `0x14017084E` is unidentified;
 - `save+0x130` (`229`, static through Fulton uses) and `save+0xB550` (`150`

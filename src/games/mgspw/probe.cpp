@@ -80,6 +80,7 @@ std::atomic_uintptr_t g_mission_time = 0; // timer block: total +0x00, mission +
 uintptr_t g_chararray_ptr = 0;  // address holding character-pointer-array
 uintptr_t g_mission_id = 0;     // address of current mission id (-1 outside a mission)
 uintptr_t g_stat_array = 0;     // address holding the stat descriptor array pointer
+uintptr_t g_local_player = 0;   // byte index into per-player mission tallies (0..8)
 uintptr_t g_online_root = 0;    // address holding online subsystem base pointer
 uintptr_t g_result_object = 0;  // address holding Player Data/result UI object
 uintptr_t g_region_object = 0;  // address holding the region label object
@@ -89,7 +90,7 @@ bool g_dumped = false;
 // Lifetime-stat descriptors are one flat array, indexed directly by the low
 // 16 bits of the stat id - the game's own getter (0x1400E3A90) does
 // `record = *PW_STATARRAY - 0x10 + (id & 0xFFFF) * 0x28`. Records are 0x28
-// bytes: +0x10 u32 id, +0x18 i32 this mission's tally, +0x20 i32 career.
+// bytes: +0x10 u32 id, +0x18 inline tally or player-tally pointer, +0x20 i32 career.
 // The 999999 seen at +0x00 and +0x28 is one record's bound plus the next
 // record's, which is what made these look like 48-byte records.
 // The array reallocates between missions, so the pointer is re-read each poll
@@ -104,6 +105,14 @@ constexpr uint8_t kStatArrayPat[] = {
 constexpr bool kStatArrayWild[] = {
     false, false, false, false, false, false, false, false, false, false, false, false,
     false, false, false, true, true, true, true, false, false, false, false, false};
+
+// Career commit selects this player's mission tally (0x1400E42A7).
+constexpr uint8_t kLocalPlayerPat[] = {
+    0x44, 0x0F, 0xB6, 0x15, 0, 0, 0, 0,
+    0x48, 0x89, 0x5C, 0x24, 0x30, 0xBB, 0x20, 0x03, 0x00, 0x00};
+constexpr bool kLocalPlayerWild[] = {
+    false, false, false, false, true, true, true, true,
+    false, false, false, false, false, false, false, false, false, false};
 
 constexpr uint8_t kOnlineRootPat[] = {
     0x8B, 0xC1, 0x48, 0x69, 0xC8, 0x28, 0x35, 0x00, 0x00,
@@ -162,13 +171,13 @@ uintptr_t stat_records()
 }
 constexpr uint32_t kHeadshotIds[] = {0x4420031};
 constexpr uint32_t kKillIds[] = {0x420008};
-// Non-lethal takedown total. 0x200F9 is the pistol-only subset, so it is
-// tracked separately: on a 7-takedown run (6 pistol, 1 CQC) the total moved
-// +7 and the pistol counter +6.
+// Sleep/tranq takedowns only. Stun rod and CQC increment the separate
+// stun total (0x442002D), not this counter.
 constexpr uint32_t kTranqIds[] = {0x442002E};
 constexpr uint32_t kPistolIds[] = {0x200F9};      // non-lethal, pistol
 constexpr uint32_t kPistolLethalIds[] = {0x200DF}; // lethal, pistol
 constexpr uint32_t kCqcIds[] = {0x20104};          // CQC takedowns, any variant
+constexpr uint32_t kStunRodIds[] = {0x20105};      // stun rod knockouts
 constexpr uint32_t kGrenadeIds[] = {0x200E6};      // lethal, grenade
 constexpr uint32_t kRocketIds[] = {0x200E5};       // lethal, rocket launcher
 constexpr uint32_t kPlacedIds[] = {0x200E8};       // lethal, placed explosive (C4)
@@ -196,6 +205,23 @@ constexpr uint32_t kAlertIds[] = {0x420002};
 // body-shot-only run with the same weapon. 0x2002F moves with it.
 constexpr uint32_t kBodyKillIds[] = {0x200ED};
 
+// Mirror 0x1400E3B60: +0x18 is inline for flag 0x40, otherwise a pointer
+// to nine player tallies. The caller has already validated the descriptor.
+int mission_stat(uintptr_t record, int player)
+{
+    const uint32_t flags = *reinterpret_cast<volatile const uint32_t*>(record + 0x10) >> 16;
+    if (flags & 0x220) return -1;
+    uintptr_t address = record + 0x18;
+    if (!(flags & 0x40)) {
+        if (player < 0 || player > 8) return -1;
+        const uintptr_t pointer = *reinterpret_cast<volatile const uintptr_t*>(address);
+        if (!pointer || !range_readable(pointer, (player + 1) * sizeof(int32_t))) return -1;
+        address = pointer + player * sizeof(int32_t);
+    }
+    const int value = *reinterpret_cast<volatile const int32_t*>(address);
+    return value >= 0 && value <= static_cast<int>(kStatMax) ? value : -1;
+}
+
 void read_stat_families(uintptr_t block, GameStats& out)
 {
     struct Family {
@@ -218,6 +244,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
         {kSniperNlIds, std::size(kSniperNlIds), &out.pw_sniper_nonlethal, nullptr},
         {kPistolLethalIds, std::size(kPistolLethalIds), &out.pw_pistol_lethal, nullptr},
         {kCqcIds, std::size(kCqcIds), &out.pw_cqc_takedowns, nullptr},
+        {kStunRodIds, std::size(kStunRodIds), &out.pw_stun_rod_takedowns, &out.pw_m_stun_rod_takedowns},
         {kGrenadeIds, std::size(kGrenadeIds), &out.pw_grenade_takedowns, nullptr},
         {kRocketIds, std::size(kRocketIds), &out.pw_rocket_takedowns, nullptr},
         {kPlacedIds, std::size(kPlacedIds), &out.pw_placed_takedowns, nullptr},
@@ -238,6 +265,8 @@ void read_stat_families(uintptr_t block, GameStats& out)
             *f.mission_field = -1;
         }
     }
+    const int player = g_local_player && range_readable(g_local_player, 1)
+        ? *reinterpret_cast<volatile const uint8_t*>(g_local_player) : -1;
     // Direct index, the way the game's own getter does it. Falls back to the
     // linear scan below if the array pointer did not resolve.
     const uintptr_t records = stat_records();
@@ -267,12 +296,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
                     continue;
                 }
                 *f.field = static_cast<int>(words[8]);
-                const int mission = static_cast<int>(words[6]);
-                // Only the 0x042/0x442 families keep a real tally here;
-                // the 0x002 copies leave junk in the slot.
-                if (f.mission_field && mission >= 0 && mission < 10000) {
-                    *f.mission_field = mission;
-                }
+                if (f.mission_field) *f.mission_field = mission_stat(rec, player);
             }
         }
         if (all_ok) {
@@ -297,7 +321,6 @@ void read_stat_families(uintptr_t block, GameStats& out)
             }
             const uint32_t id = rec[4];
             const int value = static_cast<int>(rec[8]);
-            const int mission = static_cast<int>(rec[6]);
             for (const Family& f : families) {
                 for (size_t i = 0; i < f.count; ++i) {
                     if (id != f.ids[i]) {
@@ -306,11 +329,9 @@ void read_stat_families(uintptr_t block, GameStats& out)
                     if (value > *f.field) {
                         *f.field = value;
                     }
-                    // Only the 0x042/0x442 families keep a real tally here;
-                    // the 0x002 copies leave junk in the slot.
-                    if (f.mission_field && mission >= 0 && mission < 10000
-                        && mission > *f.mission_field) {
-                        *f.mission_field = mission;
+                    if (f.mission_field) {
+                        const int mission = mission_stat(base + off, player);
+                        if (mission > *f.mission_field) *f.mission_field = mission;
                     }
                 }
             }
@@ -349,6 +370,7 @@ void read_insignia_state(uintptr_t block, GameStats& out)
 
 void read_codename_axes(GameStats& out)
 {
+    out.pw_codename_axes_ok = false;
     const uintptr_t records = stat_records();
     if (!records) return;
     // One validation for the whole axes span (a subset of the descriptor
@@ -359,8 +381,10 @@ void read_codename_axes(GameStats& out)
             const uint32_t index = 0xDD + axis * 13 + slot;
             const uintptr_t rec = records + index * kStatStride;
             if (!span_ok && !range_readable(rec, kStatStride)) return;
-            out.pw_codename_axes[axis][slot] =
-                *reinterpret_cast<volatile const int32_t*>(rec + 0x20);
+            if (*reinterpret_cast<volatile const uint32_t*>(rec + 0x10) != (0x20000u | index)) return;
+            const int value = *reinterpret_cast<volatile const int32_t*>(rec + 0x20);
+            if (value < 0 || value > static_cast<int>(kStatMax)) return;
+            out.pw_codename_axes[axis][slot] = value;
         }
     }
     out.pw_codename_axes_ok = true;
@@ -427,6 +451,8 @@ void ensure_resolved()
                                std::size(kCharArrayPat), kCharArrayDisp);
     g_stat_array = scan_one(mod, kStatArrayPat, kStatArrayWild,
                             std::size(kStatArrayPat), 15);
+    g_local_player = scan_one(mod, kLocalPlayerPat, kLocalPlayerWild,
+                              std::size(kLocalPlayerPat), 4);
     g_online_root = scan_one(mod, kOnlineRootPat, kOnlineRootWild,
                              std::size(kOnlineRootPat), 12);
     g_result_object = scan_one(mod, kResultObjectPat, kResultObjectWild,
@@ -452,6 +478,7 @@ void ensure_resolved()
         LOG_WARN("MGSPW PW_STATARRAY pattern not found; falling back to the id scan");
     }
     if (!g_online_root) LOG_WARN("MGSPW online-player table pattern not found");
+    if (!g_local_player) LOG_WARN("MGSPW local-player index pattern not found");
     if (!g_result_object) LOG_WARN("MGSPW result object pattern not found");
     if (!g_region_object) LOG_WARN("MGSPW region object pattern not found");
 }

@@ -136,10 +136,14 @@ cooperation title strictly above it. Grades 4 and 5 add a flag the game sets
 from mission ranks. Comparisons follow the native branches: the Heroism floor
 and grades 1 and 2's ratio are strict, grade 3 and up accept 1.0 exactly.
 
-Known gaps: the stun rod has no identified takedown counter, so the fallback
-profile can never name a stun title; grades are only reported once the game has
-evaluated a mission, since the ratio inputs live in that result; and six
-insignia families read "???" in the game's own localization.
+Stun rod KOs use the native per-player mission tally and career counter
+`0x20105`. The career weapon panel sums all three non-lethal axes, including
+sleep and stun grenades/explosives. Native weapon tables establish these
+mappings without requiring the research profile to own every weapon.
+
+Known gaps: grades are only reported once the game has evaluated a mission,
+since the ratio inputs live in that result; and six insignia families read
+"???" in the game's own localization.
 
 ## Snake's Revenge
 

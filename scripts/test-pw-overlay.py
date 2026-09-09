@@ -75,9 +75,11 @@ int main() {
     assert(std::regex_search(summary, std::regex(R"(alerts[\s|{}]*-)")));
     assert(std::regex_search(summary, std::regex(R"(hold-ups[\s|{}]*-)")));
     assert(std::regex_search(summary, std::regex(R"(CQC uses[\s|{}]*-)")));
+    assert(std::regex_search(summary, std::regex(R"(stun rod KOs[\s|{}]*-)")));
     assert(summary.find("+0 (area)") != std::string::npos);
     stats.pw_m_holdups = 3;
     stats.pw_m_cqc_uses = 2;
+    stats.pw_m_stun_rod_takedowns = 1;
     stats.pw_m_heroism = 22;
     stats.pw_mission_id = 7;
     stats.pw_cur_rank = 0;
@@ -90,6 +92,7 @@ int main() {
     assert(summary.find("50%") != std::string::npos);
     assert(std::regex_search(summary, std::regex(R"(hold-ups[\s|{}]*3)")));
     assert(std::regex_search(summary, std::regex(R"(CQC uses[\s|{}]*2)")));
+    assert(std::regex_search(summary, std::regex(R"(stun rod KOs[\s|{}]*1)")));
     assert(std::regex_search(summary, std::regex(R"(heroism[\s|{}]*\+22)")));
     // Results keeps completed sortie visible and frozen.
     GameStats idle = stats;
@@ -98,6 +101,7 @@ int main() {
     const auto results = draw(idle, 0);
     assert(results.find("0:53.100") != std::string::npos);
     assert(results.find("Best rank S") != std::string::npos);
+    assert(std::regex_search(results, std::regex(R"(stun rod KOs[\s|{}]*1)")));
     assert(std::regex_search(results, std::regex(R"(hold-ups[\s|{}]*3)")));
     // Leaving results flushes run display even if game memory retains values.
     idle.pw_in_mission = false;
@@ -105,6 +109,7 @@ int main() {
     const auto menu = draw(idle, 0);
     assert(menu.find("No mission running") != std::string::npos);
     assert(menu.find("headshots") == std::string::npos);
+    assert(menu.find("stun rod KOs") == std::string::npos);
     assert(menu.find("FOX / FOXHOUND") != std::string::npos);
     stats.pw_insignias = 110;
     stats.pw_headshots = 1000000;
@@ -127,6 +132,30 @@ int main() {
         if (std::strstr(window->Name, "pw_career_scroll")) scrolled |= window->Scroll.y > 0;
     assert(scrolled);
     draw(stats, 1, -1);
+    // Mixed sleep/stun explosive takedowns, without needing those weapons in game.
+    stats = GameStats{};
+    stats.pw_codename_axes_ok = true;
+    stats.pw_codename_axes[0][9] = 5;
+    stats.pw_codename_axes[1][9] = 2;
+    stats.pw_codename_axes[2][9] = 3;
+    stats.pw_codename_axes[3][9] = 7;
+    stats.pw_codename_axes[2][8] = 11;
+    stats.pw_codename_axes[3][8] = 13;
+    stats.pw_codename_axes[2][11] = 17;
+    stats.pw_codename_axes[3][11] = 19;
+    stats.pw_codename_axes[3][1] = 23;
+    const auto career = draw(stats, 1);
+    for (const char* pattern : {R"(grenades[\s|{}]*5[\s|{}]*12)",
+                                R"(rockets[\s|{}]*0[\s|{}]*24)",
+                                R"(placed explosives[\s|{}]*0[\s|{}]*36)",
+                                R"(stun rod[\s|{}]*0[\s|{}]*23)",
+                                R"(non-lethal takedowns[\s|{}]*95)"})
+        assert(std::regex_search(career, std::regex(pattern)));
+    stats.pw_codename_axes_ok = false;
+    stats.pw_stun_rod_takedowns = 2;
+    const auto fallback = draw(stats, 1);
+    assert(std::regex_search(fallback, std::regex(R"(stun rod[\s|{}]*-[\s|{}]*2)")));
+    assert(std::regex_search(fallback, std::regex(R"(grenades[\s|{}]*-[\s|{}]*-)")));
     stats.alerts = 150;
     stats.kills = 500;
     stats.continues = 50;

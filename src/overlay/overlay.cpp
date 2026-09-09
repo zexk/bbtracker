@@ -1395,6 +1395,8 @@ void draw_mgspw_run(const GameStats& stats)
         else run_stat("hold-ups", stats.pw_m_holdups, 0);
         if (stats.pw_m_cqc_uses < 0) unset_row("CQC uses");
         else run_stat("CQC uses", stats.pw_m_cqc_uses, 0);
+        if (stats.pw_m_stun_rod_takedowns < 0) unset_row("stun rod KOs");
+        else run_stat("stun rod KOs", stats.pw_m_stun_rod_takedowns, 0);
         if (stats.pw_m_alerts < 0) unset_row("alerts");
         else clean_row("alerts", stats.pw_m_alerts, 0);
         run_stat("tranq", stats.pw_m_tranq, stats.seg_tranq);
@@ -1521,7 +1523,8 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         count("unique missions", stats.pw_unique_cleared);
         count("S-ranked missions", stats.pw_s_missions);
         count("kills", stats.pw_kills);
-        count("non-lethal takedowns", stats.pw_tranq);
+        count("non-lethal takedowns", stats.pw_codename_axes_ok
+              ? codename::pw_axes(stats).nonlethal : -1);
         count("headshots", stats.pw_headshots);
         count("alerts", stats.pw_alerts);
         count("unseen kills", stats.pw_stealth_kills);
@@ -1548,7 +1551,12 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         ImGui::TableSetupColumn("lethal", ImGuiTableColumnFlags_WidthFixed, ui_size(75));
         ImGui::TableSetupColumn("non-lethal", ImGuiTableColumnFlags_WidthFixed, ui_size(85));
         ImGui::TableHeadersRow();
-        const auto weapon = [](const char* label, int lethal, int nonlethal) {
+        const auto weapon = [&](const char* label, int slot, int lethal, int nonlethal) {
+            if (stats.pw_codename_axes_ok) {
+                lethal = stats.pw_codename_axes[0][slot];
+                nonlethal = stats.pw_codename_axes[1][slot]
+                    + stats.pw_codename_axes[2][slot] + stats.pw_codename_axes[3][slot];
+            }
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(label);
@@ -1558,15 +1566,17 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
                 else ImGui::Text("%d", value);
             }
         };
-        weapon("handguns", stats.pw_pistol_lethal, stats.pw_pistol_takedowns);
-        weapon("assault rifles", stats.pw_ar_takedowns, -1);
-        weapon("sniper rifles", stats.pw_sniper_takedowns, stats.pw_sniper_nonlethal);
-        weapon("machine guns", stats.pw_lmg_takedowns, -1);
-        weapon("shotguns", stats.pw_shotgun_takedowns, -1);
-        weapon("CQC", -1, stats.pw_cqc_takedowns);
-        weapon("grenades", stats.pw_grenade_takedowns, -1);
-        weapon("rockets", stats.pw_rocket_takedowns, -1);
-        weapon("placed explosives", stats.pw_placed_takedowns, -1);
+        weapon("handguns", 2, stats.pw_pistol_lethal, stats.pw_pistol_takedowns);
+        weapon("assault rifles", 3, stats.pw_ar_takedowns, -1);
+        weapon("sniper rifles", 4, stats.pw_sniper_takedowns, stats.pw_sniper_nonlethal);
+        weapon("machine guns", 5, stats.pw_lmg_takedowns, -1);
+        weapon("submachine guns", 6, -1, -1);
+        weapon("shotguns", 7, stats.pw_shotgun_takedowns, -1);
+        weapon("CQC", 0, -1, stats.pw_cqc_takedowns);
+        weapon("stun rod", 1, -1, stats.pw_stun_rod_takedowns);
+        weapon("grenades", 9, stats.pw_grenade_takedowns, -1);
+        weapon("rockets", 8, stats.pw_rocket_takedowns, -1);
+        weapon("placed explosives", 11, stats.pw_placed_takedowns, -1);
         ImGui::EndTable();
     }
     ImGui::EndChild();

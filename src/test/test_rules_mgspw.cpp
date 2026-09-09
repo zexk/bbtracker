@@ -152,6 +152,12 @@ void test_native_axes()
     CHECK(!fallback.native);
     CHECK(fallback.total == 50);
     CHECK(fallback.classes_used == 5);
+
+    GameStats rod{};
+    rod.pw_stun_rod_takedowns = 3;
+    CHECK(std::string_view(title(rod)) == "EEL");
+    CHECK(pw_axes(rod).nonlethal == 3);
+    CHECK(pw_axes(rod).by_class[5] == 3);
 }
 
 // The axes decomposition above feeds the title table; these pin the titles the
