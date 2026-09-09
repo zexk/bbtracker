@@ -241,7 +241,18 @@ std::vector<ReqStatus> elite_requirements_mg1(const GameStats& s)
 
 std::optional<Match> evaluate_mg2(const GameStats& s)
 {
-    return classic_elite(s, kMg2Reqs);
+    if (const auto elite = classic_elite(s, kMg2Reqs)) return elite;
+
+    const double seconds = s.play_time_seconds;
+    if (seconds < 105 * 60 && s.kills <= 10) return Match{"EAGLE", Kind::Regular};
+    if (seconds < 150 * 60 && s.kills <= 10) return Match{"PANTHER", Kind::Regular};
+    if (seconds < 240 * 60 && s.kills <= 10) return Match{"JACKAL", Kind::Regular};
+    if (seconds < 480 * 60) return Match{"ZEBRA", Kind::Regular};
+    if (seconds < 720 * 60) return Match{"DEER", Kind::Regular};
+    if (seconds < 900 * 60) return Match{"ELEPHANT", Kind::Regular};
+    if (seconds < 1080 * 60) return Match{"HIPPOPOTAMUS", Kind::Regular};
+    if (seconds < 1440 * 60) return Match{"TURTLE", Kind::Regular};
+    return Match{"CHICKEN", Kind::Worst};
 }
 
 std::vector<ReqStatus> elite_requirements_mg2(const GameStats& s)

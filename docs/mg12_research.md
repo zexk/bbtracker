@@ -68,17 +68,50 @@ Rank routine divides raw timer by 60. Each result unit represents four seconds:
 its Big Boss boundary is `0x627` (`0x627 * 60` raw ticks, 1:45:00), proving raw
 timer advances at 15 Hz. Full time tiers are:
 
-| Result index | Boundary | Real time |
-| --- | --- | --- |
-| 9/10 | `< 0x627` | `< 1:45:00` |
-| 7 | `< 0x8CA` | `< 2:30:00` |
-| 6 | `< 0xE10` | `< 4:00:00` |
-| 5 | `< 0x1C20` | `< 8:00:00` |
-| 4 | `< 0x2A30` | `< 12:00:00` |
-| 3 | `< 0x34BC` | `< 15:00:00` |
-| 2 | `< 0x3F48` | `< 18:00:00` |
-| 1 | `< 0x5460` | `< 24:00:00` |
-| 0 | otherwise | `>= 24:00:00` |
+| Result index | Codename | Boundary | Real time |
+| --- | --- | --- | --- |
+| 9/10 | FOX / BIG BOSS | `< 0x627` | `< 1:45:00` |
+| 8 | EAGLE | `< 0x627` | `< 1:45:00` |
+| 7 | PANTHER | `< 0x8CA` | `< 2:30:00` |
+| 6 | JACKAL | `< 0xE10` | `< 4:00:00` |
+| 5 | ZEBRA | `< 0x1C20` | `< 8:00:00` |
+| 4 | DEER | `< 0x2A30` | `< 12:00:00` |
+| 3 | ELEPHANT | `< 0x34BC` | `< 15:00:00` |
+| 2 | HIPPOPOTAMUS | `< 0x3F48` | `< 18:00:00` |
+| 1 | TURTLE | `< 0x5460` | `< 24:00:00` |
+| 0 | CHICKEN | otherwise | `>= 24:00:00` |
+
+EAGLE, PANTHER, and JACKAL additionally require at most 10 kills. Exceeding
+that cap falls through to ZEBRA even when clear time is under four hours.
+
+### MG2 area names (located, not yet wired)
+
+Localized location strings live in `<locale>/stage/mg2/cache/00180720.gcx`
+(e.g. `fr/stage/mg2/cache/00180720.gcx`), one per shipped language. Same
+container magic (`43e6d30f`) as the Peace Walker/Ghost Babel `olang` archives,
+so `scripts/pwolang.py`'s parser should read it with the same approach. Native
+order gives roughly 50 location labels from `Infiltration Point` through the
+Big Boss battle and rendezvous. Not yet extracted into `names.h`-style tables:
+first need the live area-index address below.
+
+Live area index: still unresolved. Static disassembly (ImageBase
+`0x180000000`) ruled out the three candidates a prior session narrowed to via
+memory diffing:
+
+- `+0x46998`: plain `DWORD` counter (compared/incremented elsewhere), not tied
+  to location.
+- `+0x46AA4`: `DWORD` set to the literal constant `0` or `1` by
+  `mov dword ptr [...], 0x1`/`0x0` at several call sites -- a flag, not an
+  index. This is what flickered `1` then back to `0` on a screen transition.
+- `+0x46BAC`: ring-buffer cursor (mod-24 index arithmetic) into a small table
+  of cached x/y coordinate pairs -- looks like an enemy noise/last-seen-position
+  cache, unrelated to location.
+
+Next lead: the heap object reached through `mg2.dll+0x46DE0` (the same pointer
+that exposes difficulty at `+0x88`) is more likely to hold a location field
+than a flat DLL static, going by how Peace Walker's `PW_REGIONOBJECT` shape
+worked. Needs live-diffing that object's other fields across an area
+transition.
 
 Top-rank checks, in game order:
 
