@@ -75,8 +75,8 @@ follows:
 | `0x2C` | `GM_SaveAreaDir` | area code (first four characters) | char array |
 | `0xFA` | `GM_Vitality` | current health | 16-bit |
 | `0xFC` | `GM_VitalityMax` | maximum health | 16-bit |
-| `0x12E` | `GM_SnakeChin_Up` | pull-ups, summed with Raiden | 16-bit |
-| `0x130` | `GM_RaidenChin_Up` | pull-ups, summed with Snake | 16-bit |
+| `0x12E` | `GM_SnakeChin_Up` | Snake pull-ups | 16-bit |
+| `0x130` | `GM_RaidenChin_Up` | Raiden pull-ups | 16-bit |
 | `0x132` | `GM_ContinueCount` | continues | 16-bit |
 | `0x136` | `GM_SaveCount` | saves | 16-bit |
 | `0x138` | `GM_PlayTime` | play time, 60 ticks per second | 32-bit |

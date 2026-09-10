@@ -2136,7 +2136,8 @@ void draw_panel()
             plain_count("clearing escapes", stats.clearing_escapes);
             plain_count("times seen", stats.times_seen);
             plain_count("mechs destroyed", stats.mechs_destroyed);
-            plain_count("pull-ups", stats.pull_ups);
+            plain_count("Snake pull-ups", stats.snake_pull_ups);
+            plain_count("Raiden pull-ups", stats.raiden_pull_ups);
         } else if (g_game == Game::MGS3) {
             char buf[16];
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
@@ -2159,6 +2160,12 @@ void draw_panel()
         const char* area = area_name(g_game, stats.area_code);
         snprintf(buf, sizeof(buf), area ? "%s (%s)" : "%s", area ? area : stats.area_code,
                  stats.area_code);
+        if (g_game == Game::MGS2) {
+            char stage_time[16];
+            format_time(stats.stage_time_seconds, stage_time, sizeof(stage_time));
+            const size_t used = std::strlen(buf);
+            snprintf(buf + used, sizeof(buf) - used, " | %s", stage_time);
+        }
         ImGui::Spacing();
         ImGui::PushTextWrapPos(0.0f);
         ImGui::TextDisabled("%s", buf);

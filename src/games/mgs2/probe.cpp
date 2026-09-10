@@ -23,6 +23,7 @@ namespace {
 constexpr uintptr_t kPlayerPointerOffset = 0x00949340;
 constexpr size_t kStatsBlockOffset = 0x12E;
 constexpr size_t kDogTagFlagsOffset = 0x3C;
+constexpr size_t kStagePlayTimeOffset = 0xE4;
 constexpr size_t kRationsOffset = 0x1590;
 constexpr size_t kShipwormOffset = 0x158C;
 constexpr size_t kClearingEscapesOffset = 0x1592;
@@ -166,8 +167,8 @@ bool poll_stats(GameStats& out)
     out.shots_fired = read_at<uint16_t>(data, kStatsBlockOffset + StatOffsets::kShots);
     out.damage_taken_units =
         read_at<uint16_t>(data, kStatsBlockOffset + StatOffsets::kDamage);
-    out.pull_ups = read_at<uint16_t>(data, kSnakePullUpsOffset)
-        + read_at<uint16_t>(data, kRaidenPullUpsOffset);
+    out.snake_pull_ups = read_at<uint16_t>(data, kSnakePullUpsOffset);
+    out.raiden_pull_ups = read_at<uint16_t>(data, kRaidenPullUpsOffset);
     out.mechs_destroyed =
         read_at<uint16_t>(data, kStatsBlockOffset + StatOffsets::kMechsDestroyed);
     out.current_health = read_at<uint16_t>(data, StatOffsets::kCurrentHealth);
@@ -178,6 +179,7 @@ bool poll_stats(GameStats& out)
     out.play_time_seconds =
         static_cast<double>(read_at<uint32_t>(data, kStatsBlockOffset + StatOffsets::kPlayTimeFrames))
         / 60.0;
+    out.stage_time_seconds = read_at<uint32_t>(data, kStagePlayTimeOffset) / 60.0;
     out.rations_used = read_at<uint16_t>(data, kRationsOffset);
     out.sea_louse = read_at<uint16_t>(data, kShipwormOffset) != 0;
     out.clearing_escapes = read_at<uint16_t>(data, kClearingEscapesOffset);

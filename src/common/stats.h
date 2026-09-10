@@ -30,7 +30,8 @@ struct GameStats {
     int times_seen = 0;
     int clearing_escapes = 0;
     int mechs_destroyed = 0;
-    int pull_ups = 0;
+    int snake_pull_ups = 0;
+    int raiden_pull_ups = 0;
     int dog_tags = 0;
     uint32_t dog_tag_mask[32] = {};
 
@@ -60,6 +61,7 @@ struct GameStats {
     double damage_taken_bars = -1.0; // exact when game exposes end-screen bars
 
     double play_time_seconds = 0.0;
+    double stage_time_seconds = 0.0;
 
     bool special_item_used = false;
     bool sea_louse = false;
