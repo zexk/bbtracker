@@ -1,6 +1,7 @@
 #include "probe.h"
 
 #include <windows.h>
+#include <array>
 #include <bit>
 #include <cstring>
 #include <cstdint>
@@ -15,8 +16,6 @@
 #include "../../common/run_latch.h"
 
 namespace bb::mgs3 {
-
-using bb::mem::range_readable;
 
 namespace {
 
@@ -56,7 +55,7 @@ struct StatOffsets {
     constexpr static size_t kInjuryCount = 50;
 };
 
-const uint8_t* g_stats = nullptr;
+std::array<uint8_t, kStatsRegionSize> g_stats{};
 uintptr_t g_last_block = 0;
 uintptr_t g_slot_addr = 0;
 HMODULE g_module = nullptr;
@@ -84,12 +83,17 @@ bool sig_match(const uint8_t* p, size_t avail)
 
 constexpr bool gameplay_area(std::string_view area)
 {
-    return !area.empty() && (area[0] == 's' || area[0] == 'v');
+    if (area.size() < 4 || (area[0] != 's' && area[0] != 'v')) return false;
+    for (char c : area) {
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) return false;
+    }
+    return true;
 }
 
 static_assert(gameplay_area("s001a"));
 static_assert(gameplay_area("v000a"));
 static_assert(!gameplay_area("title"));
+static_assert(!gameplay_area("s00["));
 
 constexpr RunState run_state(std::string_view area)
 {
@@ -153,29 +157,15 @@ bool resolve(uintptr_t& out_block, uintptr_t& out_story_base)
     }
 
     const uintptr_t slot = g_slot_addr;
-    if (!range_readable(slot, 0x10 + sizeof(uintptr_t))) {
+    std::array<uint8_t, 0x10 + sizeof(uintptr_t)> slots{};
+    if (!mem::copy(slot, slots.data(), slots.size())) {
         g_slot_addr = 0;
         g_module = nullptr;
         return false;
     }
-    const uintptr_t ptr = *reinterpret_cast<volatile const uintptr_t*>(slot);
-    if (!ptr || !range_readable(ptr, kStatsRegionSize)) {
-        return false;
-    }
-    const uintptr_t story_ptr =
-        *reinterpret_cast<volatile const uintptr_t*>(slot + 0x10);
-
-    if (ptr != g_last_block) {
-        LOG_INFO("stats block %s%p", g_last_block ? "moved: " : "",
-                 reinterpret_cast<const void*>(ptr));
-        const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(mod);
-        const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
-        LOG_INFO("module_timestamp=0x%08X",
-                 static_cast<unsigned>(nt->FileHeader.TimeDateStamp));
-        log_hex_dump(reinterpret_cast<const uint8_t*>(ptr), 0x50);
-        g_last_block = ptr;
-        g_zero_polls = 0;
-    }
+    const uintptr_t ptr = mem::read<uintptr_t>(slots.data(), 0);
+    if (!ptr) return false;
+    const uintptr_t story_ptr = mem::read<uintptr_t>(slots.data(), 0x10);
 
     out_block = ptr;
     out_story_base = story_ptr;
@@ -185,7 +175,7 @@ bool resolve(uintptr_t& out_block, uintptr_t& out_story_base)
 template <typename T>
 T read_at(size_t offset)
 {
-    return mem::read<T>(g_stats, offset);
+    return mem::read<T>(g_stats.data(), offset);
 }
 
 } // namespace
@@ -197,7 +187,19 @@ bool poll_stats(GameStats& out)
     if (!resolve(block, story_base)) {
         return g_run.hold(out);
     }
-    g_stats = reinterpret_cast<const uint8_t*>(block);
+    if (!mem::copy(block, g_stats.data(), g_stats.size())) return g_run.hold(out);
+    if (block != g_last_block) {
+        LOG_INFO("stats block %s%p", g_last_block ? "moved: " : "",
+                 reinterpret_cast<const void*>(block));
+        uint32_t timestamp = 0;
+        if (mem::module_timestamp(g_module, timestamp)) {
+            LOG_INFO("module_timestamp=0x%08X", static_cast<unsigned>(timestamp));
+        }
+        log_hex_dump(g_stats.data(), 0x50);
+        g_last_block = block;
+        g_zero_polls = 0;
+    }
+    out = {};
 
     out.continues = read_at<uint16_t>(StatOffsets::kContinues);
     out.saves = read_at<uint16_t>(StatOffsets::kSaves);
@@ -229,33 +231,26 @@ bool poll_stats(GameStats& out)
     out.life_med_used = read_at<uint16_t>(StatOffsets::kLifeMeds);
 
     uint64_t kerotan_mask = 0;
-    if (story_base
-        && range_readable(story_base + StatOffsets::kStoryKerotans,
-                          sizeof(kerotan_mask))) {
-        std::memcpy(&kerotan_mask,
-                    reinterpret_cast<const void*>(story_base + StatOffsets::kStoryKerotans),
-                    sizeof(kerotan_mask));
-    }
+    if (story_base) mem::copy(story_base + StatOffsets::kStoryKerotans, kerotan_mask);
     out.kerotan_mask = std::rotr(kerotan_mask, 1);
     out.kerotans = std::popcount(kerotan_mask);
 
     out.capture_mask = 0;
-    if (range_readable(reinterpret_cast<uintptr_t>(g_stats + StatOffsets::kCaptureMask), 6)) {
+    std::array<uint8_t, 6> capture{};
+    if (mem::copy(block + StatOffsets::kCaptureMask, capture.data(), capture.size())) {
         for (size_t i = 0; i < 6; ++i) {
-            out.capture_mask |= static_cast<uint64_t>(
-                                    read_at<uint8_t>(StatOffsets::kCaptureMask + i))
-                << (i * 8);
+            out.capture_mask |= static_cast<uint64_t>(capture[i]) << (i * 8);
         }
     }
 
     out.leech_attached = false;
     constexpr size_t kInjuriesSize = StatOffsets::kInjurySize * StatOffsets::kInjuryCount;
-    if (range_readable(reinterpret_cast<uintptr_t>(g_stats + StatOffsets::kInjuries),
-                       kInjuriesSize)) {
+    std::array<uint8_t, kInjuriesSize> injuries{};
+    if (mem::copy(block + StatOffsets::kInjuries, injuries.data(), injuries.size())) {
         for (size_t i = 0; i < StatOffsets::kInjuryCount; ++i) {
-            const size_t injury = StatOffsets::kInjuries + i * StatOffsets::kInjurySize;
-            if (read_at<uint8_t>(injury + StatOffsets::kInjuryType) == 7
-                && read_at<uint16_t>(injury + StatOffsets::kInjuryHealth) > 0) {
+            const size_t injury = i * StatOffsets::kInjurySize;
+            if (mem::read<uint8_t>(injuries.data(), injury + StatOffsets::kInjuryType) == 7
+                && mem::read<uint16_t>(injuries.data(), injury + StatOffsets::kInjuryHealth) > 0) {
                 out.leech_attached = true;
                 break;
             }
@@ -265,17 +260,15 @@ bool poll_stats(GameStats& out)
     out.tsuchinoko_alive = false;
     if (HMODULE mod = g_module) {
         const uintptr_t food_slot = reinterpret_cast<uintptr_t>(mod) + kFoodSlotOffset;
-        if (range_readable(food_slot, sizeof(uintptr_t))) {
-            const uintptr_t food =
-                *reinterpret_cast<volatile const uintptr_t*>(food_slot);
+        uintptr_t food = 0;
+        if (mem::copy(food_slot, food)) {
             constexpr size_t kCageTypes[] = {0x0, 0x8, 0x10};
             constexpr size_t kCageOccupied[] = {0xFEC, 0x103C, 0x108C};
-            if (food && range_readable(food, kCageOccupied[2] + sizeof(uint16_t))) {
+            std::array<uint8_t, kCageOccupied[2] + sizeof(uint16_t)> food_data{};
+            if (food && mem::copy(food, food_data.data(), food_data.size())) {
                 for (size_t i = 0; i < std::size(kCageTypes); ++i) {
-                    const auto type = *reinterpret_cast<volatile const uint16_t*>(
-                        food + kCageTypes[i]);
-                    const auto occupied = *reinterpret_cast<volatile const uint16_t*>(
-                        food + kCageOccupied[i]);
+                    const auto type = mem::read<uint16_t>(food_data.data(), kCageTypes[i]);
+                    const auto occupied = mem::read<uint16_t>(food_data.data(), kCageOccupied[i]);
                     if (type == 130 && occupied != 0) {
                         out.tsuchinoko_alive = true;
                         break;
@@ -295,12 +288,12 @@ bool poll_stats(GameStats& out)
     }
     out.difficulty_game_byte = diff06;
     out.difficulty_raw = diff06;
+    if (!known_master_collection_difficulty(diff06)) return g_run.hold(out);
     out.difficulty = master_collection_difficulty(diff06);
-    if (story_base && range_readable(story_base, 0x40)) {
-        const uint16_t story_vm =
-            *reinterpret_cast<volatile const uint16_t*>(story_base + 0x2);
-        const uint16_t story_se =
-            *reinterpret_cast<volatile const uint16_t*>(story_base + 0x4);
+    std::array<uint8_t, 0x40> story{};
+    if (story_base && mem::copy(story_base, story.data(), story.size())) {
+        const uint16_t story_vm = mem::read<uint16_t>(story.data(), 0x2);
+        const uint16_t story_se = mem::read<uint16_t>(story.data(), 0x4);
         if (story_vm != g_last_vm_flags || story_se != g_last_se_flags) {
             LOG_INFO("story flags vm=0x%04X se=0x%04X",
                      static_cast<unsigned>(story_vm), static_cast<unsigned>(story_se));
@@ -310,9 +303,10 @@ bool poll_stats(GameStats& out)
     }
 
     char area[8]{};
-    std::memcpy(area, g_stats + StatOffsets::kAreaCode, 7);
+    std::memcpy(area, g_stats.data() + StatOffsets::kAreaCode, 7);
     for (int i = 0; i < 7; ++i) {
-        if ((area[i] < '0' || area[i] > 'z') && area[i] != '_') {
+        const char c = area[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) {
             area[i] = '\0';
             break;
         }
@@ -324,7 +318,7 @@ bool poll_stats(GameStats& out)
         if (++g_zero_polls == 600) {
             LOG_WARN("stats all-zero for ~10s while polling; pointer may be stale "
                      "for this game build");
-            log_hex_dump(g_stats, 0x50);
+            log_hex_dump(g_stats.data(), 0x50);
         }
     } else {
         g_zero_polls = 0;
