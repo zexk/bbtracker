@@ -6,28 +6,34 @@
 
 namespace bb::mem {
 
-inline bool range_readable(uintptr_t addr, size_t len)
+inline bool copy(uintptr_t address, void* out, size_t size)
 {
-    if (len > UINTPTR_MAX - addr) {
+    SIZE_T copied = 0;
+    return ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(address), out,
+                             size, &copied)
+        && copied == size;
+}
+
+template <typename T>
+bool copy(uintptr_t address, T& out)
+{
+    return copy(address, &out, sizeof(out));
+}
+
+inline bool module_timestamp(HMODULE module, uint32_t& out)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(module);
+    IMAGE_DOS_HEADER dos{};
+    if (!base || !copy(base, dos) || dos.e_magic != IMAGE_DOS_SIGNATURE
+        || dos.e_lfanew < 0 || dos.e_lfanew > 0x1000000) {
         return false;
     }
-    const uintptr_t end = addr + len;
-    while (addr < end) {
-        MEMORY_BASIC_INFORMATION mbi{};
-        if (!VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))) {
-            return false;
-        }
-        if (mbi.State != MEM_COMMIT) {
-            return false;
-        }
-        constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
-            | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-        if ((mbi.Protect & kReadable) == 0 || (mbi.Protect & PAGE_GUARD) != 0) {
-            return false;
-        }
-        const uintptr_t region_end = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
-        addr = region_end;
+    IMAGE_NT_HEADERS nt{};
+    if (!copy(base + static_cast<uintptr_t>(dos.e_lfanew), nt)
+        || nt.Signature != IMAGE_NT_SIGNATURE) {
+        return false;
     }
+    out = nt.FileHeader.TimeDateStamp;
     return true;
 }
 
@@ -51,8 +57,11 @@ bool for_each_code_region(HMODULE mod, Fn fn)
 
     for (uintptr_t addr = start; addr < end; addr += 0x1000) {
         MEMORY_BASIC_INFORMATION mbi{};
+        constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
+            | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
         if (!VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, sizeof(mbi))
-            || mbi.State != MEM_COMMIT) {
+            || mbi.State != MEM_COMMIT || (mbi.Protect & kReadable) == 0
+            || (mbi.Protect & PAGE_GUARD) != 0) {
             continue;
         }
         const uintptr_t region_end =
