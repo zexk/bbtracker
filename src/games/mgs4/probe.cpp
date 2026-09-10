@@ -2,6 +2,7 @@
 
 #include <windows.h>
 
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <string_view>
@@ -14,7 +15,6 @@
 
 namespace bb::mgs4 {
 
-using bb::mem::range_readable;
 using bb::mem::read;
 
 namespace {
@@ -68,6 +68,7 @@ static_assert(run_state("title") == RunState::Inactive);
 
 HMODULE g_module = nullptr;
 RunLatch g_run;
+bool g_logged_module = false;
 
 } // namespace
 
@@ -79,13 +80,22 @@ bool poll_stats(GameStats& out)
         g_module = GetModuleHandleW(nullptr);
     }
     const auto module = reinterpret_cast<uintptr_t>(g_module);
-    if (!module || !range_readable(module + kLinkvarbufPointer, sizeof(uintptr_t))) {
+    if (g_module && !g_logged_module) {
+        uint32_t timestamp = 0;
+        if (mem::module_timestamp(g_module, timestamp)) {
+            LOG_INFO("MGS4 module timestamp 0x%08X", static_cast<unsigned>(timestamp));
+            g_logged_module = true;
+        }
+    }
+    uintptr_t address = 0;
+    if (!module || !mem::copy(module + kLinkvarbufPointer, address)) {
         g_module = nullptr;
         return g_run.hold(out);
     }
-    const uintptr_t address = *reinterpret_cast<volatile const uintptr_t*>(module + kLinkvarbufPointer);
-    if (!address || !range_readable(address, kLinkvarbufSize)) return g_run.hold(out);
-    const auto* data = reinterpret_cast<const uint8_t*>(address);
+    if (!address) return g_run.hold(out);
+    std::array<uint8_t, kLinkvarbufSize> snapshot{};
+    if (!mem::copy(address, snapshot.data(), snapshot.size())) return g_run.hold(out);
+    const auto* data = snapshot.data();
 
     const uint16_t raw_difficulty = read<uint16_t>(data, 0x006);
     const uint32_t progress = read<uint32_t>(data, 0x054);
