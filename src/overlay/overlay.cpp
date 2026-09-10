@@ -29,6 +29,7 @@
 #include "../common/codename/codename.h"
 #include "../common/codename/rules_mgs4.h"
 #include "../common/log.h"
+#include "../games/mgs2/dog_tags.h"
 #include "../games/mgspw/names.h"
 
 namespace bb {
@@ -1247,6 +1248,35 @@ constexpr const char* kMgs3Kerotans[] = {
 static_assert(std::size(kMgs3Captures) == 48);
 static_assert(std::size(kMgs3Kerotans) == 64);
 
+void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
+{
+    const uint8_t difficulty = static_cast<uint8_t>(stats.difficulty);
+    int available = 0;
+    int collected = 0;
+    for (const auto& tag : mgs2::kDogTags) {
+        if (!mgs2::dog_tag_available(tag, stats.mission, difficulty)) continue;
+        ++available;
+        collected += mgs2::dog_tag_collected(stats.dog_tag_mask, tag.id);
+    }
+
+    ImGui::Text("%d / %d", collected, available);
+    if (collected != stats.dog_tags) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(%d total flags)", stats.dog_tags);
+    }
+    if (ImGui::BeginChild("mgs2_dog_tags", ImVec2(0, ui_size(360)), true)) {
+        apply_scroll(scroll);
+        for (const auto& tag : mgs2::kDogTags) {
+            if (!mgs2::dog_tag_available(tag, stats.mission, difficulty)) continue;
+            const bool done = mgs2::dog_tag_collected(stats.dog_tag_mask, tag.id);
+            const char* area = area_name(Game::MGS2, tag.area);
+            ImGui::TextColored(done ? id_colors(g_game).green : unset_color(), "%s  %s (%s)",
+                               done ? "x" : "-", tag.name, area ? area : tag.area);
+        }
+    }
+    ImGui::EndChild();
+}
+
 int mgs3_area_kerotan(const char* code)
 {
     static constexpr AreaName kAreas[] = {
@@ -1890,7 +1920,8 @@ void draw_panel()
     }
 
     static int selected_tab = 0;
-    const int tab_count = g_game == Game::MGS3 ? 3 : g_game == Game::MGS4 ? 2
+    const int tab_count = g_game == Game::MGS2 ? 2 : g_game == Game::MGS3 ? 3
+        : g_game == Game::MGS4 ? 2
         : g_game == Game::MGSPW                                             ? 4
                                                                             : 0;
     if (tab_count && key_pressed(kTabKey)) {
@@ -2078,6 +2109,7 @@ void draw_panel()
                 dim_row("diazepam", buf);
             }
         } else if (g_game == Game::MGS2) {
+            plain_count("dog tags", stats.dog_tags);
             plain_pair("health", stats.current_health, stats.max_health);
             dim_row("sea louse", stats.sea_louse ? "YES" : "NO");
             plain_count("clearing escapes", stats.clearing_escapes);
@@ -2120,6 +2152,11 @@ void draw_panel()
     if (tabs && g_game == Game::MGS4 && ImGui::BeginTabItem(
                     "Feats", nullptr, selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
         draw_mgs4_feats(stats, scroll);
+        ImGui::EndTabItem();
+    }
+    if (tabs && g_game == Game::MGS2 && ImGui::BeginTabItem(
+                    "Dog Tags", nullptr, selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
+        draw_mgs2_dog_tags(stats, scroll);
         ImGui::EndTabItem();
     }
     if (tabs && g_game == Game::MGS3 && ImGui::BeginTabItem(
