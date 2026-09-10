@@ -10,17 +10,6 @@ enum class RunState {
     Inactive,
 };
 
-constexpr bool next_run_visibility(bool visible, RunState state)
-{
-    if (state == RunState::Active) return true;
-    if (state == RunState::Inactive) return false;
-    return visible;
-}
-
-static_assert(next_run_visibility(false, RunState::Active));
-static_assert(next_run_visibility(true, RunState::Unknown));
-static_assert(!next_run_visibility(true, RunState::Inactive));
-
 class RunLatch {
 public:
     constexpr bool hold(GameStats& out) const
@@ -32,7 +21,7 @@ public:
     constexpr bool update(GameStats& out, RunState state)
     {
         if (state == RunState::Unknown) return hold(out);
-        visible_ = next_run_visibility(visible_, state);
+        visible_ = state == RunState::Active;
         if (visible_) last_ = out;
         return visible_;
     }
