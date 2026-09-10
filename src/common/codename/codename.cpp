@@ -5,7 +5,6 @@
 #include <cmath>
 
 #include "rules_mgs1.h"
-#include "rules_mgs2.h"
 #include "rules_mgs3.h"
 #include "rules_mgs4.h"
 
@@ -159,16 +158,6 @@ const RankRule* find_mgs3(const char* name)
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s)
 {
     return requirements_from_rows(s, mgs3_elite_rows(), false);
-}
-
-std::optional<Match> evaluate_mgs2(const GameStats& s)
-{
-    return first_match(s, mgs2_rules());
-}
-
-std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s)
-{
-    return requirements_from_rows(s, mgs2_elite_rows(), false);
 }
 
 std::optional<Match> evaluate_mgs1(const GameStats& s)

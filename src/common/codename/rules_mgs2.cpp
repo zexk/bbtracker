@@ -1,28 +1,14 @@
-#include "rules_mgs2.h"
+#include "codename.h"
 
 #include <array>
-#include <utility>
-#include <vector>
 
 namespace bb::codename {
 namespace {
-
-constexpr TierMask kEE = 1u << 5;
-constexpr TierMask kEV = kE | kVe;
-constexpr TierMask kAllM2 = kVe | kE | kN | kH | kX | kEE;
 
 constexpr int kMissionPlant = 0;
 constexpr int kMissionTanker = 16;
 constexpr int kMissionTP = 32;
 
-Cond mission_cond(int mission)
-{
-    return Cond{StatId::MissionCode, Op::Eq, static_cast<double>(mission)};
-}
-
-// Single source for the BIG BOSS ladder: the requirements panel reads the
-// rows, strictness 0 matches on the derived conds. PlayTimeHours <= 3 is
-// exactly the old PlayTimeMinutes <= 180 (ceil(s/60) <= 180 iff s <= 10800).
 constexpr std::array<ReqRow, 11> kEliteLadder{{
     {"campaign", StatId::MissionCode, Op::Eq, 32, ReqFmt::Count},
     {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
@@ -37,275 +23,158 @@ constexpr std::array<ReqRow, 11> kEliteLadder{{
     {"saves", StatId::Saves, Op::Le, 8, ReqFmt::Count},
 }};
 
-constexpr std::array<Cond, 11> kEliteConds = conds_from_rows(kEliteLadder);
-
-struct Mgs2Tier {
-    TierMask mask;
-    const char* worst_name;
-    const char* special_low_alerts;
-    const char* special_fast;
-    const char* special_kills;
-    const char* special_meals;
-    const char* special_time;
-    const char* special_saves;
+struct Tier {
+    const char* worst;
+    const char* low_alerts;
+    const char* fast;
+    const char* kills;
+    const char* meals;
+    const char* time;
+    const char* saves;
 };
 
-constexpr Mgs2Tier kTiers[4] = {
-    {kX | kEE, kAnimalTiers.worst.top, kAnimalTiers.low_alerts.top,
-     kAnimalTiers.fast.top, kAnimalTiers.kills.top, kAnimalTiers.meals.top,
-     kAnimalTiers.time.top, kAnimalTiers.saves.top},
-    {kH, kAnimalTiers.worst.high, kAnimalTiers.low_alerts.high,
-     kAnimalTiers.fast.high, kAnimalTiers.kills.high, kAnimalTiers.meals.high,
-     kAnimalTiers.time.high, kAnimalTiers.saves.high},
-    {kN, kAnimalTiers.worst.normal, kAnimalTiers.low_alerts.normal,
-     kAnimalTiers.fast.normal, kAnimalTiers.kills.normal, kAnimalTiers.meals.normal,
-     kAnimalTiers.time.normal, kAnimalTiers.saves.normal},
-    {kEV, kAnimalTiers.worst.low, kAnimalTiers.low_alerts.low,
-     kAnimalTiers.fast.low, kAnimalTiers.kills.low, kAnimalTiers.meals.low,
-     kAnimalTiers.time.low, kAnimalTiers.saves.low},
+constexpr Tier kTiers[] = {
+    {kAnimalTiers.worst.top, kAnimalTiers.low_alerts.top, kAnimalTiers.fast.top,
+     kAnimalTiers.kills.top, kAnimalTiers.meals.top, kAnimalTiers.time.top,
+     kAnimalTiers.saves.top},
+    {kAnimalTiers.worst.high, kAnimalTiers.low_alerts.high, kAnimalTiers.fast.high,
+     kAnimalTiers.kills.high, kAnimalTiers.meals.high, kAnimalTiers.time.high,
+     kAnimalTiers.saves.high},
+    {kAnimalTiers.worst.normal, kAnimalTiers.low_alerts.normal, kAnimalTiers.fast.normal,
+     kAnimalTiers.kills.normal, kAnimalTiers.meals.normal, kAnimalTiers.time.normal,
+     kAnimalTiers.saves.normal},
+    {kAnimalTiers.worst.low, kAnimalTiers.low_alerts.low, kAnimalTiers.fast.low,
+     kAnimalTiers.kills.low, kAnimalTiers.meals.low, kAnimalTiers.time.low,
+     kAnimalTiers.saves.low},
 };
-
-std::vector<Cond> elite_conds(int strictness)
-{
-    std::vector<Cond> c;
-    c.push_back(mission_cond(kMissionTP));
-    c.push_back({StatId::SpecialItemUsed, Op::Eq, 0});
-    if (strictness == 0) {
-        return {kEliteConds.begin(), kEliteConds.end()};
-    } else if (strictness == 1) {
-        c.push_back({StatId::Alerts, Op::Le, 3});
-        c.push_back({StatId::Kills, Op::Eq, 0});
-        c.push_back({StatId::RationsUsed, Op::Eq, 0});
-        c.push_back({StatId::PlayTimeMinutes, Op::Le, 180});
-        c.push_back({StatId::Continues, Op::Eq, 0});
-        c.push_back({StatId::Saves, Op::Le, 16});
-    } else if (strictness == 2) {
-        c.push_back({StatId::Alerts, Op::Le, 4});
-        c.push_back({StatId::Kills, Op::Eq, 0});
-        c.push_back({StatId::RationsUsed, Op::Le, 3});
-        c.push_back({StatId::PlayTimeMinutes, Op::Le, 195});
-        c.push_back({StatId::Continues, Op::Eq, 0});
-    } else {
-        c.push_back({StatId::Alerts, Op::Le, 5});
-        c.push_back({StatId::Kills, Op::Eq, 0});
-        c.push_back({StatId::PlayTimeMinutes, Op::Le, 210});
-        c.push_back({StatId::Continues, Op::Eq, 0});
-    }
-    return c;
-}
 
 struct GridRow {
     const char* name;
-    double amin;
-    double amax;
-    double cmin;
-    double cmax;
-    double kmin;
-    double kmax;
+    int amin, amax, cmin, cmax, kmin, kmax;
 };
 
 constexpr GridRow kGridTanker[] = {
-    {"Scorpion", 1, 5, 0, 10, 1, 15},
-    {"Tarantula", 1, 5, 0, 10, 16, 49},
-    {"Centipede", 1, 5, 11, -1, 1, 15},
-    {"Spider", 1, 5, 11, -1, 16, 49},
-    {"Jaguar", 6, 15, 0, 10, 1, 15},
-    {"Panther", 6, 15, 0, 10, 16, 49},
-    {"Leopard", 6, 15, 11, -1, 1, 15},
-    {"Puma", 6, 15, 11, -1, 16, 49},
-    {"Jackal", 16, 30, 0, 10, 1, 15},
-    {"Tasmanian Devil", 16, 30, 0, 10, 16, 49},
-    {"Mongoose", 16, 30, 11, -1, 1, 15},
-    {"Hyena", 16, 30, 11, -1, 16, 49},
-    {"Iguana", 31, 49, 0, 10, 1, 15},
-    {"Crocodile", 31, 49, 0, 10, 16, 49},
-    {"KOMODO DRAGON", 31, 49, 11, -1, 1, 15},
-    {"Alligator", 31, 49, 11, -1, 16, 49},
+    {"Scorpion", 1, 5, 0, 10, 1, 15}, {"Tarantula", 1, 5, 0, 10, 16, 49},
+    {"Centipede", 1, 5, 11, -1, 1, 15}, {"Spider", 1, 5, 11, -1, 16, 49},
+    {"Jaguar", 6, 15, 0, 10, 1, 15}, {"Panther", 6, 15, 0, 10, 16, 49},
+    {"Leopard", 6, 15, 11, -1, 1, 15}, {"Puma", 6, 15, 11, -1, 16, 49},
+    {"Jackal", 16, 30, 0, 10, 1, 15}, {"Tasmanian Devil", 16, 30, 0, 10, 16, 49},
+    {"Mongoose", 16, 30, 11, -1, 1, 15}, {"Hyena", 16, 30, 11, -1, 16, 49},
+    {"Iguana", 31, 49, 0, 10, 1, 15}, {"Crocodile", 31, 49, 0, 10, 16, 49},
+    {"KOMODO DRAGON", 31, 49, 11, -1, 1, 15}, {"Alligator", 31, 49, 11, -1, 16, 49},
 };
 constexpr GridRow kGridPlant[] = {
-    {"Scorpion", 1, 15, 0, 30, 1, 60},
-    {"Tarantula", 1, 15, 0, 30, 61, 199},
-    {"Centipede", 1, 15, 31, -1, 1, 60},
-    {"Spider", 1, 15, 31, -1, 61, 199},
-    {"Jaguar", 16, 40, 0, 30, 1, 60},
-    {"Panther", 16, 40, 0, 30, 61, 199},
-    {"Leopard", 16, 40, 31, -1, 1, 60},
-    {"Puma", 16, 40, 31, -1, 61, 199},
-    {"Jackal", 41, 70, 0, 30, 1, 60},
-    {"Tasmanian Devil", 41, 70, 0, 30, 61, 199},
-    {"Mongoose", 41, 70, 31, -1, 1, 60},
-    {"Hyena", 41, 70, 31, -1, 61, 199},
-    {"Iguana", 71, 199, 0, 30, 1, 60},
-    {"Crocodile", 71, 199, 0, 30, 61, 199},
-    {"KOMODO DRAGON", 71, 199, 31, -1, 1, 60},
-    {"Alligator", 71, 199, 31, -1, 61, 199},
+    {"Scorpion", 1, 15, 0, 30, 1, 60}, {"Tarantula", 1, 15, 0, 30, 61, 199},
+    {"Centipede", 1, 15, 31, -1, 1, 60}, {"Spider", 1, 15, 31, -1, 61, 199},
+    {"Jaguar", 16, 40, 0, 30, 1, 60}, {"Panther", 16, 40, 0, 30, 61, 199},
+    {"Leopard", 16, 40, 31, -1, 1, 60}, {"Puma", 16, 40, 31, -1, 61, 199},
+    {"Jackal", 41, 70, 0, 30, 1, 60}, {"Tasmanian Devil", 41, 70, 0, 30, 61, 199},
+    {"Mongoose", 41, 70, 31, -1, 1, 60}, {"Hyena", 41, 70, 31, -1, 61, 199},
+    {"Iguana", 71, 199, 0, 30, 1, 60}, {"Crocodile", 71, 199, 0, 30, 61, 199},
+    {"KOMODO DRAGON", 71, 199, 31, -1, 1, 60}, {"Alligator", 71, 199, 31, -1, 61, 199},
 };
 constexpr GridRow kGridTP[] = {
-    {"Scorpion", 1, 20, 0, 40, 1, 70},
-    {"Tarantula", 1, 20, 0, 40, 71, 249},
-    {"Centipede", 1, 20, 41, -1, 1, 70},
-    {"Spider", 1, 20, 41, -1, 71, 249},
-    {"Jaguar", 21, 50, 0, 40, 1, 70},
-    {"Panther", 21, 50, 0, 40, 71, 249},
-    {"Leopard", 21, 50, 41, -1, 1, 70},
-    {"Puma", 21, 50, 41, -1, 71, 249},
-    {"Jackal", 51, 80, 0, 40, 1, 70},
-    {"Tasmanian Devil", 51, 80, 0, 40, 71, 249},
-    {"Mongoose", 51, 80, 41, -1, 1, 70},
-    {"Hyena", 51, 80, 41, -1, 71, 249},
-    {"Iguana", 81, 249, 0, 40, 1, 70},
-    {"Crocodile", 81, 249, 0, 40, 71, 249},
-    {"KOMODO DRAGON", 81, 249, 41, -1, 1, 70},
-    {"Alligator", 81, 249, 41, -1, 71, 249},
+    {"Scorpion", 1, 20, 0, 40, 1, 70}, {"Tarantula", 1, 20, 0, 40, 71, 249},
+    {"Centipede", 1, 20, 41, -1, 1, 70}, {"Spider", 1, 20, 41, -1, 71, 249},
+    {"Jaguar", 21, 50, 0, 40, 1, 70}, {"Panther", 21, 50, 0, 40, 71, 249},
+    {"Leopard", 21, 50, 41, -1, 1, 70}, {"Puma", 21, 50, 41, -1, 71, 249},
+    {"Jackal", 51, 80, 0, 40, 1, 70}, {"Tasmanian Devil", 51, 80, 0, 40, 71, 249},
+    {"Mongoose", 51, 80, 41, -1, 1, 70}, {"Hyena", 51, 80, 41, -1, 71, 249},
+    {"Iguana", 81, 249, 0, 40, 1, 70}, {"Crocodile", 81, 249, 0, 40, 71, 249},
+    {"KOMODO DRAGON", 81, 249, 41, -1, 1, 70}, {"Alligator", 81, 249, 41, -1, 71, 249},
 };
 
-std::vector<RankRule> build_rules(std::vector<std::vector<Cond>>& cond_pool)
+int tier_index(Difficulty difficulty)
 {
-    std::vector<RankRule> rules;
+    if (difficulty == Difficulty::Extreme || difficulty == Difficulty::EuroExtreme) return 0;
+    if (difficulty == Difficulty::Hard) return 1;
+    if (difficulty == Difficulty::Normal) return 2;
+    return 3;
+}
 
-    auto add = [&cond_pool, &rules](const char* name, TierMask tiers, Kind kind,
-                                    std::vector<Cond> conds) {
-        cond_pool.push_back(std::move(conds));
-        rules.push_back(RankRule{name, tiers, kind, cond_pool.back()});
-    };
+double mission_limit(int mission, double tanker, double plant, double tp)
+{
+    if (mission == kMissionTanker) return tanker;
+    if (mission == kMissionPlant) return plant;
+    if (mission == kMissionTP) return tp;
+    return -1;
+}
 
-    static constexpr const char* kLadder[] = {"BIG BOSS", "FOX", "DOBERMAN", "HOUND"};
-    static constexpr std::pair<TierMask, int> kEliteTiers[] = {
-        {kX | kEE, 0}, {kH, 1}, {kN, 2}, {kE, 3}};
-    for (const auto& [tier, offset] : kEliteTiers) {
-        for (int strictness = 0; strictness + offset < 4; ++strictness) {
-            add(kLadder[strictness + offset], tier, Kind::Elite, elite_conds(strictness));
-        }
+bool elite_match(const GameStats& s, int strictness)
+{
+    if (s.mission != kMissionTP || s.special_item_used) return false;
+    const double minutes = stat_value(s, StatId::PlayTimeMinutes);
+    if (strictness == 0) {
+        return s.radar_off && s.shots_fired <= 700 && s.alerts <= 3
+            && stat_value(s, StatId::DamageBars) <= 10 && s.kills == 0
+            && s.rations_used == 0 && s.play_time_seconds <= 3 * 3600
+            && s.continues == 0 && s.saves <= 8;
     }
+    if (strictness == 1) return s.alerts <= 3 && s.kills == 0 && s.rations_used == 0
+        && minutes <= 180 && s.continues == 0 && s.saves <= 16;
+    if (strictness == 2) return s.alerts <= 4 && s.kills == 0 && s.rations_used <= 3
+        && minutes <= 195 && s.continues == 0;
+    return s.alerts <= 5 && s.kills == 0 && minutes <= 210 && s.continues == 0;
+}
 
-    auto add_worst = [&](const Mgs2Tier& tier) {
-        add(tier.worst_name, tier.mask, Kind::Worst,
-            {mission_cond(kMissionTP),
-             {StatId::Alerts, Op::Ge, 250},
-             {StatId::Kills, Op::Ge, 250},
-             {StatId::RationsUsed, Op::Ge, 31},
-             {StatId::PlayTimeMinutes, Op::Ge, 1800},
-             {StatId::Continues, Op::Ge, 60},
-             {StatId::Saves, Op::Ge, 100}});
-    };
-    for (const Mgs2Tier& tier : kTiers) {
-        add_worst(tier);
+const char* grid_match(const GameStats& s)
+{
+    std::span<const GridRow> grid;
+    if (s.mission == kMissionTanker) grid = kGridTanker;
+    else if (s.mission == kMissionPlant) grid = kGridPlant;
+    else if (s.mission == kMissionTP) grid = kGridTP;
+    else return nullptr;
+    for (const GridRow& row : grid) {
+        if (s.kills < row.kmin || s.kills > row.kmax || s.alerts < row.amin
+            || (row.amax > 0 && s.alerts > row.amax)
+            || (row.cmax > 0 ? s.continues > row.cmax : s.continues < row.cmin)) continue;
+        return row.name;
     }
-
-    add("SEA LOUSE", kAllM2, Kind::Special,
-        {{StatId::SeaLouse, Op::Eq, 1}, mission_cond(kMissionPlant)});
-    add("SEA LOUSE", kAllM2, Kind::Special,
-        {{StatId::SeaLouse, Op::Eq, 1}, mission_cond(kMissionTP)});
-
-    struct MissionThresholds {
-        double tanker;
-        double plant;
-        double tp;
-    };
-    auto per_mission = [&](const char* name, Kind kind, StatId stat, Op op,
-                           const MissionThresholds& th) {
-        const std::pair<int, double> ms[] = {{kMissionTanker, th.tanker},
-                                             {kMissionPlant, th.plant},
-                                             {kMissionTP, th.tp}};
-        for (const auto& [mission, limit] : ms) {
-            add(name, kAllM2, kind,
-                {mission_cond(mission), Cond{stat, op, limit}});
-        }
-    };
-
-    for (const Mgs2Tier& tier : kTiers) {
-        add(tier.special_low_alerts, tier.mask, Kind::Special,
-            {{StatId::Alerts, Op::Le, 0}, mission_cond(kMissionTanker)});
-        add(tier.special_low_alerts, tier.mask, Kind::Special,
-            {{StatId::Alerts, Op::Le, 3}, mission_cond(kMissionPlant)});
-        add(tier.special_low_alerts, tier.mask, Kind::Special,
-            {{StatId::Alerts, Op::Le, 3}, mission_cond(kMissionTP)});
-    }
-
-    add("PIGEON", kAllM2, Kind::Special, {{StatId::Kills, Op::Eq, 0}});
-
-    for (const Mgs2Tier& tier : kTiers) {
-        add(tier.special_fast, tier.mask, Kind::Special,
-            {{StatId::PlayTimeMinutes, Op::Le, 18}, mission_cond(kMissionTanker)});
-        add(tier.special_fast, tier.mask, Kind::Special,
-            {{StatId::PlayTimeMinutes, Op::Le, 165}, mission_cond(kMissionPlant)});
-        add(tier.special_fast, tier.mask, Kind::Special,
-            {{StatId::PlayTimeMinutes, Op::Le, 180}, mission_cond(kMissionTP)});
-    }
-
-    per_mission("GAZELLE", Kind::Special, StatId::ClearingEscapes, Op::Ge,
-                {50, 100, 150});
-
-    per_mission("Cow", Kind::Special, StatId::Alerts, Op::Ge, {50, 200, 250});
-
-    for (const Mgs2Tier& tier : kTiers) {
-        add(tier.special_kills, tier.mask, Kind::Special,
-            {{StatId::Kills, Op::Ge, 50}, mission_cond(kMissionTanker)});
-        add(tier.special_kills, tier.mask, Kind::Special,
-            {{StatId::Kills, Op::Ge, 200}, mission_cond(kMissionPlant)});
-        add(tier.special_kills, tier.mask, Kind::Special,
-            {{StatId::Kills, Op::Ge, 250}, mission_cond(kMissionTP)});
-    }
-
-    for (const Mgs2Tier& tier : kTiers) {
-        add(tier.special_meals, tier.mask, Kind::Special, {{StatId::RationsUsed, Op::Ge, 31}});
-    }
-
-    for (const Mgs2Tier& tier : kTiers) {
-        add(tier.special_time, tier.mask, Kind::Special,
-            {{StatId::PlayTimeMinutes, Op::Ge, 300}, mission_cond(kMissionTanker)});
-        add(tier.special_time, tier.mask, Kind::Special,
-            {{StatId::PlayTimeMinutes, Op::Ge, 1500}, mission_cond(kMissionPlant)});
-        add(tier.special_time, tier.mask, Kind::Special,
-            {{StatId::PlayTimeMinutes, Op::Ge, 1800}, mission_cond(kMissionTP)});
-    }
-
-    for (const Mgs2Tier& tier : kTiers) {
-        add(tier.special_saves, tier.mask, Kind::Special,
-            {{StatId::Saves, Op::Ge, 25}, mission_cond(kMissionTanker)});
-        add(tier.special_saves, tier.mask, Kind::Special,
-            {{StatId::Saves, Op::Ge, 75}, mission_cond(kMissionPlant)});
-        add(tier.special_saves, tier.mask, Kind::Special,
-            {{StatId::Saves, Op::Ge, 100}, mission_cond(kMissionTP)});
-    }
-
-    auto push_grid = [&](const GridRow* rows, size_t n, int mission) {
-        for (size_t i = 0; i < n; ++i) {
-            const GridRow& r = rows[i];
-            std::vector<Cond> c{{StatId::MissionCode, Op::Eq, static_cast<double>(mission)},
-                                {StatId::Kills, Op::Ge, r.kmin},
-                                {StatId::Kills, Op::Le, r.kmax},
-                                {StatId::Alerts, Op::Ge, r.amin}};
-            if (r.amax > 0) {
-                c.push_back({StatId::Alerts, Op::Le, r.amax});
-            }
-            if (r.cmax > 0) {
-                c.push_back({StatId::Continues, Op::Le, r.cmax});
-            } else {
-                c.push_back({StatId::Continues, Op::Ge, r.cmin});
-            }
-            add(r.name, kAllM2, Kind::Regular, c);
-        }
-    };
-    push_grid(kGridTanker, std::size(kGridTanker), kMissionTanker);
-    push_grid(kGridPlant, std::size(kGridPlant), kMissionPlant);
-    push_grid(kGridTP, std::size(kGridTP), kMissionTP);
-
-    return rules;
+    return nullptr;
 }
 
 } // namespace
 
-std::span<const RankRule> mgs2_rules()
+std::optional<Match> evaluate_mgs2(const GameStats& s)
 {
-    static std::vector<std::vector<Cond>> cond_pool;
-    static const std::vector<RankRule> kRules = build_rules(cond_pool);
-    return kRules;
+    static constexpr const char* kEliteNames[] = {"BIG BOSS", "FOX", "DOBERMAN", "HOUND"};
+    const int tier = tier_index(s.difficulty);
+    const int elite_offset = s.difficulty == Difficulty::VeryEasy ? 4 : tier;
+    for (int strictness = 0; strictness + elite_offset < 4; ++strictness) {
+        if (elite_match(s, strictness))
+            return Match{kEliteNames[strictness + elite_offset], Kind::Elite};
+    }
+
+    const Tier& names = kTiers[tier];
+    const double minutes = stat_value(s, StatId::PlayTimeMinutes);
+    if (s.mission == kMissionTP && s.alerts >= 250 && s.kills >= 250
+        && s.rations_used >= 31 && minutes >= 1800 && s.continues >= 60
+        && s.saves >= 100) return Match{names.worst, Kind::Worst};
+    if (s.sea_louse && (s.mission == kMissionPlant || s.mission == kMissionTP))
+        return Match{"SEA LOUSE", Kind::Special};
+    const double low_alerts = mission_limit(s.mission, 0, 3, 3);
+    if (low_alerts >= 0 && s.alerts <= low_alerts) return Match{names.low_alerts, Kind::Special};
+    if (s.kills == 0) return Match{"PIGEON", Kind::Special};
+    const double fast = mission_limit(s.mission, 18, 165, 180);
+    if (fast >= 0 && minutes <= fast) return Match{names.fast, Kind::Special};
+    const double escapes = mission_limit(s.mission, 50, 100, 150);
+    if (escapes >= 0 && s.clearing_escapes >= escapes) return Match{"GAZELLE", Kind::Special};
+    const double cow = mission_limit(s.mission, 50, 200, 250);
+    if (cow >= 0 && s.alerts >= cow) return Match{"Cow", Kind::Special};
+    const double kills = mission_limit(s.mission, 50, 200, 250);
+    if (kills >= 0 && s.kills >= kills) return Match{names.kills, Kind::Special};
+    if (s.rations_used >= 31) return Match{names.meals, Kind::Special};
+    const double slow = mission_limit(s.mission, 300, 1500, 1800);
+    if (slow >= 0 && minutes >= slow) return Match{names.time, Kind::Special};
+    const double saves = mission_limit(s.mission, 25, 75, 100);
+    if (saves >= 0 && s.saves >= saves) return Match{names.saves, Kind::Special};
+    if (const char* name = grid_match(s)) return Match{name, Kind::Regular};
+    return std::nullopt;
 }
 
-std::span<const ReqRow> mgs2_elite_rows()
+std::vector<ReqStatus> elite_requirements_mgs2(const GameStats& s)
 {
-    return kEliteLadder;
+    return requirements_from_rows(s, kEliteLadder, false);
 }
 
-}
+} // namespace bb::codename

@@ -3,7 +3,6 @@
 
 #include "check.h"
 #include "common/codename/codename.h"
-#include "common/codename/rules_mgs2.h"
 #include "common/stats.h"
 #include "games/mgs2/dog_tags.h"
 
