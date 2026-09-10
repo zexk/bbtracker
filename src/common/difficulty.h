@@ -32,12 +32,21 @@ inline constexpr DifficultyCode kMcDifficultyCodes[] = {
     {20, Difficulty::Easy},
     {30, Difficulty::Normal},
     {40, Difficulty::Hard},
+    {50, Difficulty::Extreme},
     {60, Difficulty::EuroExtreme},
 };
 
 inline Difficulty master_collection_difficulty(int code)
 {
     return difficulty_from_table(code, kMcDifficultyCodes, Difficulty::Extreme);
+}
+
+inline constexpr bool known_master_collection_difficulty(int code)
+{
+    for (const DifficultyCode& row : kMcDifficultyCodes) {
+        if (row.code == code) return true;
+    }
+    return false;
 }
 
 } // namespace bb
