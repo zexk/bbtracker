@@ -64,19 +64,52 @@ MGS2 and MGS3 retain their last complete gameplay snapshot while stage state is
 transitional or memory pointers disappear during loading. Confirmed title/menu states
 clear that snapshot.
 
-Probe reads player statistics from Master Collection player block. Radar state
-comes from a passively discovered GameState record whose mirrored counters must match
-player block. Discovery scans writable memory periodically until a valid record
-is found, then revalidates cached address.
+Master Collection pointer at module `+0x949340` resolves `linkvarbuf`, whose layout is
+declared by `mgs2x/source/include/linkvar.h` in the HD source. Every probe read maps as
+follows:
 
-Player-block `+0x06` is campaign: `0x10` Tanker, `0x20` Plant, `0x30` Tanker +
-Plant. Earlier probe read `+0x07`, the word's high byte; live Plant testing showed
-that byte toggling between `0x00` and transition flag `0x40`, which prevented Plant
-runs from latching. Title-menu status at `+0x158A` still distinguishes selected
-Plant from the Plant half of a combined run for codename thresholds.
+| Offset | Source variable | Tracker field | Width |
+| ---: | --- | --- | ---: |
+| `0x06` | `GM_Configuration` | run state and current radar type | 16-bit |
+| `0x10` | `GM_GameLevel` | difficulty | 16-bit |
+| `0x2C` | `GM_SaveAreaDir` | area code (first four characters) | char array |
+| `0xFA` | `GM_Vitality` | current health | 16-bit |
+| `0xFC` | `GM_VitalityMax` | maximum health | 16-bit |
+| `0x12E` | `GM_SnakeChin_Up` | pull-ups, summed with Raiden | 16-bit |
+| `0x130` | `GM_RaidenChin_Up` | pull-ups, summed with Snake | 16-bit |
+| `0x132` | `GM_ContinueCount` | continues | 16-bit |
+| `0x136` | `GM_SaveCount` | saves | 16-bit |
+| `0x138` | `GM_PlayTime` | play time, 60 ticks per second | 32-bit |
+| `0x140` | `GM_ShootCount` | shots fired | 16-bit |
+| `0x142` | `GM_AlertCount` | alerts | 16-bit |
+| `0x144` | `GM_KillCount` | kills | 16-bit |
+| `0x146` | `GM_DamageCount` | damage units | 16-bit |
+| `0x158` | `GM_MecaKillCount` | mechs destroyed | 16-bit |
+| `0x158A` | `GM_TitleMenuStatus` | selected campaign | 16-bit |
+| `0x158C` | `GM_ShipwormFlag` | Sea Louse attached | 16-bit |
+| `0x1590` | `GM_RationUseCount` | rations used | 16-bit |
+| `0x1592` | `GM_ClearingCount` | clearing escapes | 16-bit |
+| `0x1594` | `GM_RedFindCount` | red exclamation count (`times seen`) | 16-bit |
+| `0x1596` | `GM_ClearCodeFlag` | special-item and radar history | 16-bit |
 
-Sea Louse and Gazelle use `GM_ShipwormFlag` and `GM_ClearingCount`, identified from
-the HD source layout and confirmed by their position beside already-known player fields.
+`show_codename.c::ResultToCodename` consumes these values directly. It rounds play
+time up to whole minutes and converts damage with `(GM_DamageCount + 50) /
+GM_VitalityMax`; tracker reproduces both operations. Mech kills, Sea Louse, and
+clearing escapes feed lower codenames. Health, pull-ups, red exclamations, area, and
+current radar type are context only.
+
+`GM_ClearCodeFlag` bit `0x20` is source's authoritative special-item-used condition.
+Bits `0x0100` through `0x1000` identify Infinity Bandana, Infinity Wig, O2 Wig, Grip
+Wig, and Stealth Camo respectively. Bit `0x2000` records any radar use; BIG BOSS tests
+that historical bit rather than current radar setting. Current setting comes directly
+from `GM_Configuration`: `0` Type A, `0x20` Type B, and any value containing `0x04`
+Off.
+
+Campaign thresholds use `GM_TitleMenuStatus & 3`: `1` Tanker, `2` Plant, `3` Tanker +
+Plant, while source treats `0` (`1ST TIME`) like Plant at results. Run gating uses
+`GM_Configuration` story bits `0x1000` (Tanker active) and `0x2000` (Tanker cleared in
+this run), plus `w...` gameplay areas for Plant-only runs. Bit `0x4000` only pauses
+play-time counting during transitions; it is not a campaign value.
 
 ## MGS3
 
