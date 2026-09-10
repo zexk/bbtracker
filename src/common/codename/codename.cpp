@@ -212,6 +212,13 @@ constexpr std::array<ReqRow, 6> kMg2Reqs{{
     {"special items", StatId::SpecialItemUsed, Op::Eq, 0, ReqFmt::Count},
 }};
 
+std::array<ReqRow, kMg1Reqs.size()> mg1_requirements(const GameStats& s)
+{
+    auto rows = kMg1Reqs;
+    rows[2].limit = s.difficulty == Difficulty::Easy ? 9 : 8;
+    return rows;
+}
+
 // MG1 and MG2 have a single elite rank each, earned by clearing every row of
 // the ladder. Extreme names it BIG BOSS, Easy names it FOX; no other
 // difficulty ranks at all.
@@ -231,7 +238,8 @@ std::optional<Match> classic_elite(const GameStats& s, std::span<const ReqRow> r
 
 std::optional<Match> evaluate_mg1(const GameStats& s)
 {
-    if (const auto elite = classic_elite(s, kMg1Reqs)) return elite;
+    const auto rows = mg1_requirements(s);
+    if (const auto elite = classic_elite(s, rows)) return elite;
 
     const double seconds = s.play_time_seconds;
     if (seconds < 50 * 60 && s.kills <= 3) return Match{"EAGLE", Kind::Regular};
@@ -247,7 +255,7 @@ std::optional<Match> evaluate_mg1(const GameStats& s)
 
 std::vector<ReqStatus> elite_requirements_mg1(const GameStats& s)
 {
-    return requirements_from_rows(s, kMg1Reqs, true);
+    return requirements_from_rows(s, mg1_requirements(s), true);
 }
 
 std::optional<Match> evaluate_mg2(const GameStats& s)

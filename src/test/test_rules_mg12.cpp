@@ -50,6 +50,20 @@ void test_mg1_lower_rank_boundaries()
     CHECK(rank && std::string_view(rank->name) == "DEER");
 }
 
+void test_mg1_easy_alert_allowance()
+{
+    GameStats stats{};
+    stats.difficulty = Difficulty::Easy;
+    stats.play_time_seconds = 1;
+    stats.alerts = 9;
+    const auto easy = evaluate_mg1(stats);
+    CHECK(easy && std::string_view(easy->name) == "FOX");
+
+    stats.difficulty = Difficulty::Extreme;
+    const auto original = evaluate_mg1(stats);
+    CHECK(original && std::string_view(original->name) == "EAGLE");
+}
+
 void test_mg2_fox_time_gate()
 {
     GameStats stats{};
@@ -127,6 +141,7 @@ int main()
     constexpr bb::test::Case tests[] = {
         {"mg1_big_boss_time_and_kill_gates", test_mg1_big_boss_time_and_kill_gates},
         {"mg1_lower_rank_boundaries", test_mg1_lower_rank_boundaries},
+        {"mg1_easy_alert_allowance", test_mg1_easy_alert_allowance},
         {"mg2_fox_time_gate", test_mg2_fox_time_gate},
         {"mg2_lower_rank_boundaries", test_mg2_lower_rank_boundaries},
         {"babel_rank_selection", test_babel_rank_selection},
