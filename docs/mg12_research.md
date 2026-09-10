@@ -1,0 +1,223 @@
+# MG1/MG2 probe research
+
+Target build inspected: Steam app `2131680`, October 13, 2025 binaries.
+
+This document records both tracker-facing fields and partial decompilation notes.
+Addresses are RVAs relative to the named DLL, not preferred-image virtual addresses.
+Names such as `top_level_state` are descriptive names assigned during analysis; stripped
+release binaries provide no symbols beyond their two exported entry points.
+
+## Binary layout
+
+Both DLLs are 64-bit PE images built from Konami's `MGS_HD_BP_Perforce` tree. CodeView
+records reference these original PDB paths, but PDB files are not shipped:
+
+- MG1: `MGS3/x64/Steam_Release_Mg12/mg1.pdb`
+- MG2: `MGS3/x64/Steam_Release_Mg12/mg2.pdb`
+
+Each DLL exports only a procedure-table getter and a host-procedure setter:
+
+- `MG1_GetMG1Procs` / `MG1_SetMGSProcs`
+- `MG2_GetMG2Procs` / `MG2_SetMGSProcs`
+
+Game code calls back into the host through this installed procedure table. Several
+small functions near the start of `.text` are jump thunks into real game functions,
+so call targets must be followed before assigning behavior.
+
+## Runtime
+
+`METAL GEAR.exe` starts either game with `-mgst mg1` or `-mgst mg2` and loads
+`mg1.dll` or `mg2.dll`. Both game DLLs are native x86-64 PE modules. Runtime
+state is module-relative, so probes should wait for the selected DLL and reject
+unreadable or implausible fields.
+
+## Shipped asset layout
+
+Each locale ships parallel `stage/mg1` and `stage/mg2` trees. Their small
+`manifest.txt` files map installed paths to cache names; `bp_assets.txt` is empty in
+this build.
+
+- `cache/<language>.raw` contains localized dialogue and UI text. It also carries
+  the complete codename strings in native result order. For example, MG1's English
+  block lists `CHICKEN` through `BIG BOSS` at offsets near `0x15E87E`, while MG2's
+  equivalent block sits near `0x4CCD5`.
+- `cache/00180720.gcx` is compiled GCX UI/script data. Its `_bp` counterpart begins
+  with `LCGB`, is larger, and leaves menu and save-location labels readable as plain
+  strings. These labels provide full localized area-name lists for both games.
+- `pk0001a1.sdx` begins with `IPSQ` and contains `IWAV` chunks, identifying it as
+  packaged audio rather than gameplay script or rank data.
+- Five `.la2` cache files accompany each game. Their role remains unidentified;
+  nothing currently needed by tracker points through them.
+
+These GCX files are not Peace Walker `.olang` containers. They lack `RBX\0`
+magic; plain-string recovery is sufficient for known codename and location
+tables.
+
+## MG2 rank state
+
+MG2 end-screen rank evaluation starts at `mg2.dll+0x256BA`. Its counter getters
+resolve to this contiguous block:
+
+| RVA | Value |
+| --- | --- |
+| `0x45790` | raw game timer |
+| `0x45794` | rations used |
+| `0x45798` | humans killed |
+| `0x4579C` | alerts |
+| `0x457A0` | special-item use |
+| `0x457A8` | continues |
+
+Difficulty lives at offset `0x88` in the object reached through the pointer at
+`mg2.dll+0x46DE0`.
+
+The object pointer is installed during top-level state transitions around
+`mg2.dll+0x25E90` and `mg2.dll+0x25F69`. Rank counters remain in static storage after
+leaving gameplay, so pointer readability and plausible counter values do not prove a
+run is active.
+
+### MG2 run visibility
+
+`mg2.dll+0x39170` holds `41` at main menu, `0` during ordinary gameplay, pause,
+and codec, and `35` inside trucks. Tracker publishes MG2 stats for every value except
+main-menu sentinel `41`. Death and ending behavior remain untested.
+
+Rank-counter helpers around `mg2.dll+0x21030` through `0x21096` directly increment
+individual globals. `mg2.dll+0x210A0` initializes a run snapshot; `mg2.dll+0x215A0`
+copies it back. This explains why stale but internally valid rank data remains visible
+outside gameplay.
+
+Rank routine divides raw timer by 60. Each result unit represents four seconds:
+its Big Boss boundary is `0x627` (`0x627 * 60` raw ticks, 1:45:00), proving raw
+timer advances at 15 Hz. Full time tiers are:
+
+| Result index | Codename | Boundary | Real time |
+| --- | --- | --- | --- |
+| 9/10 | FOX / BIG BOSS | `< 0x627` | `< 1:45:00` |
+| 8 | EAGLE | `< 0x627` | `< 1:45:00` |
+| 7 | PANTHER | `< 0x8CA` | `< 2:30:00` |
+| 6 | JACKAL | `< 0xE10` | `< 4:00:00` |
+| 5 | ZEBRA | `< 0x1C20` | `< 8:00:00` |
+| 4 | DEER | `< 0x2A30` | `< 12:00:00` |
+| 3 | ELEPHANT | `< 0x34BC` | `< 15:00:00` |
+| 2 | HIPPOPOTAMUS | `< 0x3F48` | `< 18:00:00` |
+| 1 | TURTLE | `< 0x5460` | `< 24:00:00` |
+| 0 | CHICKEN | otherwise | `>= 24:00:00` |
+
+EAGLE, PANTHER, and JACKAL additionally require at most 10 kills. Exceeding
+that cap falls through to ZEBRA even when clear time is under four hours.
+
+### MG2 area names (located, not yet wired)
+
+Localized location strings live in `<locale>/stage/mg2/cache/_bp/00180720.gcx`.
+Native order gives roughly 50 location labels from `Infiltration Point` through
+the Big Boss battle and rendezvous. Not yet extracted into `names.h`-style tables:
+first need the live area-index address below.
+
+Live area index: still unresolved. Static disassembly (ImageBase
+`0x180000000`) ruled out the three candidates a prior session narrowed to via
+memory diffing:
+
+- `+0x46998`: plain `DWORD` counter (compared/incremented elsewhere), not tied
+  to location.
+- `+0x46AA4`: `DWORD` set to the literal constant `0` or `1` by
+  `mov dword ptr [...], 0x1`/`0x0` at several call sites -- a flag, not an
+  index. This is what flickered `1` then back to `0` on a screen transition.
+- `+0x46BAC`: ring-buffer cursor (mod-24 index arithmetic) into a small table
+  of cached x/y coordinate pairs -- looks like an enemy noise/last-seen-position
+  cache, unrelated to location.
+
+Next lead: the heap object reached through `mg2.dll+0x46DE0` (the same pointer
+that exposes difficulty at `+0x88`) is more likely to hold a location field
+than a flat DLL static, going by how Peace Walker's `PW_REGIONOBJECT` shape
+worked. Needs live-diffing that object's other fields across an area
+transition.
+
+Top-rank checks, in game order:
+
+- humans killed: at most 10 for top tier, then at most 5 for Big Boss/Fox
+- continues: 0
+- alerts: at most 6
+- rations: 0
+- special-item use: 0
+- difficulty field selects Big Boss versus Fox
+
+## MG1 rank state
+
+MG1 end-screen rendering starts at `mg1.dll+0x202E0`; rank evaluation starts at
+`mg1.dll+0x20DB8`. State getter `mg1.dll+0x15100` returns the static block at
+`mg1.dll+0x2F5E0`.
+
+| RVA | State offset | Value |
+| --- | --- | --- |
+| `0x2F6A4` | `0xC4` | difficulty |
+| `0x2F768` | `0x188` | raw game timer |
+| `0x2F76C` | `0x18C` | rations used |
+| `0x2F770` | `0x190` | humans killed |
+| `0x2F774` | `0x194` | alerts |
+| `0x2F778` | `0x198` | special-item use |
+| `0x2F780` | `0x1A0` | continues |
+
+`mg1.dll+0x15100` is a trivial getter returning `mg1.dll+0x2F5E0`. The rank-state
+region is `0x1A4` bytes: `mg1.dll+0x14F80` clears that exact size, while routines near
+`0x14EC0` and `0x158B0` copy it to and from the adjacent snapshot at
+`mg1.dll+0x2F7B0`.
+
+The timer-update routine at `mg1.dll+0x15B80` calls host procedure-table entry
+`+0x140` before updating `mg1.dll+0x2F768`. Static behavior identifies this callback
+as a clock-advance/active-tick query. It cannot serve as a visibility gate by itself:
+both pause and main menu can stop timer advancement, while pause must keep tracker
+visible.
+
+Live transition logging found `mg1.dll+0x2E260` at `0` on the main menu and `8` during
+early gameplay. It remained `8` through pause and resume, then changed from `8` to `0`
+on return to the main menu. Later room traversal changes the value, so it is not a
+single active-run state and may encode an area or screen. Tracker rejects only the
+known main-menu sentinel `0`. Death, ending, loading, and gameplay areas that use `0`
+still need live validation.
+
+Big Boss/Fox checks encoded by the evaluator:
+
+- raw timer below `0xAFC8` (45,000 ticks at 15 Hz, `0:50:00`)
+- continues: 0
+- alerts: at most 8 on Original; alternate difficulty path allows 9
+- humans killed: 0
+- rations: at most 1
+- special-item use: 0
+- difficulty selects Big Boss versus Fox
+
+The evaluator first permits at most 3 kills before entering its best-time rank
+branch, then applies the strict zero-kill check for Big Boss/Fox.
+
+Full rank ladder is:
+
+| Result index | Codename | Boundary | Real time |
+| --- | --- | --- | --- |
+| 9/10 | FOX / BIG BOSS | `< 0xAFC8` | `< 0:50:00` |
+| 8 | EAGLE | `< 0xAFC8` | `< 0:50:00` |
+| 7 | PANTHER | `< 0x13C68` | `< 1:30:00` |
+| 6 | JACKAL | `< 0x1A5E0` | `< 2:00:00` |
+| 5 | ZEBRA | `< 0x34BC0` | `< 4:00:00` |
+| 4 | DEER | `< 0x69780` | `< 8:00:00` |
+| 3 | ELEPHANT | `< 0x9E340` | `< 12:00:00` |
+| 2 | HIPPOPOTAMUS | `< 0xD2F00` | `< 16:00:00` |
+| 1 | TURTLE | `< 0x107AC0` | `< 20:00:00` |
+| 0 | CHICKEN | otherwise | `>= 20:00:00` |
+
+EAGLE through ZEBRA also require at most 3 kills. More than 3 kills falls through
+to DEER even below four hours.
+
+`mg1.dll+0x2E5FC`, published online as health, is not health. Code clears it on
+state transitions and tests it while handling player death. Do not use it as a
+health anchor.
+
+## Implementation shape
+
+One ASI target can support both games: wait for `mg1.dll` or `mg2.dll`, select
+matching probe and rules, and keep overlay unavailable until selected module and
+fields pass validation. Existing D3D11 overlay path is reusable.
+
+For run visibility, prefer an explicit lifecycle state over timer movement or nonzero
+counters. No such MG1 field is known yet; `+0x2E260` is used only to reject the
+live-tested main-menu sentinel `0`. MG2 rejects live-tested main-menu sentinel
+`+0x39170 == 41`. Loading either DLL proves selected game only, not an active ranked
+run.
