@@ -60,6 +60,10 @@ RMLSNK's Master Collection Cheat Engine table, and sagefantasma's MGS2 trainer.
 Rank priority, difficulty tiers, minute rounding, and inclusive boundaries follow the
 HD source `show_codename.c`. European Extreme is normalized to Extreme before judging.
 
+MGS2 and MGS3 retain their last complete gameplay snapshot while stage state is
+transitional or memory pointers disappear during loading. Confirmed title/menu states
+clear that snapshot.
+
 Probe reads player statistics from Master Collection player block. Radar state
 comes from a passively discovered GameState record whose mirrored counters must match
 player block. Discovery scans writable memory periodically until a valid record
