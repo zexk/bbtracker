@@ -285,6 +285,19 @@ only value changing at both continues in the same direction is `DF42`, the
 stage timer snapshot's minute byte. `C57C` looks like a candidate on one
 continue only, `0 -> 1`, then returns to 0; it is script-engine state.
 
+## Tooling
+
+`scripts/gbdis.py` is a minimal SM83 disassembler with two extra modes:
+`scan` finds every `ld [nn],a` / `ld a,[nn]` / `ld hl,nn` naming a given
+address across all 256 banks, and `dis` disassembles a file range at a
+given CPU base. Point it at a decrypted ROM dump; the dump is not in the
+repo.
+
+```sh
+scripts/gbdis.py rom.gbc dis 5ED8 5F4C 5ED8
+scripts/gbdis.py rom.gbc scan C4EE C4F0 C4F2
+```
+
 ## Live WRAM resolution
 
 The live memory-map record owns pointers for each Game Boy address window.

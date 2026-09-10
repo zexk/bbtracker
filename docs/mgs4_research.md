@@ -44,6 +44,14 @@ hooks DXGI `Present`/`ResizeBuffers` and
 uses per-backbuffer command allocators, render targets, and fences. Both
 renderers were live-validated under Proton.
 
+While MGS4 is running under Proton, set live Drebin-point balance with:
+
+```sh
+sudo python3 scripts/probe-mgs4-memory.py --set-drebin 100000000
+```
+
+Output reports `drebin_points` for verification.
+
 ## Live state pointer
 
 ```text
@@ -463,6 +471,19 @@ CodeView PDB path:
 ```text
 E:\Bola\source-code\out\x64_BGFX_Steam\source\main\Release\mgs4.pdb
 ```
+
+## Repository tools
+
+```sh
+python3 scripts/inspect-mgs4-save.py /path/to/MGS4.SAV
+python3 scripts/inspect-mgs4-save.py --self-test
+python3 scripts/probe-mgs4-memory.py
+python3 scripts/probe-mgs4-memory.py --dump-text /tmp/mgs4-text.bin
+python3 scripts/probe-mgs4-memory.py --self-test
+python3 scripts/list-vpak.py /path/to/archive.pak
+```
+
+Tools are read-only.
 
 ## Validation and unknowns
 

@@ -49,9 +49,9 @@ this build.
 - Five `.la2` cache files accompany each game. Their role remains unidentified;
   nothing currently needed by tracker points through them.
 
-These GCX files are not Peace Walker `.olang` containers. They lack `RBX\0`
-magic; plain-string recovery is sufficient for known codename and location
-tables.
+These GCX files are not Peace Walker `.olang` containers. They lack `RBX\0` magic
+and cannot be read by `scripts/pwolang.py`; plain-string recovery is sufficient for
+known codename and location tables.
 
 ## MG2 rank state
 

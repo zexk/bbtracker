@@ -434,6 +434,8 @@ Staff-count getters are `0x1400E3B60(group, 0)` and `0x1400E3A90(group, 0)`.
 body-part word (`obj+0x24`), the player's weapon (`player+0x11BC`, valid when
 `< 9`) and a flag bit in `obj+0x18`.
 
+`scripts/pwach.py` reproduces the metadata and predicate tables.
+
 ## Static anchors
 
 For `.rdata`, `RVA = file offset + 0x1400`.
@@ -493,6 +495,8 @@ Main Ops sit at `index - 2` (five cleared missions confirm it) while Extra
 Ops are index-aligned - id 36 is the Marksmanship Challenge whose results
 screen read "[005]", and id 52 is the Fulton Recovery op. The two sections
 therefore need separate rules; why the offset resets is not yet understood.
+
+`scripts/pwtext.py` drives the extraction end to end.
 
 ### Weapon and region names
 
@@ -626,8 +630,8 @@ checks is `0x180`, matching the `0x180`-byte state block cleared by
 `0x1400F9810` sets bit `0x200` in the dwords at `save+0xB520` and
 `save+0xB524`.
 
-`STAGEDAT/0175_result.rlc` contains 26 activation calls at an 18-byte stride,
-passing comm-message config IDs `50..289`.
+`scripts/pwgcl.py` finds 26 activation calls at an 18-byte stride in
+`STAGEDAT/0175_result.rlc`, passing comm-message config IDs `50..289`.
 Script tokens encode a tag byte followed by three hash bytes; an aligned
 32-bit search misses them.
 
@@ -779,7 +783,8 @@ does.
 
 Thresholds are data, not code. `0x140543810` builds a `110 x 3` dword table on
 the stack from `.rdata` constants around `0x140D40DF0` and returns
-`arr[(index-1)*3 + field]`. Emulating its stores recovers every requirement.
+`arr[(index-1)*3 + field]`. Reconstructing that table by emulating its stores
+recovers every requirement; `scripts/pwinsig.py` does it.
 
 Validated against a live profile: for the 84 records whose stat id is
 recovered, ownership equals `career > threshold` in 83 cases. The four held on
@@ -804,8 +809,8 @@ Confirmed against the four the research profile owns: id `1` Stealth Master
 (Rank C), id `16` Headshot Master (Rank C). Within a name, **Rank A is the
 highest tier**: CQC Master runs C `100`, B `500`, A `1000`.
 
-The recovered id-to-name table is baked into `rules_mgspw.cpp` as
-`kPwInsignias` alongside the thresholds.
+`scripts/pwolang.py` reads the container; the id-to-name table it produces is
+baked into `rules_mgspw.cpp` as `kPwInsignias` alongside the thresholds.
 
 ### The .olang container
 
@@ -888,6 +893,43 @@ the save block. The run save `STW00000092e301` (325,968 B) is fully
 encrypted: no dword of any known live value appears anywhere in it. Disk-side
 auditing is therefore not available; live diffing is the method.
 
+## Tools
+
+`nix develop .#re` provides `ghidra-bin` and `capstone`.
+
+| Script | Purpose |
+| --- | --- |
+| `probe-mgspw-memory.py` | live snapshot, `--idmap` stat table, `--rate`/`--trace`, `--dump-text` |
+| `pwdis.py` | overlays the `.pdata` function map on a runtime `.text` dump, disassembles, xrefs strings and immediates; `--raw` for functions `.pdata` omits, `--xref-mem` for globals, `--cmd-tables` for the script-command dispatch map |
+| `pwwatch.py` | records which save-block slots move across a session (how the live tallies were found) |
+| `pwach.py` | dumps the achievement metadata and predicate map |
+| `pwinsig.py` | reconstructs the insignia requirement table (stat id, threshold, heroism award) |
+| `pwgcl.py` | decodes GCL script token streams; `--hashes` lists the command/variable hashes a script references |
+| `pwhash.py` | name-hash helper for the script-variable lookups |
+| `pwolang.py` | reads an extracted `.olang` string container; `--insignias` prints the id-to-name table |
+| `find-mgspw-counter.py` | Cheat-Engine style snap/diff value scan (how `PW_MISSIONID` was found) |
+| `scan-mgspw-strings.py`, `rtti-mgspw-ach.py` | string and RTTI enumeration |
+
+Typical session:
+
+```sh
+python3 scripts/probe-mgspw-memory.py --dump-text /tmp/pw_text.bin
+python3 scripts/pwdis.py --text /tmp/pw_text.bin --xref-string noKill
+python3 scripts/pwwatch.py --seconds 1800 --out /tmp/pw_watch.json
+```
+
+Script-command lookups need only the on-disk exe, no running game:
+
+```sh
+python3 scripts/pwdis.py --cmd-tables                     # all 28,075 records
+python3 scripts/pwdis.py --cmd-tables --cmd-hash 0x26DF41 # who serves a hash
+python3 scripts/pwdis.py --cmd-tables --cmd-ptr 0x14039BC70  # and the reverse
+python3 scripts/pwdis.py --text /tmp/pw_text.bin --raw 0x14039C190 --raw-len 0x400
+```
+
+`--self-test` checks that the `0x26DF41 -> 0x14039BC70` pairing still
+resolves, which is enough to catch a game update moving the tables.
+
 ## Test protocol
 
 The ASI and `/proc` probes only read memory; save backups are copy-out.
@@ -944,8 +986,9 @@ mission id, `r10` value.
 | data stack | `0x1410A63E8` | VM stack pointer, pushed at `0x1400A55C0`; a watchpoint fires ~17k times a session and stalls the game |
 | second stack | `0x1410A64F0` | - |
 
-The formula lives in `STAGEDAT/0175_result.rlc`. All 92 scripts begin `oEbN`
-plus eleven `{u24 value, u8 tag}` entries - read that way
+The formula lives in `STAGEDAT/0175_result.rlc`, extracted already;
+`scripts/pwgcl.py` decodes the token layer and the container header. All 92
+scripts begin `oEbN` plus eleven `{u24 value, u8 tag}` entries - read that way
 970 of 984 values land inside the file with tags from `{0,1,2,3,4,5,255}`.
 Entry 2 is a 24-bit name hash, tag `255` a sentinel. Section boundaries are
 open: entry 10 as body length after a `0x30` header holds for 70 files and
