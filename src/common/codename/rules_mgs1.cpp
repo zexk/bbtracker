@@ -30,52 +30,7 @@ constexpr Cond kChicken[] = {{StatId::RationsUsed, Op::Gt, 120},
                              {StatId::Saves, Op::Gt, 80},
                              {StatId::PlayTimeHours, Op::Gt, 18}};
 
-constexpr Cond kGridL1Y0[] = {{StatId::Alerts, Op::Ge, 1}, {StatId::Alerts, Op::Lt, 30},
-                              {StatId::DiscoveryRatio, Op::Lt, 4}};
-constexpr Cond kGridL1Y1[] = {{StatId::Alerts, Op::Ge, 1},  {StatId::Alerts, Op::Lt, 30},
-                              {StatId::DiscoveryRatio, Op::Ge, 4},
-                              {StatId::DiscoveryRatio, Op::Lt, 8}};
-constexpr Cond kGridL1Y2[] = {{StatId::Alerts, Op::Ge, 1},
-                              {StatId::Alerts, Op::Lt, 30},
-                              {StatId::DiscoveryRatio, Op::Ge, 8},
-                              {StatId::DiscoveryRatio, Op::Lt, 16}};
-constexpr Cond kGridL1Y3[] = {{StatId::Alerts, Op::Ge, 1},
-                              {StatId::Alerts, Op::Lt, 30},
-                              {StatId::DiscoveryRatio, Op::Ge, 16},
-                              {StatId::DiscoveryRatio, Op::Lt, 20}};
-constexpr Cond kGridL1Y4[] = {{StatId::Alerts, Op::Ge, 1},
-                              {StatId::Alerts, Op::Lt, 30},
-                              {StatId::DiscoveryRatio, Op::Ge, 20}};
-constexpr Cond kGridL2Y0[] = {{StatId::Alerts, Op::Ge, 30}, {StatId::Alerts, Op::Lt, 55},
-                              {StatId::DiscoveryRatio, Op::Lt, 4}};
-constexpr Cond kGridL2Y1[] = {{StatId::Alerts, Op::Ge, 30},
-                              {StatId::Alerts, Op::Lt, 55},
-                              {StatId::DiscoveryRatio, Op::Ge, 4},
-                              {StatId::DiscoveryRatio, Op::Lt, 8}};
-constexpr Cond kGridL2Y2[] = {{StatId::Alerts, Op::Ge, 30},
-                              {StatId::Alerts, Op::Lt, 55},
-                              {StatId::DiscoveryRatio, Op::Ge, 8},
-                              {StatId::DiscoveryRatio, Op::Lt, 16}};
-constexpr Cond kGridL2Y3[] = {{StatId::Alerts, Op::Ge, 30},
-                              {StatId::Alerts, Op::Lt, 55},
-                              {StatId::DiscoveryRatio, Op::Ge, 16},
-                              {StatId::DiscoveryRatio, Op::Lt, 20}};
-constexpr Cond kGridL2Y4[] = {{StatId::Alerts, Op::Ge, 30},
-                              {StatId::Alerts, Op::Lt, 55},
-                              {StatId::DiscoveryRatio, Op::Ge, 20}};
-constexpr Cond kGridL3Y0[] = {{StatId::Alerts, Op::Ge, 55}, {StatId::DiscoveryRatio, Op::Lt, 4}};
-constexpr Cond kGridL3Y1[] = {{StatId::Alerts, Op::Ge, 55},
-                              {StatId::DiscoveryRatio, Op::Ge, 4},
-                              {StatId::DiscoveryRatio, Op::Lt, 8}};
-constexpr Cond kGridL3Y2[] = {{StatId::Alerts, Op::Ge, 55},
-                              {StatId::DiscoveryRatio, Op::Ge, 8},
-                              {StatId::DiscoveryRatio, Op::Lt, 16}};
-constexpr Cond kGridL3Y3[] = {{StatId::Alerts, Op::Ge, 55},
-                              {StatId::DiscoveryRatio, Op::Ge, 16},
-                              {StatId::DiscoveryRatio, Op::Lt, 20}};
-constexpr Cond kGridL3Y4[] = {{StatId::Alerts, Op::Ge, 55}, {StatId::DiscoveryRatio, Op::Ge, 20}};
-
-const std::array<RankRule, 23> kMgs1Rules{{
+const std::array<RankRule, 8> kMgs1Rules{{
     RankRule{"BIG BOSS", kX, Kind::Elite, std::span(kEliteConds)},
     RankRule{"FOX", kH, Kind::Elite, std::span(kEliteConds).subspan(1), true},
 
@@ -85,27 +40,7 @@ const std::array<RankRule, 23> kMgs1Rules{{
     RankRule{"Hippopotamus", kAny, Kind::Special, kHippo},
     RankRule{"Turtle", kAny, Kind::Special, kTurtle, true},
     RankRule{"Chicken", kAny, Kind::Special, kChicken, true},
-
-    RankRule{"Leopard", kAny, Kind::Regular, kGridL1Y0},
-    RankRule{"Leopard", kAny, Kind::Regular, kGridL1Y1},
-    RankRule{"Jackal", kAny, Kind::Regular, kGridL1Y2},
-    RankRule{"Tarantula", kAny, Kind::Regular, kGridL1Y3},
-    RankRule{"Tarantula", kAny, Kind::Regular, kGridL1Y4},
-
-    RankRule{"Grizzly", kAny, Kind::Regular, kGridL2Y0},
-    RankRule{"Jackal", kAny, Kind::Regular, kGridL2Y1},
-    RankRule{"Jackal", kAny, Kind::Regular, kGridL2Y2},
-    RankRule{"Jackal", kAny, Kind::Regular, kGridL2Y3},
-    RankRule{"Gazelle", kAny, Kind::Regular, kGridL2Y4},
-
-    RankRule{"Grizzly", kAny, Kind::Regular, kGridL3Y0},
-    RankRule{"Grizzly", kAny, Kind::Regular, kGridL3Y1},
-    RankRule{"Jackal", kAny, Kind::Regular, kGridL3Y2},
-    RankRule{"Gazelle", kAny, Kind::Regular, kGridL3Y3},
-    RankRule{"Gazelle", kAny, Kind::Regular, kGridL3Y4},
 }};
-
-static_assert(std::size(kMgs1Rules) == 23);
 
 } // namespace
 
@@ -122,6 +57,20 @@ std::span<const ReqRow> mgs1_elite_rows()
 std::span<const Cond> mgs1_elite_conds()
 {
     return kEliteConds;
+}
+
+const char* mgs1_regular_name(const GameStats& s)
+{
+    if (s.alerts < 1) return nullptr;
+    constexpr const char* names[3][5] = {
+        {"Leopard", "Leopard", "Jackal", "Tarantula", "Tarantula"},
+        {"Grizzly", "Jackal", "Jackal", "Jackal", "Gazelle"},
+        {"Grizzly", "Grizzly", "Jackal", "Gazelle", "Gazelle"},
+    };
+    const int x = s.alerts < 30 ? 0 : s.alerts < 55 ? 1 : 2;
+    const double ratio = stat_value(s, StatId::DiscoveryRatio);
+    const int y = ratio < 4 ? 0 : ratio < 8 ? 1 : ratio < 16 ? 2 : ratio < 20 ? 3 : 4;
+    return names[x][y];
 }
 
 }

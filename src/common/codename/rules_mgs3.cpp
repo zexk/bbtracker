@@ -72,58 +72,7 @@ constexpr Cond kManyInjury[] = {{StatId::SevereInjuries, Op::Gt, 250}};
 constexpr Cond kLongTime[] = {{StatId::PlayTimeHours, Op::Gt, 50}};
 constexpr Cond kManySaves[] = {{StatId::Saves, Op::Gt, 100}};
 
-constexpr TierMask kAnyTier = kAllMgs3;
-
-constexpr Cond kRegK1C50A1[] = {
-    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
-    {StatId::Alerts, Op::Ge, 1},     {StatId::Alerts, Op::Le, 20},
-};
-constexpr Cond kRegK1C50A2[] = {
-    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
-    {StatId::Alerts, Op::Ge, 21},    {StatId::Alerts, Op::Le, 50},
-};
-constexpr Cond kRegK1C50A3[] = {
-    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 1}, {StatId::Kills, Op::Le, 100},
-    {StatId::Alerts, Op::Ge, 51},
-};
-constexpr Cond kRegK2C50A1[] = {
-    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 101},
-    {StatId::Alerts, Op::Le, 20},
-};
-constexpr Cond kRegK2C50A2[] = {
-    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 101},
-    {StatId::Alerts, Op::Ge, 21},    {StatId::Alerts, Op::Le, 50},
-};
-constexpr Cond kRegK2C50A3[] = {
-    {StatId::Continues, Op::Le, 50}, {StatId::Kills, Op::Ge, 101},
-    {StatId::Alerts, Op::Ge, 51},
-};
-constexpr Cond kRegK1C51A1[] = {
-    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
-    {StatId::Alerts, Op::Le, 20},
-};
-constexpr Cond kRegK1C51A2[] = {
-    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
-    {StatId::Alerts, Op::Ge, 21},    {StatId::Alerts, Op::Le, 50},
-};
-constexpr Cond kRegKomodo[] = {
-    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 1},  {StatId::Kills, Op::Le, 100},
-    {StatId::Alerts, Op::Ge, 51},
-};
-constexpr Cond kRegSpider[] = {
-    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 101},
-    {StatId::Alerts, Op::Le, 20},
-};
-constexpr Cond kRegPuma[] = {
-    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 101},
-    {StatId::Alerts, Op::Ge, 21},    {StatId::Alerts, Op::Le, 50},
-};
-constexpr Cond kRegAlligator[] = {
-    {StatId::Continues, Op::Ge, 51}, {StatId::Kills, Op::Ge, 101},
-    {StatId::Alerts, Op::Ge, 51},
-};
-
-const std::array<RankRule, 61> kMgs3Rules{{
+const std::array<RankRule, 49> kMgs3Rules{{
     RankRule{"FOXHOUND", kExtreme, Kind::Elite, kEliteStep0},
 
     RankRule{"FOX", kH_, Kind::Elite, kEliteStep0},
@@ -186,22 +135,6 @@ const std::array<RankRule, 61> kMgs3Rules{{
     RankRule{kAnimalTiers.saves.high, kH_, Kind::Special, kManySaves},
     RankRule{kAnimalTiers.saves.normal, kN, Kind::Special, kManySaves},
     RankRule{kAnimalTiers.saves.low, kVEE, Kind::Special, kManySaves},
-
-    RankRule{"Scorpion", kAnyTier, Kind::Regular, kRegK1C50A1},
-    RankRule{"Jaguar", kAnyTier, Kind::Regular, kRegK1C50A2},
-    RankRule{"Iguana", kAnyTier, Kind::Regular, kRegK1C50A3},
-
-    RankRule{"Tarantula", kAnyTier, Kind::Regular, kRegK2C50A1},
-    RankRule{"Panther", kAnyTier, Kind::Regular, kRegK2C50A2},
-    RankRule{"Crocodile", kAnyTier, Kind::Regular, kRegK2C50A3},
-
-    RankRule{"Centipede", kAnyTier, Kind::Regular, kRegK1C51A1},
-    RankRule{"Leopard", kAnyTier, Kind::Regular, kRegK1C51A2},
-    RankRule{"Komodo Dragon", kAnyTier, Kind::Regular, kRegKomodo},
-
-    RankRule{"Spider", kAnyTier, Kind::Regular, kRegSpider},
-    RankRule{"Puma", kAnyTier, Kind::Regular, kRegPuma},
-    RankRule{"Alligator", kAnyTier, Kind::Regular, kRegAlligator},
 }};
 
 } // namespace
@@ -214,6 +147,19 @@ std::span<const RankRule> mgs3_rules()
 std::span<const ReqRow> mgs3_elite_rows()
 {
     return kEliteStep0Rows;
+}
+
+const char* mgs3_regular_name(const GameStats& s)
+{
+    if (s.kills < 1) return nullptr;
+    constexpr const char* names[2][2][3] = {
+        {{"Scorpion", "Jaguar", "Iguana"}, {"Tarantula", "Panther", "Crocodile"}},
+        {{"Centipede", "Leopard", "Komodo Dragon"}, {"Spider", "Puma", "Alligator"}},
+    };
+    const int continues = s.continues <= 50 ? 0 : 1;
+    const int kills = s.kills <= 100 ? 0 : 1;
+    const int alerts = s.alerts <= 20 ? 0 : s.alerts <= 50 ? 1 : 2;
+    return names[continues][kills][alerts];
 }
 
 }

@@ -137,12 +137,16 @@ std::vector<Match> all_matches(const GameStats& s, std::span<const RankRule> rul
 
 std::optional<Match> evaluate_mgs3(const GameStats& s)
 {
-    return first_match(s, mgs3_rules());
+    if (auto match = first_match(s, mgs3_rules())) return match;
+    if (const char* name = mgs3_regular_name(s)) return Match{name, Kind::Regular};
+    return std::nullopt;
 }
 
 std::vector<Match> all_matches_mgs3(const GameStats& s)
 {
-    return all_matches(s, mgs3_rules());
+    auto matches = all_matches(s, mgs3_rules());
+    if (const char* name = mgs3_regular_name(s)) matches.push_back({name, Kind::Regular});
+    return matches;
 }
 
 const RankRule* find_mgs3(const char* name)
@@ -171,6 +175,9 @@ std::optional<Match> evaluate_mgs1(const GameStats& s)
         if (rule_matches(s, r, jp_ungated)) {
             return Match{r.name, r.kind};
         }
+    }
+    if (!s.mgs1_integral) {
+        if (const char* name = mgs1_regular_name(s)) return Match{name, Kind::Regular};
     }
     return std::nullopt;
 }
