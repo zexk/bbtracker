@@ -1132,77 +1132,72 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
         apply_scroll(scroll);
         if (ImGui::BeginTable("mgs4_feat_rows", 2,
                               ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-            ImGui::TableSetupColumn("emblem / requirement", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("progress", ImGuiTableColumnFlags_WidthFixed, ui_size(125));
+            ImGui::TableSetupColumn("emblem", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("progress", ImGuiTableColumnFlags_WidthFixed, ui_size(180));
             const ImVec4 done_color = id_colors(g_game).green;
             const ImVec4 pending_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
-            const auto row = [&](const char* name, const char* goal, const char* value) {
+            const auto row = [&](const char* name, const char* value) {
                 const bool done = matched(name);
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::TextColored(done ? done_color : pending_color, "%s", name);
-                ImGui::PushTextWrapPos(0.0f);
-                ImGui::TextDisabled("%s", goal);
-                ImGui::PopTextWrapPos();
                 ImGui::TableNextColumn();
                 ImGui::TextColored(done ? done_color : pending_color, "%s", value);
             };
-            const auto count = [&](const char* name, const char* goal, int value, int target) {
-                char text[40];
-                snprintf(text, sizeof(text), "%d / %d", value, target);
-                row(name, goal, text);
+            const auto count = [&](const char* name, int value, int target, const char* unit) {
+                char text[64];
+                snprintf(text, sizeof(text), "%d / %d %s", value, target, unit);
+                row(name, text);
             };
-            const auto time = [&](const char* name, const char* goal,
-                                  double seconds, double target_seconds) {
-                char current[16], target[16], text[40];
+            const auto time = [&](const char* name, double seconds, double target_seconds,
+                                  const char* unit) {
+                char current[16], target[16], text[64];
                 format_time(seconds, current, sizeof(current));
                 format_time(target_seconds, target, sizeof(target));
-                snprintf(text, sizeof(text), "%s / %s", current, target);
-                row(name, goal, text);
+                snprintf(text, sizeof(text), "%s / %s %s", current, target, unit);
+                row(name, text);
             };
             char text[96];
-            // Goals come from the shared mgs4_goals table so the panel cannot
-            // drift from what the ranks match on; the strings stay literal
-            // display text.
+            // Goals come from shared table so panel cannot drift from rank rules.
             namespace goals = codename::mgs4_goals;
-            count("BEAR", "100 CQC chokes", stats.cqc_chokes, goals::kBearChokes);
-            count("EAGLE", "150 headshots", stats.headshots, goals::kEagleHeadshots);
+            count("BEAR", stats.cqc_chokes, goals::kBearChokes, "CQC chokes");
+            count("EAGLE", stats.headshots, goals::kEagleHeadshots, "headshots");
             snprintf(text, sizeof(text), "knife %d / %d\nCQC %d / %d\nalerts %d / %d",
                       stats.knife_defeats, goals::kAssassinKnife,
                       stats.cqc_holds, goals::kAssassinCqcHolds,
                       stats.alerts, goals::kAssassinMaxAlerts);
-            row("ASSASSIN", "50 knife, 50 CQC, max 25 alerts", text);
+            row("ASSASSIN", text);
             snprintf(text, sizeof(text), "%d kills", stats.kills);
-            row("PIGEON", "No kills", text);
-            count("BLUE BIRD", "Give allies 50 items", stats.items_given, goals::kBlueBirdItems);
-            count("HAWK", "Earn 25 ally praises", stats.praises, goals::kHawkPraises);
-            count("LITTLE GRAY", "Acquire 69 weapons", stats.weapons_acquired, goals::kLittleGrayWeapons);
-            count("ANT", "Search 50 held-up enemies", stats.body_searches, goals::kAntSearches);
-            count("GIBBON", "Hold up 50 enemies", stats.hold_ups, goals::kGibbonHoldUps);
-            time("TORTOISE", "60 min in box or drum", stats.box_time_seconds, goals::kTortoiseBoxMinutes * 60);
-            count("RABBIT", "Turn 100 magazine pages", stats.magazine_pages, goals::kRabbitPages);
-            count("BEE", "50 Syringe / Scanning Plug uses", stats.syringe_uses, goals::kBeeSyringeUses);
-            time("GECKO", "60 min against walls", stats.wall_time_seconds, goals::kGeckoWallMinutes * 60);
-            count("SCARAB", "100 prone side rolls", stats.side_rolls, goals::kScarabSideRolls);
-            count("FROG", "200 forward rolls", stats.forward_rolls, goals::kFrogForwardRolls);
-            time("INCH WORM", "Crawl for 60 min", stats.crawl_time_seconds, goals::kInchWormCrawlMinutes * 60);
-            time("LOBSTER", "Crouch for 150 min", stats.crouch_time_seconds, goals::kLobsterCrouchMinutes * 60);
-            count("HYENA", "Pick up 400 weapons / items", stats.pickups, goals::kHyenaPickups);
-            count("HOG", "Enter Combat High 10 times", stats.combat_highs, goals::kHogCombatHighs);
-            count("PIG", "Use 40 recovery items", stats.rations_used, goals::kPigRations);
-            count("COW", "Trigger 100 alerts", stats.alerts, goals::kCowAlerts);
-            count("CROCODILE", "Kill 400 enemies", stats.kills, goals::kCrocodileKills);
-            time("GIANT PANDA", "Play for 30 hours", stats.play_time_seconds, goals::kGiantPandaHours * 60 * 60);
+            row("PIGEON", text);
+            count("BLUE BIRD", stats.items_given, goals::kBlueBirdItems, "items given");
+            count("HAWK", stats.praises, goals::kHawkPraises, "praises");
+            count("LITTLE GRAY", stats.weapons_acquired, goals::kLittleGrayWeapons, "weapons");
+            count("ANT", stats.body_searches, goals::kAntSearches, "searches");
+            count("GIBBON", stats.hold_ups, goals::kGibbonHoldUps, "hold-ups");
+            time("TORTOISE", stats.box_time_seconds, goals::kTortoiseBoxMinutes * 60, "box time");
+            count("RABBIT", stats.magazine_pages, goals::kRabbitPages, "pages");
+            count("BEE", stats.syringe_uses, goals::kBeeSyringeUses, "uses");
+            time("GECKO", stats.wall_time_seconds, goals::kGeckoWallMinutes * 60, "wall time");
+            count("SCARAB", stats.side_rolls, goals::kScarabSideRolls, "side rolls");
+            count("FROG", stats.forward_rolls, goals::kFrogForwardRolls, "forward rolls");
+            time("INCH WORM", stats.crawl_time_seconds, goals::kInchWormCrawlMinutes * 60, "crawl time");
+            time("LOBSTER", stats.crouch_time_seconds, goals::kLobsterCrouchMinutes * 60, "crouch time");
+            count("HYENA", stats.pickups, goals::kHyenaPickups, "pickups");
+            count("HOG", stats.combat_highs, goals::kHogCombatHighs, "combat highs");
+            count("PIG", stats.rations_used, goals::kPigRations, "recovery items");
+            count("COW", stats.alerts, goals::kCowAlerts, "alerts");
+            count("CROCODILE", stats.kills, goals::kCrocodileKills, "kills");
+            time("GIANT PANDA", stats.play_time_seconds, goals::kGiantPandaHours * 60 * 60, "play time");
             char current[16], target[16], chicken[192];
             format_time(stats.play_time_seconds, current, sizeof(current));
             format_time(goals::kChickenHours * 60 * 60, target, sizeof(target));
             snprintf(chicken, sizeof(chicken),
-                     "alerts %d / %d\nkills %d / %d\ncontinues %d / %d\nrecovery %d / %d\n%s / %s",
+                     "alerts %d / %d\nkills %d / %d\ncontinues %d / %d\nrecovery items %d / %d\nplay time %s / %s",
                      stats.alerts, goals::kChickenAlerts,
                      stats.kills, goals::kChickenKills,
                      stats.continues, goals::kChickenContinues,
                      stats.rations_used, goals::kChickenRecoveryItems, current, target);
-            row("CHICKEN", "At least 150 alerts, 500 kills, 50 continues, 50 recovery items and 35 hours", chicken);
+            row("CHICKEN", chicken);
             ImGui::EndTable();
         }
     }
