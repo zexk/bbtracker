@@ -120,38 +120,36 @@ void test_ladder_gated_on_unknown_time()
     CHECK(std::string_view(best(s)) != "FOX");
 }
 
-void test_falcon_precedes_jaws()
+void test_rank_cases()
 {
-    GameStats s = with(2.4);
-    s.kills = 300;
-    CHECK(std::string_view(best(s)) == "Falcon");
-}
-
-void test_jaws()
-{
-    GameStats s = with(5);
-    s.kills = 260;
-    CHECK(std::string_view(best(s)) == "Jaws");
-}
-
-void test_pig()
-{
-    GameStats s = with(5);
-    s.rations_used = 121;
-    CHECK(std::string_view(best(s)) == "Pig");
-}
-
-void test_hippo()
-{
-    GameStats s = with(5);
-    s.saves = 81;
-    CHECK(std::string_view(best(s)) == "Hippopotamus");
-}
-
-void test_turtle()
-{
-    GameStats s = with(19);
-    CHECK(std::string_view(best(s)) == "Turtle");
+    struct Case {
+        double hours;
+        int alerts;
+        int kills;
+        int rations;
+        int saves;
+        const char* expected;
+    };
+    constexpr Case cases[] = {
+        {2.4, 0, 300, 0, 0, "Falcon"},
+        {5, 0, 260, 0, 0, "Jaws"},
+        {5, 0, 0, 121, 0, "Pig"},
+        {5, 0, 0, 0, 81, "Hippopotamus"},
+        {19, 0, 0, 0, 0, "Turtle"},
+        {5, 10, 60, 0, 0, "Leopard"},
+        {5, 10, 20, 0, 0, "Tarantula"},
+        {5, 31, 103, 0, 0, "Grizzly"},
+        {5, 35, 60, 0, 0, "Jackal"},
+        {5, 60, 30, 0, 0, "Gazelle"},
+    };
+    for (const Case& c : cases) {
+        GameStats s = with(c.hours);
+        s.alerts = c.alerts;
+        s.kills = c.kills;
+        s.rations_used = c.rations;
+        s.saves = c.saves;
+        CHECK(std::string_view(best(s)) == c.expected);
+    }
 }
 
 void test_chicken_unreachable_behind_pig()
@@ -160,46 +158,6 @@ void test_chicken_unreachable_behind_pig()
     s.rations_used = 130;
     s.saves = 90;
     CHECK(std::string_view(best(s)) == "Pig");
-}
-
-void test_grid_leopard_low_ratio()
-{
-    GameStats s = with(5);
-    s.alerts = 10;
-    s.kills = 60;
-    CHECK(std::string_view(best(s)) == "Leopard");
-}
-
-void test_grid_tarantula_low_kills_high_y()
-{
-    GameStats s = with(5);
-    s.alerts = 10;
-    s.kills = 20;
-    CHECK(std::string_view(best(s)) == "Tarantula");
-}
-
-void test_grid_grizzly_mid_band()
-{
-    GameStats s = with(5);
-    s.alerts = 31;
-    s.kills = 103;
-    CHECK(std::string_view(best(s)) == "Grizzly");
-}
-
-void test_grid_jackal_mid_cell()
-{
-    GameStats s = with(5);
-    s.alerts = 35;
-    s.kills = 60;
-    CHECK(std::string_view(best(s)) == "Jackal");
-}
-
-void test_grid_gazelle_far_corner()
-{
-    GameStats s = with(5);
-    s.alerts = 60;
-    s.kills = 30;
-    CHECK(std::string_view(best(s)) == "Gazelle");
 }
 
 } // namespace
@@ -217,17 +175,8 @@ int main()
         {"integral_requirements_do_not_include_radar",
          test_integral_requirements_do_not_include_radar},
         {"ladder_gated_on_unknown_time", test_ladder_gated_on_unknown_time},
-        {"falcon_precedes_jaws", test_falcon_precedes_jaws},
-        {"jaws", test_jaws},
-        {"pig", test_pig},
-        {"hippo", test_hippo},
-        {"turtle", test_turtle},
+        {"rank_cases", test_rank_cases},
         {"chicken_unreachable_behind_pig", test_chicken_unreachable_behind_pig},
-        {"grid_leopard_low_ratio", test_grid_leopard_low_ratio},
-        {"grid_tarantula_low_kills_high_y", test_grid_tarantula_low_kills_high_y},
-        {"grid_grizzly_mid_band", test_grid_grizzly_mid_band},
-        {"grid_jackal_mid_cell", test_grid_jackal_mid_cell},
-        {"grid_gazelle_far_corner", test_grid_gazelle_far_corner},
     };
 
     return bb::test::run("mgs1", tests);

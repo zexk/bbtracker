@@ -56,54 +56,34 @@ void test_foxhound_perfect_extreme()
     CHECK(has_pigeon);
 }
 
-void test_fox_hard_strict()
+void test_elite_rank_cases()
 {
-    GameStats s = sloppy(Difficulty::Hard);
-    s.alerts = 0;
-    s.kills = 0;
-    s.continues = 0;
-    s.severe_injuries = 10;
-    s.damage_taken_units = 96;   // ~2 bars
-    s.play_time_seconds = 3600.0 * 4.5;
-    s.saves = 24;
-    CHECK(std::string_view(best(s)) == "FOX");
-}
-
-void test_fox_extreme_loose()
-{
-    GameStats s = sloppy(Difficulty::Extreme);
-    s.alerts = 3;
-    s.kills = 0;
-    s.continues = 0;
-    s.play_time_seconds = 3600.0 * 4.8;
-    s.saves = 34;
-    CHECK(std::string_view(best(s)) == "FOX");
-}
-
-void test_doberman_normal_strict()
-{
-    GameStats s = sloppy(Difficulty::Normal);
-    s.alerts = 0;
-    s.kills = 0;
-    s.continues = 0;
-    s.severe_injuries = 5;
-    s.damage_taken_units = 48;   // ~1 bar
-    s.play_time_seconds = 3600.0 * 4;
-    s.saves = 20;
-    CHECK(std::string_view(best(s)) == "DOBERMAN");
-}
-
-void test_hound_easy_strict()
-{
-    GameStats s = sloppy(Difficulty::Easy);
-    s.alerts = 0;
-    s.kills = 0;
-    s.continues = 0;
-    s.severe_injuries = 0;
-    s.damage_taken_units = 24;   // ~0.5 bars
-    s.play_time_seconds = 3600.0 * 3;
-    s.saves = 10;
-    CHECK(std::string_view(best(s)) == "HOUND");
+    struct Case {
+        Difficulty difficulty;
+        int alerts;
+        int injuries;
+        int damage;
+        double hours;
+        int saves;
+        const char* expected;
+    };
+    constexpr Case cases[] = {
+        {Difficulty::Hard, 0, 10, 96, 4.5, 24, "FOX"},
+        {Difficulty::Extreme, 3, 30, 600, 4.8, 34, "FOX"},
+        {Difficulty::Normal, 0, 5, 48, 4, 20, "DOBERMAN"},
+        {Difficulty::Easy, 0, 0, 24, 3, 10, "HOUND"},
+    };
+    for (const Case& c : cases) {
+        GameStats s = sloppy(c.difficulty);
+        s.alerts = c.alerts;
+        s.kills = 0;
+        s.continues = 0;
+        s.severe_injuries = c.injuries;
+        s.damage_taken_units = c.damage;
+        s.play_time_seconds = 3600.0 * c.hours;
+        s.saves = c.saves;
+        CHECK(std::string_view(best(s)) == c.expected);
+    }
 }
 
 void test_chameleon_precedence_over_pigeon()
@@ -183,36 +163,23 @@ void test_exact_damage_bars_override_estimate()
     CHECK(std::string_view(best(s)) == "FOXHOUND");
 }
 
-void test_markhor_by_capture_count()
+void test_collection_specials()
 {
     GameStats s = sloppy(Difficulty::Normal);
     s.plants_captured = 48;
     CHECK(std::string_view(best(s)) == "Markhor");
     s.plants_captured = 47;
     CHECK(std::string_view(best(s)) != "Markhor");
-}
-
-void test_kerotan_by_count()
-{
-    GameStats s = sloppy(Difficulty::Normal);
+    s.plants_captured = 0;
     s.kerotans = 64;
     CHECK(std::string_view(best(s)) == "Kerotan");
     s.kerotans = 63;
     CHECK(std::string_view(best(s)) != "Kerotan");
-}
-
-void test_leech_attached()
-{
-    GameStats s = sloppy(Difficulty::Normal);
+    s.kerotans = 0;
     s.leech_attached = true;
     CHECK(std::string_view(best(s)) == "Leech");
     s.leech_attached = false;
     CHECK(std::string_view(best(s)) != "Leech");
-}
-
-void test_tsuchinoko_alive()
-{
-    GameStats s = sloppy(Difficulty::Normal);
     s.tsuchinoko_alive = true;
     CHECK(std::string_view(best(s)) == "Tsuchinoko");
     s.tsuchinoko_alive = false;
@@ -341,20 +308,14 @@ int main()
 {
     constexpr bb::test::Case tests[] = {
         {"foxhound_perfect_extreme", test_foxhound_perfect_extreme},
-        {"fox_hard_strict", test_fox_hard_strict},
-        {"fox_extreme_loose", test_fox_extreme_loose},
-        {"doberman_normal_strict", test_doberman_normal_strict},
-        {"hound_easy_strict", test_hound_easy_strict},
+        {"elite_rank_cases", test_elite_rank_cases},
         {"chameleon_precedence_over_pigeon", test_chameleon_precedence_over_pigeon},
         {"pigeon_zero_kills_with_alerts", test_pigeon_zero_kills_with_alerts},
         {"chicken_worst_very_easy", test_chicken_worst_very_easy},
         {"cow_alerts_over_250", test_cow_alerts_over_250},
         {"mgs3_boundaries", test_mgs3_boundaries},
         {"exact_damage_bars_override_estimate", test_exact_damage_bars_override_estimate},
-        {"markhor_by_capture_count", test_markhor_by_capture_count},
-        {"kerotan_by_count", test_kerotan_by_count},
-        {"leech_attached", test_leech_attached},
-        {"tsuchinoko_alive", test_tsuchinoko_alive},
+        {"collection_specials", test_collection_specials},
         {"swallow_fast_sloppy_ve", test_swallow_fast_sloppy_ve},
         {"regular_fallback", test_regular_fallback},
         {"elite_requirements_statuses", test_elite_requirements_statuses},
