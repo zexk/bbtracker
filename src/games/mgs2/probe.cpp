@@ -31,13 +31,13 @@ constexpr size_t kTitleMenuStatusOffset = 0x158A;
 constexpr size_t kSnakePullUpsOffset = 0x12E;
 constexpr size_t kRaidenPullUpsOffset = 0x130;
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID2.exe";
-constexpr uint8_t kCampaignTanker = 16;
-constexpr uint8_t kCampaignPlant = 32;
-constexpr uint8_t kCampaignTankerAndPlant = kCampaignTanker | kCampaignPlant;
 constexpr uint16_t kStorySelectionMask = 0x0003;
 constexpr uint16_t kStoryTanker = 0x0001;
 constexpr uint16_t kStoryPlant = 0x0002;
 constexpr uint16_t kStoryTankerAndPlant = 0x0003;
+constexpr uint16_t kStoryTankerActive = 0x1000;
+constexpr uint16_t kStoryTankerCleared = 0x2000;
+constexpr uint16_t kStoryFlags = kStoryTankerActive | kStoryTankerCleared;
 constexpr uint16_t kRadarSettingMask = 0x0024;
 constexpr uint16_t kSpecialItemUsed = 0x0020;
 constexpr uint16_t kRadarUsed = 0x2000;
@@ -50,29 +50,26 @@ constexpr uint16_t used_special_items(uint16_t clear_code_flags)
 static_assert(used_special_items(0x1F00) == 0x1F);
 static_assert(used_special_items(0x001F) == 0);
 
-constexpr bool ranked_campaign(uint8_t campaign)
+constexpr bool menu_area(std::string_view area)
 {
-    return campaign == kCampaignTanker || campaign == kCampaignPlant
-        || campaign == kCampaignTankerAndPlant;
+    return area == "init" || area == "n_ti" || area == "msel"
+        || area == "mkse" || area == "sele" || area == "trme";
 }
 
-static_assert(ranked_campaign(kCampaignTanker));
-static_assert(ranked_campaign(kCampaignPlant));
-static_assert(ranked_campaign(kCampaignTankerAndPlant));
-static_assert(!ranked_campaign(0));
-static_assert(!ranked_campaign(0x40));
-
-constexpr RunState run_state(uint8_t campaign, std::string_view area)
+constexpr RunState run_state(uint16_t configuration, std::string_view area)
 {
-    if (ranked_campaign(campaign)) return RunState::Active;
-    if (campaign == 0 && area.size() == 4 && area[0] == 'w') return RunState::Unknown;
-    return RunState::Inactive;
+    if (menu_area(area)) return RunState::Inactive;
+    if ((configuration & kStoryFlags) != 0 || (area.size() == 4 && area[0] == 'w')) {
+        return RunState::Active;
+    }
+    return area.empty() ? RunState::Inactive : RunState::Unknown;
 }
 
-static_assert(run_state(kCampaignTanker, "w00a") == RunState::Active);
-static_assert(run_state(0, "w00a") == RunState::Unknown);
+static_assert(run_state(kStoryTankerActive, "w00a") == RunState::Active);
+static_assert(run_state(0, "w00a") == RunState::Active);
+static_assert(run_state(0x4000, "d001") == RunState::Unknown);
+static_assert(run_state(kStoryTankerActive, "n_ti") == RunState::Inactive);
 static_assert(run_state(0, "") == RunState::Inactive);
-static_assert(run_state(0x40, "w00a") == RunState::Inactive);
 
 constexpr int codename_mission(uint16_t title_menu_status)
 {
@@ -92,8 +89,7 @@ uintptr_t g_last_player = 0;
 
 struct StatOffsets {
     constexpr static size_t kAreaCode = 0x2C;
-    // Low byte of campaign word. +0x07 is its transition/state high byte.
-    constexpr static size_t kCampaign = 0x06;
+    constexpr static size_t kConfiguration = 0x06;
     constexpr static size_t kDifficulty = 0x10;
     constexpr static size_t kContinues = 4;
     constexpr static size_t kSaves = 8;
@@ -171,7 +167,8 @@ bool poll_stats(GameStats& out)
     const uint16_t clear_code_flags = read_at<uint16_t>(player, kSpecialItemsOffset);
     out.special_items_mask = used_special_items(clear_code_flags);
     out.special_item_used = (clear_code_flags & kSpecialItemUsed) != 0;
-    out.radar_type = read_at<uint16_t>(player, StatOffsets::kCampaign) & kRadarSettingMask;
+    const uint16_t configuration = read_at<uint16_t>(player, StatOffsets::kConfiguration);
+    out.radar_type = configuration & kRadarSettingMask;
     // Codename judge checks whether radar was ever used, not current setting.
     out.radar_off = (clear_code_flags & kRadarUsed) == 0;
 
@@ -180,12 +177,11 @@ bool poll_stats(GameStats& out)
     out.difficulty_raw = raw_difficulty;
     out.difficulty_game_byte = raw_difficulty;
 
-    const uint8_t campaign = read_at<uint8_t>(player, StatOffsets::kCampaign);
-    static uint8_t last_campaign = 0xFF;
-    if (campaign != last_campaign) {
-        LOG_INFO("mgs2 campaign %u (ranked %d), difficulty %u", campaign,
-                 ranked_campaign(campaign) ? 1 : 0, out.difficulty_raw);
-        last_campaign = campaign;
+    static uint16_t last_configuration = 0xFFFF;
+    if (configuration != last_configuration) {
+        LOG_INFO("mgs2 configuration 0x%04x, difficulty %u", configuration,
+                 out.difficulty_raw);
+        last_configuration = configuration;
     }
     out.mission = codename_mission(read_at<uint16_t>(player, kTitleMenuStatusOffset));
 
@@ -200,7 +196,7 @@ bool poll_stats(GameStats& out)
     }
     set_area(out, area);
 
-    return g_run.update(out, run_state(campaign, out.area_code));
+    return g_run.update(out, run_state(configuration, out.area_code));
 }
 
 } // namespace bb::mgs2
