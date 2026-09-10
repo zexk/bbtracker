@@ -5,6 +5,17 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+set(GAMES mg12 mgs1 mgs2 mgs3 mgs4 mgspw babel)
+set(RANKED_GAMES mg12 mgs1 mgs2 mgs3 mgs4 mgspw)
+set(RULE_SOURCES
+  src/common/codename/codename.cpp
+  src/common/codename/rules_mgs1.cpp
+  src/common/codename/rules_mgs1_integral.cpp
+  src/common/codename/rules_mgs2.cpp
+  src/common/codename/rules_mgs3.cpp
+  src/common/codename/rules_mgs4.cpp
+  src/common/codename/rules_mgspw.cpp)
+
 if(WIN32)
   include(FetchContent)
 
@@ -52,62 +63,39 @@ if(WIN32)
 
   add_library(core STATIC
     src/common/log.cpp
-    src/common/codename/codename.cpp
-    src/common/codename/rules_mgs4.cpp
-    src/common/codename/rules_mgspw.cpp
-    src/common/codename/rules_mgs3.cpp
-    src/common/codename/rules_mgs2.cpp
-    src/common/codename/rules_mgs1.cpp
-    src/common/codename/rules_mgs1_integral.cpp
+    ${RULE_SOURCES}
     src/overlay/overlay.cpp)
   target_include_directories(core PUBLIC src)
   target_link_libraries(core PUBLIC imgui minhook d3d11 d3d12 dxgi d3dcompiler dwmapi)
 
-  function(bb_asi name label sources)
+  function(bb_asi name label)
+    file(GLOB sources CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/games/${name}/*.cpp)
     add_library(${name} SHARED ${sources} src/games/asi_main.cpp)
     set_target_properties(${name} PROPERTIES PREFIX "" OUTPUT_NAME "bbtracker_${name}" SUFFIX ".asi")
     target_link_libraries(${name} PRIVATE core)
     target_compile_definitions(${name} PRIVATE BB_GAME_LABEL="${label}")
   endfunction()
 
-  file(GLOB MGS1_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/games/mgs1/*.cpp)
-  file(GLOB MG12_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/games/mg12/*.cpp)
-  file(GLOB MGS2_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/games/mgs2/*.cpp)
-  file(GLOB MGS3_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/games/mgs3/*.cpp)
-  file(GLOB MGS4_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/games/mgs4/*.cpp)
-  file(GLOB MGSPW_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/games/mgspw/*.cpp)
-  file(GLOB BABEL_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/games/babel/*.cpp)
-  bb_asi(mg12 "METAL GEAR / METAL GEAR 2" "${MG12_SOURCES}")
-  bb_asi(mgs1 "METAL GEAR SOLID" "${MGS1_SOURCES}")
-  bb_asi(mgs2 "METAL GEAR SOLID 2" "${MGS2_SOURCES}")
-  bb_asi(mgs3 "METAL GEAR SOLID 3" "${MGS3_SOURCES}")
-  bb_asi(mgs4 "METAL GEAR SOLID 4" "${MGS4_SOURCES}")
-  bb_asi(mgspw "METAL GEAR SOLID: PEACE WALKER" "${MGSPW_SOURCES}")
-  bb_asi(babel "METAL GEAR: GHOST BABEL" "${BABEL_SOURCES}")
+  bb_asi(mg12 "METAL GEAR / METAL GEAR 2")
+  bb_asi(mgs1 "METAL GEAR SOLID")
+  bb_asi(mgs2 "METAL GEAR SOLID 2")
+  bb_asi(mgs3 "METAL GEAR SOLID 3")
+  bb_asi(mgs4 "METAL GEAR SOLID 4")
+  bb_asi(mgspw "METAL GEAR SOLID: PEACE WALKER")
+  bb_asi(babel "METAL GEAR: GHOST BABEL")
 
-  install(TARGETS mg12 mgs1 mgs2 mgs3 mgs4 mgspw babel RUNTIME DESTINATION bin)
+  install(TARGETS ${GAMES} RUNTIME DESTINATION bin)
 endif()
 
 if(UNIX)
-  # Every suite pulls in the whole rule set: the evaluators share the stat
-  # accessors in codename.cpp, so trimming the list per game buys nothing.
-  set(RULES_SOURCES
-    src/common/codename/codename.cpp
-    src/common/codename/rules_mgs1.cpp
-    src/common/codename/rules_mgs1_integral.cpp
-    src/common/codename/rules_mgs2.cpp
-    src/common/codename/rules_mgs3.cpp
-    src/common/codename/rules_mgs4.cpp
-    src/common/codename/rules_mgspw.cpp)
-
   function(bb_rules_test game)
-    add_executable(rules_${game}_tests src/test/test_rules_${game}.cpp ${RULES_SOURCES})
+    add_executable(rules_${game}_tests src/test/test_rules_${game}.cpp ${RULE_SOURCES})
     target_include_directories(rules_${game}_tests PRIVATE src)
     add_test(NAME ${game}_rules COMMAND rules_${game}_tests)
   endfunction()
 
   enable_testing()
-  foreach(game mg12 mgs1 mgs2 mgs3 mgs4 mgspw)
+  foreach(game IN LISTS RANKED_GAMES)
     bb_rules_test(${game})
   endforeach()
 endif()
