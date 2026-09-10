@@ -37,7 +37,16 @@ constexpr uint16_t kStoryTanker = 0x0001;
 constexpr uint16_t kStoryPlant = 0x0002;
 constexpr uint16_t kStoryTankerAndPlant = 0x0003;
 constexpr uint16_t kRadarSettingMask = 0x0024;
+constexpr uint16_t kSpecialItemUsed = 0x0020;
 constexpr uint16_t kRadarUsed = 0x2000;
+
+constexpr uint16_t used_special_items(uint16_t clear_code_flags)
+{
+    return (clear_code_flags >> 8) & 0x1F;
+}
+
+static_assert(used_special_items(0x1F00) == 0x1F);
+static_assert(used_special_items(0x001F) == 0);
 
 constexpr bool ranked_campaign(uint8_t campaign)
 {
@@ -157,11 +166,12 @@ bool poll_stats(GameStats& out)
     out.sea_louse = read_at<uint16_t>(player, kShipwormOffset) != 0;
     out.clearing_escapes = read_at<uint16_t>(player, kClearingEscapesOffset);
     out.times_seen = read_at<uint16_t>(player, kTimesSeenOffset);
-    out.special_items_mask = read_at<uint16_t>(player, kSpecialItemsOffset);
-    out.special_item_used = (out.special_items_mask & 0x000F) != 0;
+    const uint16_t clear_code_flags = read_at<uint16_t>(player, kSpecialItemsOffset);
+    out.special_items_mask = used_special_items(clear_code_flags);
+    out.special_item_used = (clear_code_flags & kSpecialItemUsed) != 0;
     out.radar_type = read_at<uint16_t>(player, StatOffsets::kCampaign) & kRadarSettingMask;
     // Codename judge checks whether radar was ever used, not current setting.
-    out.radar_off = (out.special_items_mask & kRadarUsed) == 0;
+    out.radar_off = (clear_code_flags & kRadarUsed) == 0;
 
     const uint8_t raw_difficulty = read_at<uint8_t>(player, StatOffsets::kDifficulty);
     out.difficulty = master_collection_difficulty(raw_difficulty);

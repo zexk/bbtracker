@@ -1064,7 +1064,7 @@ void dim_row(const char* key, const char* value)
 std::span<const char* const> special_item_names(Game game)
 {
     static constexpr const char* kMgs2[] = {
-        "Stealth Camo", "Infinity Bandana/Wig", "O2 Wig", "Grip Wig"};
+        "Infinity Bandana", "Infinity Wig", "O2 Wig", "Grip Wig", "Stealth Camo"};
     static constexpr const char* kMgs3[] = {
         "Stealth Camo", "Infinity Face Paint", "EZ Gun"};
     static constexpr const char* kMgs4[] = {"Infinity Bandana", "Stealth Camo"};
