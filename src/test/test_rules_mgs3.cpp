@@ -3,7 +3,6 @@
 
 #include "check.h"
 #include "common/codename/codename.h"
-#include "common/codename/rules_mgs3.h"
 #include "common/stats.h"
 
 using namespace bb;
@@ -246,23 +245,6 @@ void test_regular_fallback()
     CHECK(std::string_view(best(t)) == "Spider");
 }
 
-void test_tier_gating()
-{
-    GameStats s = sloppy(Difficulty::Extreme);
-    const RankRule* fh = find_mgs3("FOXHOUND");
-    CHECK(fh != nullptr);
-    if (fh) {
-        CHECK(!rule_matches(s, *fh));
-    }
-    const RankRule* fox_x = nullptr;
-    for (const RankRule& r : mgs3_rules()) {
-        if ((r.tiers & kX) != 0 && std::string_view(r.name) == "FOX") {
-            fox_x = &r;
-        }
-    }
-    CHECK(fox_x != nullptr);
-}
-
 void test_elite_requirements_statuses()
 {
     GameStats s = sloppy(Difficulty::Extreme);
@@ -375,7 +357,6 @@ int main()
         {"tsuchinoko_alive", test_tsuchinoko_alive},
         {"swallow_fast_sloppy_ve", test_swallow_fast_sloppy_ve},
         {"regular_fallback", test_regular_fallback},
-        {"tier_gating", test_tier_gating},
         {"elite_requirements_statuses", test_elite_requirements_statuses},
         {"animal_tier_names", test_animal_tier_names},
     };

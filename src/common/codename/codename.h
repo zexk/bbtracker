@@ -146,8 +146,6 @@ std::optional<Match> evaluate_mgs3(const GameStats& s);
 
 std::vector<Match> all_matches_mgs3(const GameStats& s);
 
-const RankRule* find_mgs3(const char* name);
-
 struct ReqStatus {
     const char* label;
     bool pass;

@@ -1,4 +1,4 @@
-#include "rules_mgs3.h"
+#include "codename.h"
 
 #include <array>
 

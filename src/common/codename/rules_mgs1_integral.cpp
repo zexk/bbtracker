@@ -1,8 +1,10 @@
-#include "rules_mgs1.h"
+#include "codename.h"
 
 #include <array>
 
 namespace bb::codename {
+std::span<const Cond> mgs1_elite_conds();
+
 namespace {
 
 constexpr TierMask kTier[4] = {kX, kH, kN, kE | kVe};

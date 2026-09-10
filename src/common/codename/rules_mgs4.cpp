@@ -1,5 +1,7 @@
 #include "rules_mgs4.h"
 
+#include "codename.h"
+
 #include <array>
 #include <utility>
 #include <vector>
@@ -130,12 +132,7 @@ std::vector<Match> all_matches_mgs4(const GameStats& s)
 
 std::vector<ReqStatus> elite_requirements_mgs4(const GameStats& s)
 {
-    return requirements_from_rows(s, mgs4_elite_rows(), false);
-}
-
-std::span<const ReqRow> mgs4_elite_rows()
-{
-    return kBigBossRows;
+    return requirements_from_rows(s, kBigBossRows, false);
 }
 
 } // namespace bb::codename

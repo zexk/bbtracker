@@ -4,11 +4,14 @@
 #include <algorithm>
 #include <cmath>
 
-#include "rules_mgs1.h"
-#include "rules_mgs3.h"
-#include "rules_mgs4.h"
-
 namespace bb::codename {
+std::span<const RankRule> mgs1_rules();
+std::span<const RankRule> mgs1_integral_rules();
+std::span<const ReqRow> mgs1_elite_rows();
+const char* mgs1_regular_name(const GameStats& s);
+std::span<const RankRule> mgs3_rules();
+std::span<const ReqRow> mgs3_elite_rows();
+const char* mgs3_regular_name(const GameStats& s);
 namespace {
 
 constexpr double kDamageUnitsPerBar = 48.0;
@@ -147,16 +150,6 @@ std::vector<Match> all_matches_mgs3(const GameStats& s)
     auto matches = all_matches(s, mgs3_rules());
     if (const char* name = mgs3_regular_name(s)) matches.push_back({name, Kind::Regular});
     return matches;
-}
-
-const RankRule* find_mgs3(const char* name)
-{
-    for (const RankRule& r : mgs3_rules()) {
-        if (std::string_view(r.name) == name) {
-            return &r;
-        }
-    }
-    return nullptr;
 }
 
 std::vector<ReqStatus> elite_requirements_mgs3(const GameStats& s)
