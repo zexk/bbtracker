@@ -2,14 +2,16 @@
 
 #include <windows.h>
 
+#include <array>
 #include <cstdint>
 #include <cstring>
 
+#include "../../common/log.h"
 #include "../../common/mem.h"
+#include "../../common/run_latch.h"
 
 namespace bb::mg12 {
 
-using bb::mem::range_readable;
 using bb::mem::read;
 
 namespace {
@@ -53,6 +55,19 @@ static_assert(!mg1_run_active(0));
 
 HMODULE g_mg1 = nullptr;
 HMODULE g_mg2 = nullptr;
+RunLatch g_mg1_run;
+RunLatch g_mg2_run;
+bool g_mg1_logged = false;
+bool g_mg2_logged = false;
+
+void log_module_once(HMODULE module, const char* game, bool& logged)
+{
+    uint32_t timestamp = 0;
+    if (!logged && mem::module_timestamp(module, timestamp)) {
+        LOG_INFO("%s module timestamp 0x%08X", game, static_cast<unsigned>(timestamp));
+        logged = true;
+    }
+}
 
 } // namespace
 
@@ -64,18 +79,24 @@ bool poll_mg1(GameStats& out)
         g_mg1 = GetModuleHandleW(L"mg1.dll");
     }
     const auto module = reinterpret_cast<uintptr_t>(g_mg1);
+    if (g_mg1) log_module_once(g_mg1, "mg1", g_mg1_logged);
     constexpr uintptr_t first = 0x2F6A4;
     constexpr uintptr_t last = 0x2F780;
-    if (!module || !range_readable(module + 0x2E260, sizeof(uint32_t))
-        || !range_readable(module + first, last - first + sizeof(uint32_t))) {
+    uint32_t state = 0;
+    std::array<uint8_t, last - first + sizeof(uint32_t)> stats{};
+    if (!module || !mem::copy(module + 0x2E260, state)
+        || !mem::copy(module + first, stats.data(), stats.size())) {
         g_mg1 = nullptr;
-        return false;
+        return g_mg1_run.hold(out);
     }
-    set_common(out, read<uint32_t>(module + 0x2F6A4), read<uint32_t>(module + 0x2F768),
-               read<uint32_t>(module + 0x2F76C), read<uint32_t>(module + 0x2F770),
-               read<uint32_t>(module + 0x2F774), read<uint32_t>(module + 0x2F778),
-               read<uint32_t>(module + 0x2F780), 15.0);
-    return mg1_run_active(read<uint32_t>(module + 0x2E260));
+    const uint32_t difficulty = read<uint32_t>(stats.data(), 0x00);
+    if (difficulty > 1) return g_mg1_run.hold(out);
+    set_common(out, difficulty, read<uint32_t>(stats.data(), 0xC4),
+               read<uint32_t>(stats.data(), 0xC8), read<uint32_t>(stats.data(), 0xCC),
+               read<uint32_t>(stats.data(), 0xD0), read<uint32_t>(stats.data(), 0xD4),
+               read<uint32_t>(stats.data(), 0xDC), 15.0);
+    return g_mg1_run.update(out, mg1_run_active(state) ? RunState::Active
+                                                       : RunState::Inactive);
 }
 
 bool poll_mg2(GameStats& out)
@@ -84,19 +105,25 @@ bool poll_mg2(GameStats& out)
         g_mg2 = GetModuleHandleW(L"mg2.dll");
     }
     const auto module = reinterpret_cast<uintptr_t>(g_mg2);
-    if (!module || !range_readable(module + 0x39170, sizeof(uint32_t))
-        || !range_readable(module + 0x45790, 0x1C)
-        || !range_readable(module + 0x46DE0, sizeof(uintptr_t))) {
+    if (g_mg2) log_module_once(g_mg2, "mg2", g_mg2_logged);
+    uint32_t substate = 0;
+    uintptr_t state = 0;
+    std::array<uint8_t, 0x1C> stats{};
+    if (!module || !mem::copy(module + 0x39170, substate)
+        || !mem::copy(module + 0x45790, stats.data(), stats.size())
+        || !mem::copy(module + 0x46DE0, state)) {
         g_mg2 = nullptr;
-        return false;
+        return g_mg2_run.hold(out);
     }
-    const uintptr_t state = read<uintptr_t>(module + 0x46DE0);
-    if (!state || !range_readable(state + 0x88, sizeof(uint32_t))) return false;
-    set_common(out, read<uint32_t>(state + 0x88), read<uint32_t>(module + 0x45790),
-               read<uint32_t>(module + 0x45794), read<uint32_t>(module + 0x45798),
-               read<uint32_t>(module + 0x4579C), read<uint32_t>(module + 0x457A0),
-               read<uint32_t>(module + 0x457A8), kMg2TicksPerSecond);
-    return mg2_run_active(read<uint32_t>(module + 0x39170));
+    uint32_t difficulty = 0;
+    if (!state || !mem::copy(state + 0x88, difficulty)) return g_mg2_run.hold(out);
+    if (difficulty > 1) return g_mg2_run.hold(out);
+    set_common(out, difficulty, read<uint32_t>(stats.data(), 0x00),
+               read<uint32_t>(stats.data(), 0x04), read<uint32_t>(stats.data(), 0x08),
+               read<uint32_t>(stats.data(), 0x0C), read<uint32_t>(stats.data(), 0x10),
+               read<uint32_t>(stats.data(), 0x18), kMg2TicksPerSecond);
+    return g_mg2_run.update(out, mg2_run_active(substate) ? RunState::Active
+                                                          : RunState::Inactive);
 }
 
 } // namespace bb::mg12
