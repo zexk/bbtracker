@@ -28,6 +28,8 @@ constexpr size_t kSpecialItemsOffset = 0x1596;
 constexpr size_t kTimesSeenOffset = 0x1594;
 constexpr size_t kPlayerRegionSize = 0x1600;
 constexpr size_t kTitleMenuStatusOffset = 0x158A;
+constexpr size_t kSnakePullUpsOffset = 0x12E;
+constexpr size_t kRaidenPullUpsOffset = 0x130;
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID2.exe";
 constexpr uint8_t kCampaignTanker = 16;
 constexpr uint8_t kCampaignPlant = 32;
@@ -100,7 +102,6 @@ struct StatOffsets {
     constexpr static size_t kAlerts = 20;
     constexpr static size_t kKills = 22;
     constexpr static size_t kDamage = 24;
-    constexpr static size_t kPullUps = 14;
     constexpr static size_t kMechsDestroyed = 42;
     constexpr static size_t kCurrentHealth = 250;
     constexpr static size_t kMaxHealth = 252;
@@ -151,7 +152,8 @@ bool poll_stats(GameStats& out)
     out.shots_fired = read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kShots);
     out.damage_taken_units =
         read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kDamage);
-    out.pull_ups = read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kPullUps);
+    out.pull_ups = read_at<uint16_t>(player, kSnakePullUpsOffset)
+        + read_at<uint16_t>(player, kRaidenPullUpsOffset);
     out.mechs_destroyed =
         read_at<uint16_t>(player, kStatsBlockOffset + StatOffsets::kMechsDestroyed);
     out.current_health = read_at<uint16_t>(player, StatOffsets::kCurrentHealth);
