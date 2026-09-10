@@ -1046,17 +1046,15 @@ void stat_row(const char* key, const char* value)
     ImGui::TextUnformatted(value);
 }
 
-// A row whose value the probe has not resolved. The label stays readable —
-// the row is still telling you the counter exists — and the dash reads as
-// absent rather than as a value.
+// A row whose value the probe has not resolved.
 void unset_row(const char* key)
 {
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
     ImGui::TextUnformatted(key);
     ImGui::TableNextColumn();
-    if (g_game == Game::MGSPW) align_value("-");
-    ImGui::TextDisabled("-");
+    if (g_game == Game::MGSPW) align_value("n/a");
+    ImGui::TextDisabled("n/a");
 }
 
 // Same row, dimmed: context the panel shows but does not rank on.
@@ -1547,7 +1545,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
             ImGui::TextUnformatted(label);
             for (int value : {lethal, nonlethal}) {
                 ImGui::TableNextColumn();
-                if (value < 0) snprintf(buf, sizeof(buf), "-");
+                if (value < 0) snprintf(buf, sizeof(buf), "n/a");
                 else format_count(value, buf, sizeof(buf));
                 align_value(buf);
                 if (value < 0) ImGui::TextDisabled("%s", buf);
@@ -1608,9 +1606,6 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
     }
     ImGui::Spacing();
     ImGui::EndChild();
-    // Outside the scrolling region: the legend explains the whole tab, so it
-    // should not be something you have to scroll to the end to find.
-    ImGui::TextDisabled("- = unavailable");
 }
 
 void draw_mgspw_insignia(const GameStats& stats)
