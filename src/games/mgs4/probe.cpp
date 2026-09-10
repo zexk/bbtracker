@@ -1,5 +1,3 @@
-#include "probe.h"
-
 #include <windows.h>
 
 #include <array>
@@ -12,6 +10,9 @@
 #include "../../common/log.h"
 #include "../../common/mem.h"
 #include "../../common/run_latch.h"
+#include "../../common/stats.h"
+#include "../../overlay/overlay.h"
+#include "../asi_main.h"
 
 namespace bb::mgs4 {
 
@@ -155,3 +156,8 @@ bool poll_stats(GameStats& out)
 }
 
 } // namespace bb::mgs4
+
+void bb::asi_main()
+{
+    start_overlay(BB_GAME_LABEL, &mgs4::poll_stats, L"mgs4.exe", Game::MGS4);
+}

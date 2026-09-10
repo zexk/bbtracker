@@ -1,5 +1,3 @@
-#include "probe.h"
-
 #include <windows.h>
 
 #include <array>
@@ -9,6 +7,9 @@
 #include "../../common/log.h"
 #include "../../common/mem.h"
 #include "../../common/run_latch.h"
+#include "../../common/stats.h"
+#include "../../overlay/overlay.h"
+#include "../asi_main.h"
 
 namespace bb::mg12 {
 
@@ -127,3 +128,13 @@ bool poll_mg2(GameStats& out)
 }
 
 } // namespace bb::mg12
+
+void bb::asi_main()
+{
+    while (!GetModuleHandleW(L"mg1.dll") && !GetModuleHandleW(L"mg2.dll")) Sleep(100);
+    if (GetModuleHandleW(L"mg1.dll")) {
+        start_overlay("METAL GEAR", &mg12::poll_mg1, L"METAL GEAR.exe", Game::MG1);
+    } else {
+        start_overlay("METAL GEAR 2", &mg12::poll_mg2, L"METAL GEAR.exe", Game::MG2);
+    }
+}

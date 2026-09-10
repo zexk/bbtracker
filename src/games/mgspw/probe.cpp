@@ -1,4 +1,3 @@
-#include "probe.h"
 #include "names.h"
 
 #include <windows.h>
@@ -13,6 +12,9 @@
 
 #include "../../common/log.h"
 #include "../../common/mem.h"
+#include "../../common/stats.h"
+#include "../../overlay/overlay.h"
+#include "../asi_main.h"
 
 namespace bb::mgspw {
 
@@ -735,3 +737,10 @@ bool poll_stats(GameStats& out)
 }
 
 } // namespace bb::mgspw
+
+void bb::asi_main()
+{
+    start_overlay(BB_GAME_LABEL, &mgspw::poll_stats,
+                  L"METAL GEAR SOLID PEACE WALKER.exe", Game::MGSPW,
+                  &mgspw::poll_mission_clock);
+}

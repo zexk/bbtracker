@@ -1,5 +1,3 @@
-#include "probe.h"
-
 #include <windows.h>
 #include <array>
 #include <bit>
@@ -14,6 +12,9 @@
 #include "../../common/log.h"
 #include "../../common/mem.h"
 #include "../../common/run_latch.h"
+#include "../../common/stats.h"
+#include "../../overlay/overlay.h"
+#include "../asi_main.h"
 
 namespace bb::mgs3 {
 
@@ -328,3 +329,8 @@ bool poll_stats(GameStats& out)
 }
 
 } // namespace bb::mgs3
+
+void bb::asi_main()
+{
+    start_overlay(BB_GAME_LABEL, &mgs3::poll_stats, L"METAL GEAR SOLID3.exe", Game::MGS3);
+}

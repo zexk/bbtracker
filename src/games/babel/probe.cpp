@@ -11,6 +11,8 @@
 #include "../../common/log.h"
 #include "../../common/mem.h"
 #include "../../common/run_latch.h"
+#include "../../overlay/overlay.h"
+#include "../asi_main.h"
 
 namespace bb::babel {
 
@@ -153,3 +155,9 @@ bool poll_stats(GameStats& out)
 }
 
 } // namespace bb::babel
+
+void bb::asi_main()
+{
+    start_overlay(BB_GAME_LABEL, &babel::poll_stats,
+                  L"MGS MC2 Bonus Content.exe", Game::Babel);
+}
