@@ -28,6 +28,7 @@
 
 #include "../common/codename/codename.h"
 #include "../common/codename/rules_mgs4.h"
+#include "../common/format.h"
 #include "../common/log.h"
 #include "../games/mgs2/dog_tags.h"
 #include "../games/mgspw/names.h"
@@ -1014,20 +1015,6 @@ void apply_scroll(int scroll)
         ImGui::SetScrollY(ImGui::GetScrollY()
                           + scroll * ImGui::GetTextLineHeightWithSpacing() * 8);
     }
-}
-
-void format_time(double seconds, char* buf, size_t len)
-{
-    const int total = static_cast<int>(seconds);
-    snprintf(buf, len, "%d:%02d:%02d", total / 3600, (total / 60) % 60, total % 60);
-}
-
-void format_count(int64_t value, char* buf, size_t len)
-{
-    std::string text = std::to_string(value);
-    for (int pos = static_cast<int>(text.size()) - 3; pos > (value < 0 ? 1 : 0); pos -= 3)
-        text.insert(pos, ",");
-    snprintf(buf, len, "%s", text.c_str());
 }
 
 void align_value(const char* text)

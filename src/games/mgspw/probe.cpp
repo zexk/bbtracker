@@ -1,4 +1,5 @@
 #include "names.h"
+#include "stat_reader.h"
 
 #include <windows.h>
 
@@ -200,22 +201,10 @@ constexpr uint32_t kBodyKillIds[] = {0x200ED};
 // to nine player tallies. The caller has already validated the descriptor.
 int mission_stat(uintptr_t record, int player)
 {
-    const uint32_t flags = mem::read<uint32_t>(record + 0x10) >> 16;
-    if (flags & 0x220) return -1;
-    uintptr_t address = record + 0x18;
-    if (!(flags & 0x40)) {
-        if (player < 0 || player > 8) return -1;
-        const uintptr_t pointer = mem::read<uintptr_t>(address);
-        if (!pointer) return -1;
-        address = pointer + player * sizeof(int32_t);
-    }
-    int value = -1;
-    if ((flags & 0x40) != 0) {
-        value = mem::read<int32_t>(address);
-    } else if (!mem::copy(address, value)) {
-        return -1;
-    }
-    return value >= 0 && value <= static_cast<int>(kStatMax) ? value : -1;
+    return decode_mission_stat(reinterpret_cast<const uint8_t*>(record), player,
+                               [](uintptr_t p, void* out, size_t size) {
+                                   return mem::copy(p, out, size);
+                               });
 }
 
 void read_stat_families(uintptr_t block, GameStats& out)

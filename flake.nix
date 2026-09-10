@@ -124,25 +124,6 @@
             '';
           };
 
-          # The overlay draws through the Windows-only hook, so the panel
-          # functions are compiled natively against ImGui's null backend.
-          overlay-tests = pkgs.stdenv.mkDerivation {
-            pname = "bbtracker-overlay-tests";
-            inherit version;
-            src = self;
-
-            nativeBuildInputs = [ pkgs.python3 ];
-
-            IMGUI_DIR = imgui;
-
-            buildPhase = ''
-              python3 scripts/test-pw-overlay.py
-              python3 scripts/test-pw-probe.py
-            '';
-            installPhase = ''
-              mkdir -p $out
-            '';
-          };
         });
     };
 }

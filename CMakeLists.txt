@@ -98,4 +98,8 @@ if(UNIX)
   foreach(game IN LISTS RANKED_GAMES)
     bb_rules_test(${game})
   endforeach()
+
+  add_executable(pw_portable_tests src/test/test_pw_portable.cpp)
+  target_include_directories(pw_portable_tests PRIVATE src)
+  add_test(NAME pw_portable COMMAND pw_portable_tests)
 endif()
