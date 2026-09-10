@@ -264,6 +264,7 @@ bool poll_stats(GameStats& out)
     const uint8_t raw_difficulty = read_at<uint8_t>(player, StatOffsets::kDifficulty);
     out.difficulty = master_collection_difficulty(raw_difficulty);
     out.difficulty_raw = raw_difficulty;
+    out.difficulty_game_byte = raw_difficulty;
 
     const uint8_t gametype = read_at<uint8_t>(player, StatOffsets::kGametype);
     static uint8_t last_gametype = 0xFF;
