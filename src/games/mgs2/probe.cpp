@@ -4,7 +4,6 @@
 
 #include <cstring>
 #include <cstdint>
-#include <cstdlib>
 #include <string_view>
 
 #include "../../common/area.h"
@@ -37,6 +36,8 @@ constexpr uint16_t kStorySelectionMask = 0x0003;
 constexpr uint16_t kStoryTanker = 0x0001;
 constexpr uint16_t kStoryPlant = 0x0002;
 constexpr uint16_t kStoryTankerAndPlant = 0x0003;
+constexpr uint16_t kRadarSettingMask = 0x0024;
+constexpr uint16_t kRadarUsed = 0x2000;
 
 constexpr bool ranked_campaign(uint8_t campaign)
 {
@@ -76,92 +77,7 @@ static_assert(codename_mission(kStoryTanker) == 16);
 static_assert(codename_mission(kStoryPlant) == 0);
 static_assert(codename_mission(kStoryTankerAndPlant) == 32);
 
-struct GameStateOffsets {
-    constexpr static size_t kRadarType = 0x06;
-    constexpr static size_t kGameOverIfDiscovered = 0x07;
-    constexpr static size_t kAlertState = 0x11A;
-    constexpr static size_t kContinues = 0x132;
-    constexpr static size_t kSaves = 0x136;
-    constexpr static size_t kPlayTimeFrames = 0x138;
-    constexpr static size_t kShots = 0x140;
-    constexpr static size_t kAlerts = 0x142;
-};
-
 uintptr_t g_last_player = 0;
-uintptr_t g_game_state = 0;
-
-bool plausible_game_state(uintptr_t p)
-{
-    const uint8_t radar = read_at<uint8_t>(p, GameStateOffsets::kRadarType);
-    if (radar != 0 && radar != 4 && radar != 0x20) {
-        return false;
-    }
-    const uint8_t gameover = read_at<uint8_t>(p, GameStateOffsets::kGameOverIfDiscovered);
-    if (gameover != 0 && gameover != 8 && gameover != 16 && gameover != 40) {
-        return false;
-    }
-    return read_at<uint16_t>(p, GameStateOffsets::kAlertState) <= 4;
-}
-
-bool game_state_matches_live(uintptr_t p, const GameStats& ref)
-{
-    return read_at<uint16_t>(p, GameStateOffsets::kContinues)
-            == static_cast<uint16_t>(ref.continues)
-        && read_at<uint16_t>(p, GameStateOffsets::kSaves) == static_cast<uint16_t>(ref.saves)
-        && read_at<uint16_t>(p, GameStateOffsets::kAlerts) == static_cast<uint16_t>(ref.alerts)
-        && read_at<uint16_t>(p, GameStateOffsets::kShots) == static_cast<uint16_t>(ref.shots_fired)
-        && std::abs(static_cast<double>(read_at<uint32_t>(p, GameStateOffsets::kPlayTimeFrames)) / 60.0
-                    - ref.play_time_seconds)
-            < 2.0;
-}
-
-void scan_for_game_state(const GameStats& live)
-{
-    if (live.play_time_seconds < 120.0) {
-        return;
-    }
-    static uintptr_t cursor = 0x10000;
-    LARGE_INTEGER frequency{};
-    LARGE_INTEGER started{};
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&started);
-    const int64_t deadline = started.QuadPart + frequency.QuadPart / 1000;
-    unsigned checks = 0;
-    MEMORY_BASIC_INFORMATION mbi{};
-    while (VirtualQuery(reinterpret_cast<LPCVOID>(cursor), &mbi, sizeof(mbi))) {
-        const uintptr_t vbase = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
-        const uintptr_t region_end = vbase + mbi.RegionSize;
-        if (mbi.State == MEM_COMMIT && (mbi.Protect & (PAGE_READWRITE | PAGE_WRITECOPY)) != 0
-            && (mbi.Protect & PAGE_GUARD) == 0
-            && mbi.RegionSize >= 0x150) {
-            uintptr_t p = cursor > vbase ? cursor : vbase;
-            for (; p + 0x150 <= region_end; p += 8) {
-                if ((checks++ & 0xFF) == 0) {
-                    LARGE_INTEGER now{};
-                    QueryPerformanceCounter(&now);
-                    if (now.QuadPart >= deadline) {
-                        cursor = p;
-                        return;
-                    }
-                }
-                if (!plausible_game_state(p)) {
-                    continue;
-                }
-                if (game_state_matches_live(p, live)) {
-                    g_game_state = p;
-                    cursor = 0x10000;
-                    LOG_INFO("mgs2 game state found at %p", reinterpret_cast<const void*>(p));
-                    return;
-                }
-            }
-        }
-        if (region_end <= cursor) {
-            break;
-        }
-        cursor = region_end;
-    }
-    cursor = 0x10000;
-}
 
 struct StatOffsets {
     constexpr static size_t kAreaCode = 0x2C;
@@ -180,8 +96,6 @@ struct StatOffsets {
     constexpr static size_t kCurrentHealth = 250;
     constexpr static size_t kMaxHealth = 252;
 };
-
-uintptr_t g_last_scan_tick = 0;
 
 HMODULE g_module = nullptr;
 RunLatch g_run;
@@ -245,21 +159,9 @@ bool poll_stats(GameStats& out)
     out.times_seen = read_at<uint16_t>(player, kTimesSeenOffset);
     out.special_items_mask = read_at<uint16_t>(player, kSpecialItemsOffset);
     out.special_item_used = (out.special_items_mask & 0x000F) != 0;
-
-    if (g_game_state && range_readable(g_game_state, 0x150)
-        && game_state_matches_live(g_game_state, out)) {
-        out.radar_type = read_at<uint8_t>(g_game_state, GameStateOffsets::kRadarType);
-        out.radar_off = out.radar_type == 4;
-    } else {
-        g_game_state = 0;
-        out.radar_type = (out.special_items_mask & 0x2000) != 0 ? 0x20 : 4;
-        out.radar_off = out.radar_type == 4;
-        const uint64_t now = GetTickCount64();
-        if (now - g_last_scan_tick >= 250) {
-            g_last_scan_tick = now;
-            scan_for_game_state(out);
-        }
-    }
+    out.radar_type = read_at<uint16_t>(player, StatOffsets::kCampaign) & kRadarSettingMask;
+    // Codename judge checks whether radar was ever used, not current setting.
+    out.radar_off = (out.special_items_mask & kRadarUsed) == 0;
 
     const uint8_t raw_difficulty = read_at<uint8_t>(player, StatOffsets::kDifficulty);
     out.difficulty = master_collection_difficulty(raw_difficulty);

@@ -2005,9 +2005,10 @@ void draw_panel()
             } else if (std::strcmp(r.label, "radar") == 0 && g_game == Game::MGS2) {
                 const char* type = stats.radar_type == 0    ? "TYPE-A"
                                    : stats.radar_type == 0x20 ? "TYPE-B"
-                                   : stats.radar_type == 4    ? "OFF"
+                                   : (stats.radar_type & 4) != 0 ? "OFF"
                                                               : "?";
-                snprintf(ratio, sizeof(ratio), "%s", type);
+                snprintf(ratio, sizeof(ratio), "%s (%s)",
+                         stats.radar_off ? "UNUSED" : "USED", type);
             } else if (std::strcmp(r.label, "campaign") == 0 && g_game == Game::MGS2) {
                 const char* selected = stats.mission == 0    ? "Plant"
                                        : stats.mission == 16 ? "Tanker"
@@ -2041,9 +2042,7 @@ void draw_panel()
                 break;
             }
 
-            const bool radar_invalid = std::strcmp(r.label, "radar") == 0
-                && g_game == Game::MGS2 && stats.radar_type != 4;
-            const bool over = !r.pass || radar_invalid;
+            const bool over = !r.pass;
             const auto op = static_cast<codename::Op>(r.op);
             const bool near_limit = !over && (op == codename::Op::Le || op == codename::Op::Lt)
                 && r.limit != 0 && r.current >= r.limit * kNearLimitShare;
