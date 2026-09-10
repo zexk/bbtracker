@@ -59,7 +59,7 @@ void test_big_boss_requirements_include_story_selection()
     s.radar_off = true;
     const auto requirements = elite_requirements_mgs2(s);
     CHECK(requirements.size() == 11);
-    CHECK(std::string_view(requirements.front().label) == "story (Tanker + Plant)");
+    CHECK(std::string_view(requirements.front().label) == "campaign");
     CHECK(!requirements.front().pass);
 
     s.mission = 32;

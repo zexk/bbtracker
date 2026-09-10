@@ -2019,6 +2019,12 @@ void draw_panel()
                                    : stats.radar_type == 4    ? "OFF"
                                                               : "?";
                 snprintf(ratio, sizeof(ratio), "%s", type);
+            } else if (std::strcmp(r.label, "campaign") == 0 && g_game == Game::MGS2) {
+                const char* selected = stats.mission == 0    ? "Plant"
+                                       : stats.mission == 16 ? "Tanker"
+                                       : stats.mission == 32 ? "Tanker + Plant"
+                                                             : "?";
+                snprintf(ratio, sizeof(ratio), "%s / Tanker + Plant", selected);
             } else switch (static_cast<codename::ReqFmt>(r.fmt)) {
             case codename::ReqFmt::Time: {
                 char cur[16];

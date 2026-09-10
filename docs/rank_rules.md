@@ -69,6 +69,12 @@ comes from a passively discovered GameState record whose mirrored counters must 
 player block. Discovery scans writable memory periodically until a valid record
 is found, then revalidates cached address.
 
+Player-block `+0x06` is campaign: `0x10` Tanker, `0x20` Plant, `0x30` Tanker +
+Plant. Earlier probe read `+0x07`, the word's high byte; live Plant testing showed
+that byte toggling between `0x00` and transition flag `0x40`, which prevented Plant
+runs from latching. Title-menu status at `+0x158A` still distinguishes selected
+Plant from the Plant half of a combined run for codename thresholds.
+
 Sea Louse and Gazelle use `GM_ShipwormFlag` and `GM_ClearingCount`, identified from
 the HD source layout and confirmed by their position beside already-known player fields.
 

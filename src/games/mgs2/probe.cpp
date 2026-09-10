@@ -30,33 +30,34 @@ constexpr size_t kTimesSeenOffset = 0x1594;
 constexpr size_t kPlayerRegionSize = 0x1600;
 constexpr size_t kTitleMenuStatusOffset = 0x158A;
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID2.exe";
-constexpr uint8_t kGametypeTanker = 16;
-constexpr uint8_t kGametypePlant = 32;
-constexpr uint8_t kGametypeTankerAndPlant = kGametypeTanker | kGametypePlant;
+constexpr uint8_t kCampaignTanker = 16;
+constexpr uint8_t kCampaignPlant = 32;
+constexpr uint8_t kCampaignTankerAndPlant = kCampaignTanker | kCampaignPlant;
 constexpr uint16_t kStorySelectionMask = 0x0003;
 constexpr uint16_t kStoryTanker = 0x0001;
 constexpr uint16_t kStoryPlant = 0x0002;
 constexpr uint16_t kStoryTankerAndPlant = 0x0003;
 
-constexpr bool ranked_game(uint8_t gametype)
+constexpr bool ranked_campaign(uint8_t campaign)
 {
-    return gametype != 0 && (gametype & ~kGametypeTankerAndPlant) == 0;
+    return campaign == kCampaignTanker || campaign == kCampaignPlant
+        || campaign == kCampaignTankerAndPlant;
 }
 
-static_assert(ranked_game(kGametypeTanker));
-static_assert(ranked_game(kGametypePlant));
-static_assert(ranked_game(kGametypeTankerAndPlant));
-static_assert(!ranked_game(0));
-static_assert(!ranked_game(0x40));
+static_assert(ranked_campaign(kCampaignTanker));
+static_assert(ranked_campaign(kCampaignPlant));
+static_assert(ranked_campaign(kCampaignTankerAndPlant));
+static_assert(!ranked_campaign(0));
+static_assert(!ranked_campaign(0x40));
 
-constexpr RunState run_state(uint8_t gametype, std::string_view area)
+constexpr RunState run_state(uint8_t campaign, std::string_view area)
 {
-    if (ranked_game(gametype)) return RunState::Active;
-    if (gametype == 0 && area.size() == 4 && area[0] == 'w') return RunState::Unknown;
+    if (ranked_campaign(campaign)) return RunState::Active;
+    if (campaign == 0 && area.size() == 4 && area[0] == 'w') return RunState::Unknown;
     return RunState::Inactive;
 }
 
-static_assert(run_state(kGametypeTanker, "w00a") == RunState::Active);
+static_assert(run_state(kCampaignTanker, "w00a") == RunState::Active);
 static_assert(run_state(0, "w00a") == RunState::Unknown);
 static_assert(run_state(0, "") == RunState::Inactive);
 static_assert(run_state(0x40, "w00a") == RunState::Inactive);
@@ -164,7 +165,8 @@ void scan_for_game_state(const GameStats& live)
 
 struct StatOffsets {
     constexpr static size_t kAreaCode = 0x2C;
-    constexpr static size_t kGametype = 0x07;
+    // Low byte of campaign word. +0x07 is its transition/state high byte.
+    constexpr static size_t kCampaign = 0x06;
     constexpr static size_t kDifficulty = 0x10;
     constexpr static size_t kContinues = 4;
     constexpr static size_t kSaves = 8;
@@ -266,12 +268,12 @@ bool poll_stats(GameStats& out)
     out.difficulty_raw = raw_difficulty;
     out.difficulty_game_byte = raw_difficulty;
 
-    const uint8_t gametype = read_at<uint8_t>(player, StatOffsets::kGametype);
-    static uint8_t last_gametype = 0xFF;
-    if (gametype != last_gametype) {
-        LOG_INFO("mgs2 gametype %u (ranked %d), difficulty %u", gametype,
-                 ranked_game(gametype) ? 1 : 0, out.difficulty_raw);
-        last_gametype = gametype;
+    const uint8_t campaign = read_at<uint8_t>(player, StatOffsets::kCampaign);
+    static uint8_t last_campaign = 0xFF;
+    if (campaign != last_campaign) {
+        LOG_INFO("mgs2 campaign %u (ranked %d), difficulty %u", campaign,
+                 ranked_campaign(campaign) ? 1 : 0, out.difficulty_raw);
+        last_campaign = campaign;
     }
     out.mission = codename_mission(read_at<uint16_t>(player, kTitleMenuStatusOffset));
 
@@ -286,7 +288,7 @@ bool poll_stats(GameStats& out)
     }
     set_area(out, area);
 
-    return g_run.update(out, run_state(gametype, out.area_code));
+    return g_run.update(out, run_state(campaign, out.area_code));
 }
 
 } // namespace bb::mgs2
