@@ -2,7 +2,6 @@
 
 #include <windows.h>
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -72,53 +71,23 @@ void scan_record()
 {
     constexpr size_t kScanChunkSize = 0x40000;
     constexpr size_t kTitleSize = sizeof(kRomTitle) - 1;
-    static std::vector<char> buffer(kScanChunkSize + kTitleSize - 1);
-    LARGE_INTEGER frequency{};
-    LARGE_INTEGER started{};
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&started);
-    const int64_t deadline = started.QuadPart + frequency.QuadPart / 500;
-
-    MEMORY_BASIC_INFORMATION mbi{};
-    while (VirtualQuery(reinterpret_cast<LPCVOID>(g_scan_cursor), &mbi, sizeof(mbi))) {
-        const uintptr_t base = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
-        const uintptr_t end = base + mbi.RegionSize;
-        constexpr DWORD kWritable = PAGE_READWRITE | PAGE_WRITECOPY
-            | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-        if (mbi.State == MEM_COMMIT && (mbi.Protect & kWritable) != 0
-            && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize <= 0x10000000) {
-            uintptr_t address = g_scan_cursor > base ? g_scan_cursor : base;
-            while (address < end) {
-                const size_t primary = std::min(kScanChunkSize, end - address);
-                const size_t read_size = std::min(primary + kTitleSize - 1, end - address);
-                if (!mem::copy(address, buffer.data(), read_size)) break;
-                const char* next = buffer.data();
-                const char* const search_limit = next + primary;
-                const char* const read_limit = buffer.data() + read_size;
-                while (next < search_limit) {
-                    const char* hit = static_cast<const char*>(
-                        std::memchr(next, 'M', static_cast<size_t>(search_limit - next)));
-                    if (!hit) break;
-                    next = hit + 1;
-                    if (static_cast<size_t>(read_limit - hit) >= kTitleSize
-                        && std::memcmp(hit, kRomTitle, kTitleSize) == 0
-                        && resolve_record(address + static_cast<uintptr_t>(hit - buffer.data()))) {
-                        return;
-                    }
-                }
-                LARGE_INTEGER now{};
-                QueryPerformanceCounter(&now);
-                if (now.QuadPart >= deadline) {
-                    g_scan_cursor = address + primary;
-                    return;
-                }
-                address += primary;
-            }
+    static std::vector<uint8_t> buffer(kScanChunkSize + kTitleSize - 1);
+    mem::scan(g_scan_cursor, buffer, kScanChunkSize, kTitleSize - 1,
+              mem::kWritable, 0, 0x10000000, 500,
+              [&](uintptr_t address, const uint8_t* data, size_t primary, size_t size) {
+        const auto* next = data;
+        const auto* const limit = data + primary;
+        while (next < limit) {
+            const auto* hit = static_cast<const uint8_t*>(
+                std::memchr(next, 'M', static_cast<size_t>(limit - next)));
+            if (!hit) break;
+            next = hit + 1;
+            if (static_cast<size_t>(data + size - hit) >= kTitleSize
+                && std::memcmp(hit, kRomTitle, kTitleSize) == 0
+                && resolve_record(address + static_cast<uintptr_t>(hit - data))) return true;
         }
-        if (end <= g_scan_cursor) break;
-        g_scan_cursor = end;
-    }
-    g_scan_cursor = 0x10000;
+        return false;
+    });
 }
 
 } // namespace

@@ -1,8 +1,10 @@
 #pragma once
 
 #include <windows.h>
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 namespace bb::mem {
 
@@ -18,6 +20,52 @@ template <typename T>
 bool copy(uintptr_t address, T& out)
 {
     return copy(address, &out, sizeof(out));
+}
+
+inline constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
+    | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+inline constexpr DWORD kWritable = PAGE_READWRITE | PAGE_WRITECOPY
+    | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+
+template <typename Find>
+bool scan(uintptr_t& cursor, std::vector<uint8_t>& buffer, size_t chunk_size,
+          size_t overlap, DWORD protection, size_t min_region, size_t max_region,
+          int budget_divisor, Find find, uintptr_t skip_begin = 0,
+          uintptr_t skip_end = 0)
+{
+    LARGE_INTEGER frequency{}, started{};
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&started);
+    const int64_t deadline = started.QuadPart + frequency.QuadPart / budget_divisor;
+    MEMORY_BASIC_INFORMATION mbi{};
+    while (VirtualQuery(reinterpret_cast<LPCVOID>(cursor), &mbi, sizeof(mbi))) {
+        const uintptr_t base = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
+        const uintptr_t end = base + mbi.RegionSize;
+        if ((base < skip_begin || base >= skip_end) && mbi.State == MEM_COMMIT
+            && (mbi.Protect & protection) != 0 && (mbi.Protect & PAGE_GUARD) == 0
+            && mbi.RegionSize >= min_region && mbi.RegionSize <= max_region) {
+            for (uintptr_t address = std::max(cursor, base); address < end;) {
+                const size_t primary = std::min(chunk_size, end - address);
+                const size_t size = std::min(primary + overlap, end - address);
+                if (!copy(address, buffer.data(), size)) break;
+                if (find(address, buffer.data(), primary, size)) {
+                    cursor = 0x10000;
+                    return true;
+                }
+                LARGE_INTEGER now{};
+                QueryPerformanceCounter(&now);
+                address += primary;
+                if (now.QuadPart >= deadline) {
+                    cursor = address;
+                    return false;
+                }
+            }
+        }
+        if (end <= cursor) break;
+        cursor = end;
+    }
+    cursor = 0x10000;
+    return false;
 }
 
 inline bool module_timestamp(HMODULE module, uint32_t& out)

@@ -160,7 +160,7 @@ SerialHit scan_disc_serial()
     static uintptr_t cursor = 0x10000;
     constexpr size_t kScanChunkSize = 0x100000;
     constexpr size_t kSerialOverlap = 15;
-    static std::vector<char> buffer(kScanChunkSize + kSerialOverlap);
+    static std::vector<uint8_t> buffer(kScanChunkSize + kSerialOverlap);
 
     // The tracker's own image embeds every serial string, so exclude self.
     HMODULE self = nullptr;
@@ -176,70 +176,33 @@ SerialHit scan_disc_serial()
     const uintptr_t self_begin = reinterpret_cast<uintptr_t>(self_info.lpBaseOfDll);
     const uintptr_t self_end = self_begin + self_info.SizeOfImage;
 
-    LARGE_INTEGER frequency{};
-    LARGE_INTEGER started{};
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&started);
-    const int64_t deadline = started.QuadPart + frequency.QuadPart / 1000;
-
-    MEMORY_BASIC_INFORMATION mbi{};
-    constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
-        | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-    while (VirtualQuery(reinterpret_cast<LPCVOID>(cursor), &mbi, sizeof(mbi))) {
-        const uintptr_t base = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
-        const uintptr_t end = base + mbi.RegionSize;
-        if ((base < self_begin || base >= self_end) && mbi.State == MEM_COMMIT
-            && (mbi.Protect & kReadable) != 0
-            && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize <= 0x4000000) {
-            uintptr_t address = cursor > base ? cursor : base;
-            while (address < end) {
-                const size_t primary = std::min(kScanChunkSize, end - address);
-                const size_t read_size = std::min(primary + kSerialOverlap, end - address);
-                if (!copy_process_memory(address, buffer.data(), read_size)) break;
-                const char* next = buffer.data();
-                const char* const search_limit = next + primary;
-                const char* const read_limit = buffer.data() + read_size;
-                while (next < search_limit) {
-                    const auto* found = static_cast<const char*>(
-                        std::memchr(next, 'S', static_cast<size_t>(search_limit - next)));
-                    if (!found) {
-                        next = search_limit;
-                    } else {
-                        next = found + 1;
-                        if (read_limit - found >= 4
-                            && (std::memcmp(found + 1, "LPM", 3) == 0
-                                || std::memcmp(found + 1, "LUS", 3) == 0
-                                || std::memcmp(found + 1, "LES", 3) == 0)) {
-                            const std::string_view candidate{
-                                found, static_cast<size_t>(read_limit - found)};
-                            for (const SerialRule& rule : kSerialRules) {
-                                if (candidate.starts_with(rule.text)) {
-                                    SerialHit hit{};
-                                    hit.variant = rule.variant;
-                                    rule.text.copy(hit.serial, sizeof(hit.serial) - 1);
-                                    cursor = 0x10000;
-                                    return hit;
-                                }
-                            }
-                        }
-                    }
-                    LARGE_INTEGER current{};
-                    QueryPerformanceCounter(&current);
-                    if (current.QuadPart >= deadline) {
-                        cursor = address + static_cast<uintptr_t>(next - buffer.data());
-                        return {};
-                    }
-                }
-                address += primary;
+    SerialHit result{};
+    mem::scan(cursor, buffer, kScanChunkSize, kSerialOverlap, mem::kReadable,
+              0, 0x4000000, 1000,
+              [&](uintptr_t, const uint8_t* data, size_t primary, size_t size) {
+        const char* next = reinterpret_cast<const char*>(data);
+        const char* const search_limit = next + primary;
+        const char* const read_limit = reinterpret_cast<const char*>(data) + size;
+        while (next < search_limit) {
+            const auto* found = static_cast<const char*>(
+                std::memchr(next, 'S', static_cast<size_t>(search_limit - next)));
+            if (!found) break;
+            next = found + 1;
+            if (read_limit - found < 4
+                || (std::memcmp(found + 1, "LPM", 3) != 0
+                    && std::memcmp(found + 1, "LUS", 3) != 0
+                    && std::memcmp(found + 1, "LES", 3) != 0)) continue;
+            const std::string_view candidate{found, static_cast<size_t>(read_limit - found)};
+            for (const SerialRule& rule : kSerialRules) {
+                if (!candidate.starts_with(rule.text)) continue;
+                result.variant = rule.variant;
+                rule.text.copy(result.serial, sizeof(result.serial) - 1);
+                return true;
             }
         }
-        if (end <= cursor) {
-            break;
-        }
-        cursor = end;
-    }
-    cursor = 0x10000;
-    return {};
+        return false;
+    }, self_begin, self_end);
+    return result;
 }
 
 PsxVariant g_variant = PsxVariant::Unknown;
@@ -468,55 +431,27 @@ bool find_candidate(uintptr_t& out)
     }
     next_scan = now_ms + 1000;
 
-    MEMORY_BASIC_INFORMATION mbi{};
-    constexpr DWORD kReadable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY
-        | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
-    while (VirtualQuery(reinterpret_cast<LPCVOID>(cursor), &mbi, sizeof(mbi))) {
-        const uintptr_t vbase = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
-        const uintptr_t region_end = vbase + mbi.RegionSize;
-
-        const bool readable =
-            mbi.State == MEM_COMMIT && (mbi.Protect & kReadable) != 0
-            && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize >= 0x200
-            && mbi.RegionSize <= 0x4000000;
-        if (readable) {
-            uintptr_t address = cursor > vbase ? cursor : vbase;
-            while (address < region_end) {
-                const size_t primary = std::min(kScanChunkSize, region_end - address);
-                const size_t read_size = std::min(primary + kWorkRegionSize - 1,
-                                                  region_end - address);
-                if (!copy_process_memory(address, buffer.data(), read_size)) break;
-                for (size_t i = 0; i < primary && i + kWorkRegionSize <= read_size; ++i) {
-                    if (!looks_like_stage_anchor(buffer.data() + i)
-                        || is_logger_table(buffer.data() + i)) {
-                        continue;
-                    }
-                    const uintptr_t candidate_address = address + i;
-                    bool known = false;
-                    for (const Candidate& candidate : candidates) {
-                        known |= candidate.address == candidate_address;
-                    }
-                    if (!known) {
-                        Candidate candidate{candidate_address, {}, GetTickCount64()};
-                        for (size_t clock = 0; clock < candidate.clocks.size(); ++clock) {
-                            const uintptr_t clock_address =
-                                candidate.address - kGameTimeOffsets[clock];
-                            read_process_value(clock_address, candidate.clocks[clock]);
-                        }
-                        candidates.push_back(candidate);
-                    }
-                }
-                address += primary;
+    mem::scan(cursor, buffer, kScanChunkSize, kWorkRegionSize - 1,
+              mem::kReadable, 0x200, 0x4000000, 1000,
+              [&](uintptr_t address, const uint8_t* data, size_t primary, size_t size) {
+        for (size_t i = 0; i < primary && i + kWorkRegionSize <= size; ++i) {
+            if (!looks_like_stage_anchor(data + i) || is_logger_table(data + i)) continue;
+            const uintptr_t candidate_address = address + i;
+            bool known = false;
+            for (const Candidate& candidate : candidates) {
+                known |= candidate.address == candidate_address;
             }
+            if (known) continue;
+            Candidate candidate{candidate_address, {}, GetTickCount64()};
+            for (size_t clock = 0; clock < candidate.clocks.size(); ++clock) {
+                read_process_value(candidate.address - kGameTimeOffsets[clock],
+                                   candidate.clocks[clock]);
+            }
+            candidates.push_back(candidate);
         }
-
-        if (region_end <= cursor) {
-            break;
-        }
-        cursor = region_end;
-    }
+        return false;
+    });
     out = 0;
-    cursor = 0x10000;
     return false;
 }
 
