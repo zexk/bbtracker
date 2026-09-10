@@ -422,6 +422,7 @@ void apply_game_theme()
     }
 
     if (g_game == Game::MGS2) {
+        style.ScrollbarRounding = 0.0f;
         colors[ImGuiCol_Text]              = ImVec4(0.61f, 0.69f, 0.64f, 1.00f);
         colors[ImGuiCol_TextDisabled]      = ImVec4(0.34f, 0.42f, 0.38f, 1.00f);
         colors[ImGuiCol_WindowBg]          = ImVec4(0.02f, 0.05f, 0.04f, 0.80f);
@@ -440,11 +441,20 @@ void apply_game_theme()
         colors[ImGuiCol_Header]            = ImVec4(0.10f, 0.18f, 0.15f, 1.00f);
         colors[ImGuiCol_HeaderHovered]     = ImVec4(0.28f, 0.10f, 0.07f, 1.00f);
         colors[ImGuiCol_HeaderActive]      = ImVec4(0.48f, 0.13f, 0.08f, 1.00f);
+        colors[ImGuiCol_Tab]               = ImVec4(0.07f, 0.13f, 0.11f, 1.00f);
+        colors[ImGuiCol_TabHovered]        = ImVec4(0.28f, 0.10f, 0.07f, 1.00f);
+        colors[ImGuiCol_TabActive]         = ImVec4(0.48f, 0.13f, 0.08f, 1.00f);
+        colors[ImGuiCol_TabUnfocused]      = ImVec4(0.04f, 0.09f, 0.07f, 1.00f);
+        colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.20f, 0.08f, 0.06f, 1.00f);
         colors[ImGuiCol_Separator]         = ImVec4(0.38f, 0.53f, 0.47f, 0.70f);
         colors[ImGuiCol_TableRowBgAlt]     = ImVec4(0.08f, 0.15f, 0.12f, 0.55f);
         colors[ImGuiCol_ResizeGrip]        = ImVec4(0.48f, 0.61f, 0.55f, 0.30f);
         colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.76f, 0.19f, 0.11f, 0.70f);
         colors[ImGuiCol_ResizeGripActive]  = ImVec4(0.76f, 0.19f, 0.11f, 1.00f);
+        colors[ImGuiCol_ScrollbarBg]       = ImVec4(0.04f, 0.09f, 0.07f, 0.70f);
+        colors[ImGuiCol_ScrollbarGrab]     = ImVec4(0.23f, 0.34f, 0.29f, 0.85f);
+        colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.48f, 0.13f, 0.08f, 0.90f);
+        colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.76f, 0.19f, 0.11f, 0.95f);
         return;
     }
 
@@ -1266,12 +1276,23 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
     }
     if (ImGui::BeginChild("mgs2_dog_tags", ImVec2(0, ui_size(360)), true)) {
         apply_scroll(scroll);
-        for (const auto& tag : mgs2::kDogTags) {
-            if (!mgs2::dog_tag_available(tag, stats.mission, difficulty)) continue;
-            const bool done = mgs2::dog_tag_collected(stats.dog_tag_mask, tag.id);
-            const char* area = area_name(Game::MGS2, tag.area);
-            ImGui::TextColored(done ? id_colors(g_game).green : unset_color(), "%s  %s (%s)",
-                               done ? "x" : "-", tag.name, area ? area : tag.area);
+        // ponytail: fixed 34 x 394 scan; index only if roster becomes dynamic.
+        for (const char* area_code : mgs2::kDogTagAreas) {
+            bool header = false;
+            for (const auto& tag : mgs2::kDogTags) {
+                if (std::strcmp(tag.area, area_code) != 0
+                    || !mgs2::dog_tag_available(tag, stats.mission, difficulty)) {
+                    continue;
+                }
+                if (!header) {
+                    const char* area = area_name(Game::MGS2, area_code);
+                    ImGui::SeparatorText(area ? area : area_code);
+                    header = true;
+                }
+                const bool done = mgs2::dog_tag_collected(stats.dog_tag_mask, tag.id);
+                ImGui::TextColored(done ? id_colors(g_game).green : unset_color(), "%s  %s",
+                                   done ? "x" : "-", tag.name);
+            }
         }
     }
     ImGui::EndChild();

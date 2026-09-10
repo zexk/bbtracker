@@ -415,6 +415,14 @@ inline constexpr DogTag kDogTags[] = {
     {393, "Marcin A Cieslinski", "w04c", 0, 4},
 };
 
+// First tag ID for each normal area; boss/special tags join their area's group.
+inline constexpr const char* kDogTagAreas[] = {
+    "w00a", "w00c", "w01c", "w01a", "w01b", "w01f", "w01d", "w03a", "w02a",
+    "w11a", "w12a", "w12b", "w13a", "w14a", "w15a", "w16a", "w17a", "w18a",
+    "w19a", "w20a", "w20b", "w22a", "w23a", "w24a", "w24b", "w24d", "w25d",
+    "w28a", "w31a", "w20c", "w04a", "w04b", "w04c", "w43a",
+};
+
 constexpr bool dog_tag_collected(const uint32_t* flags, size_t id)
 {
     return id < kDogTagWordCount * 32
@@ -438,6 +446,7 @@ constexpr bool dog_tag_available(const DogTag& tag, int mission, uint8_t difficu
 }
 
 static_assert(sizeof(kDogTags) / sizeof(kDogTags[0]) == 394);
+static_assert(sizeof(kDogTagAreas) / sizeof(kDogTagAreas[0]) == 34);
 static_assert(kDogTags[393].id == 393);
 
 } // namespace bb::mgs2
