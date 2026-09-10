@@ -17,7 +17,6 @@
 
 namespace bb::mgs1 {
 
-using bb::mem::range_readable;
 using bb::mem::read_at;
 
 namespace {
@@ -37,6 +36,20 @@ std::array<uint32_t, kGameTimeOffsets.size()> g_time_samples{};
 uint64_t g_time_sample_tick = 0;
 int g_game_time_index = -1;
 bool g_integral = false;
+
+bool copy_process_memory(uintptr_t address, void* out, size_t size)
+{
+    SIZE_T copied = 0;
+    return ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(address), out,
+                             size, &copied)
+        && copied == size;
+}
+
+template <typename T>
+bool read_process_value(uintptr_t address, T& out)
+{
+    return copy_process_memory(address, &out, sizeof(out));
+}
 
 enum class PsxVariant { Unknown, WesternOriginal, JapaneseOriginal, Integral };
 
@@ -142,6 +155,9 @@ struct SerialHit {
 SerialHit scan_disc_serial()
 {
     static uintptr_t cursor = 0x10000;
+    constexpr size_t kScanChunkSize = 0x100000;
+    constexpr size_t kSerialOverlap = 15;
+    static std::vector<char> buffer(kScanChunkSize + kSerialOverlap);
 
     // The tracker's own image embeds every serial string, so exclude self.
     HMODULE self = nullptr;
@@ -172,43 +188,46 @@ SerialHit scan_disc_serial()
         if ((base < self_begin || base >= self_end) && mbi.State == MEM_COMMIT
             && (mbi.Protect & kReadable) != 0
             && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize <= 0x4000000) {
-            const char* next = reinterpret_cast<const char*>(cursor > base ? cursor : base);
-            const char* const region_limit = reinterpret_cast<const char*>(end);
-            while (next < region_limit) {
-                constexpr size_t kScanChunkSize = 0x100000;
-                const char* const search_limit = static_cast<size_t>(region_limit - next)
-                        < kScanChunkSize
-                    ? region_limit
-                    : next + kScanChunkSize;
-                const auto* found = static_cast<const char*>(
-                    std::memchr(next, 'S', static_cast<size_t>(search_limit - next)));
-                if (!found) {
-                    next = search_limit;
-                } else {
-                    next = found + 1;
-                    if (region_limit - found >= 4
-                        && (std::memcmp(found + 1, "LPM", 3) == 0
-                            || std::memcmp(found + 1, "LUS", 3) == 0
-                            || std::memcmp(found + 1, "LES", 3) == 0)) {
-                        const std::string_view candidate{
-                            found, static_cast<size_t>(region_limit - found)};
-                        for (const SerialRule& rule : kSerialRules) {
-                            if (candidate.starts_with(rule.text)) {
-                                SerialHit hit{};
-                                hit.variant = rule.variant;
-                                rule.text.copy(hit.serial, sizeof(hit.serial) - 1);
-                                cursor = 0x10000;
-                                return hit;
+            uintptr_t address = cursor > base ? cursor : base;
+            while (address < end) {
+                const size_t primary = std::min(kScanChunkSize, end - address);
+                const size_t read_size = std::min(primary + kSerialOverlap, end - address);
+                if (!copy_process_memory(address, buffer.data(), read_size)) break;
+                const char* next = buffer.data();
+                const char* const search_limit = next + primary;
+                const char* const read_limit = buffer.data() + read_size;
+                while (next < search_limit) {
+                    const auto* found = static_cast<const char*>(
+                        std::memchr(next, 'S', static_cast<size_t>(search_limit - next)));
+                    if (!found) {
+                        next = search_limit;
+                    } else {
+                        next = found + 1;
+                        if (read_limit - found >= 4
+                            && (std::memcmp(found + 1, "LPM", 3) == 0
+                                || std::memcmp(found + 1, "LUS", 3) == 0
+                                || std::memcmp(found + 1, "LES", 3) == 0)) {
+                            const std::string_view candidate{
+                                found, static_cast<size_t>(read_limit - found)};
+                            for (const SerialRule& rule : kSerialRules) {
+                                if (candidate.starts_with(rule.text)) {
+                                    SerialHit hit{};
+                                    hit.variant = rule.variant;
+                                    rule.text.copy(hit.serial, sizeof(hit.serial) - 1);
+                                    cursor = 0x10000;
+                                    return hit;
+                                }
                             }
                         }
                     }
+                    LARGE_INTEGER current{};
+                    QueryPerformanceCounter(&current);
+                    if (current.QuadPart >= deadline) {
+                        cursor = address + static_cast<uintptr_t>(next - buffer.data());
+                        return {};
+                    }
                 }
-                LARGE_INTEGER current{};
-                QueryPerformanceCounter(&current);
-                if (current.QuadPart >= deadline) {
-                    cursor = reinterpret_cast<uintptr_t>(next);
-                    return {};
-                }
+                address += primary;
             }
         }
         if (end <= cursor) {
@@ -268,10 +287,9 @@ uint32_t read_game_frames()
     std::array<uint32_t, kGameTimeOffsets.size()> current{};
     for (size_t i = 0; i < kGameTimeOffsets.size(); ++i) {
         if (g_array_start <= kGameTimeOffsets[i]
-            || !range_readable(g_array_start - kGameTimeOffsets[i], sizeof(uint32_t))) {
+            || !read_process_value(g_array_start - kGameTimeOffsets[i], current[i])) {
             continue;
         }
-        current[i] = read_at<uint32_t>(g_array_start - kGameTimeOffsets[i], 0);
     }
     if (g_game_time_index >= 0) {
         const uint32_t selected = current[static_cast<size_t>(g_game_time_index)];
@@ -318,13 +336,10 @@ uint32_t read_game_frames()
     return current[static_cast<size_t>(g_game_time_index)];
 }
 
-bool plausible_work_array(uintptr_t p)
+bool plausible_work_array(const uint8_t* p)
 {
-    if (!range_readable(p, kWorkRegionSize)) {
-        return false;
-    }
     char stage[12]{};
-    std::memcpy(stage, reinterpret_cast<const uint8_t*>(p) + FieldOffsets::kStage, 7);
+    std::memcpy(stage, p + FieldOffsets::kStage, 7);
     for (int i = 0; i < 7; ++i) {
         const char c = stage[i];
         const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
@@ -341,17 +356,19 @@ bool plausible_work_array(uintptr_t p)
 
 int candidate_score(uintptr_t p)
 {
-    if (!plausible_work_array(p)) {
+    std::array<uint8_t, kWorkRegionSize> work{};
+    if (!copy_process_memory(p, work.data(), work.size()) || !plausible_work_array(work.data())) {
         return -1;
     }
+    const uintptr_t data = reinterpret_cast<uintptr_t>(work.data());
     int score = 1;
-    const int8_t difficulty = read_at<int8_t>(p, FieldOffsets::kDifficulty);
-    const uint16_t health = read_at<uint16_t>(p, FieldOffsets::kCurrentHealth);
-    const uint16_t max_health = read_at<uint16_t>(p, FieldOffsets::kMaxHealth);
+    const int8_t difficulty = read_at<int8_t>(data, FieldOffsets::kDifficulty);
+    const uint16_t health = read_at<uint16_t>(data, FieldOffsets::kCurrentHealth);
+    const uint16_t max_health = read_at<uint16_t>(data, FieldOffsets::kMaxHealth);
     score += difficulty >= -1 && difficulty <= 3 ? 4 : 0;
     score += max_health > 0 && max_health <= 10000 && health <= max_health ? 3 : 0;
-    score += read_at<uint16_t>(p, FieldOffsets::kAlerts) < 10000 ? 1 : 0;
-    score += read_at<uint16_t>(p, FieldOffsets::kKills) < 10000 ? 1 : 0;
+    score += read_at<uint16_t>(data, FieldOffsets::kAlerts) < 10000 ? 1 : 0;
+    score += read_at<uint16_t>(data, FieldOffsets::kKills) < 10000 ? 1 : 0;
     return score;
 }
 
@@ -390,11 +407,11 @@ static_assert(valid_stage_name("s00a"));
 static_assert(valid_stage_name("s19br"));
 static_assert(!valid_stage_name("FindFir"));
 
-bool is_logger_table(uintptr_t p)
+bool is_logger_table(const uint8_t* p)
 {
     static constexpr char kLoggerTail[] = " session";
     char tail[9]{};
-    std::memcpy(tail, reinterpret_cast<const uint8_t*>(p) + FieldOffsets::kStage + 7, 8);
+    std::memcpy(tail, p + FieldOffsets::kStage + 7, 8);
     return std::memcmp(tail, kLoggerTail, 8) == 0;
 }
 
@@ -410,6 +427,8 @@ bool find_candidate(uintptr_t& out)
     static uintptr_t cursor = 0x10000;
     static std::vector<Candidate> candidates;
     static uint64_t next_scan = 0;
+    constexpr size_t kScanChunkSize = 0x100000;
+    static std::vector<uint8_t> buffer(kScanChunkSize + kWorkRegionSize - 1);
 
     const uint64_t now_ms = GetTickCount64();
     for (Candidate& candidate : candidates) {
@@ -418,9 +437,8 @@ bool find_candidate(uintptr_t& out)
             elapsed * kGameTimeFramesPerSecond / 1000.0);
         for (size_t i = 0; i < candidate.clocks.size(); ++i) {
             const uintptr_t clock = candidate.address - kGameTimeOffsets[i];
-            const uint32_t current = range_readable(clock, sizeof(uint32_t))
-                ? read_at<uint32_t>(clock, 0)
-                : 0;
+            uint32_t current = 0;
+            read_process_value(clock, current);
             const uint32_t delta = current >= candidate.clocks[i]
                 ? current - candidate.clocks[i]
                 : UINT32_MAX;
@@ -459,26 +477,33 @@ bool find_candidate(uintptr_t& out)
             && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize >= 0x200
             && mbi.RegionSize <= 0x4000000;
         if (readable) {
-            const uint8_t* begin = reinterpret_cast<const uint8_t*>(vbase);
-            const size_t len = mbi.RegionSize;
-            size_t i = cursor > vbase ? cursor - vbase : 0;
-            for (; i + kWorkRegionSize <= len; ++i) {
-                if (looks_like_stage_anchor(begin + i) && !is_logger_table(vbase + i)) {
+            uintptr_t address = cursor > vbase ? cursor : vbase;
+            while (address < region_end) {
+                const size_t primary = std::min(kScanChunkSize, region_end - address);
+                const size_t read_size = std::min(primary + kWorkRegionSize - 1,
+                                                  region_end - address);
+                if (!copy_process_memory(address, buffer.data(), read_size)) break;
+                for (size_t i = 0; i < primary && i + kWorkRegionSize <= read_size; ++i) {
+                    if (!looks_like_stage_anchor(buffer.data() + i)
+                        || is_logger_table(buffer.data() + i)) {
+                        continue;
+                    }
+                    const uintptr_t candidate_address = address + i;
                     bool known = false;
                     for (const Candidate& candidate : candidates) {
-                        known |= candidate.address == vbase + i;
+                        known |= candidate.address == candidate_address;
                     }
                     if (!known) {
-                        Candidate candidate{vbase + i, {}, GetTickCount64()};
+                        Candidate candidate{candidate_address, {}, GetTickCount64()};
                         for (size_t clock = 0; clock < candidate.clocks.size(); ++clock) {
-                            const uintptr_t address = candidate.address - kGameTimeOffsets[clock];
-                            candidate.clocks[clock] = range_readable(address, sizeof(uint32_t))
-                                ? read_at<uint32_t>(address, 0)
-                                : 0;
+                            const uintptr_t clock_address =
+                                candidate.address - kGameTimeOffsets[clock];
+                            read_process_value(clock_address, candidate.clocks[clock]);
                         }
                         candidates.push_back(candidate);
                     }
                 }
+                address += primary;
             }
         }
 
@@ -492,16 +517,12 @@ bool find_candidate(uintptr_t& out)
     return false;
 }
 
-const uint8_t* g_stats_stage()
-{
-    return reinterpret_cast<const uint8_t*>(g_array_start) + FieldOffsets::kStage;
-}
-
 } // namespace
 
 bool poll_stats(GameStats& out)
 {
-    if (!g_array_start || !range_readable(g_array_start, kWorkRegionSize)) {
+    std::array<uint8_t, kWorkRegionSize> work{};
+    if (!g_array_start || !copy_process_memory(g_array_start, work.data(), work.size())) {
         g_array_start = 0;
         uintptr_t candidate = 0;
         if (!find_candidate(candidate)) {
@@ -512,24 +533,28 @@ bool poll_stats(GameStats& out)
             return false;
         }
         const int best_score = candidate_score(g_array_start);
+        if (!copy_process_memory(g_array_start, work.data(), work.size())) {
+            g_array_start = 0;
+            return false;
+        }
         char stage[8]{};
-        std::memcpy(stage,
-                    reinterpret_cast<const uint8_t*>(g_array_start) + FieldOffsets::kStage, 7);
+        std::memcpy(stage, work.data() + FieldOffsets::kStage, 7);
         LOG_INFO("mgs1 work array at %p stage=%s score=%d",
                  reinterpret_cast<const void*>(g_array_start), stage, best_score);
-        log_hex_dump(reinterpret_cast<const uint8_t*>(g_array_start), 0xD0);
+        log_hex_dump(work.data(), 0xD0);
         g_integral = disc_variant() == PsxVariant::Integral;
         g_time_sample_tick = 0;
     }
 
-    out.alerts = read_at<uint16_t>(g_array_start, FieldOffsets::kAlerts);
-    out.kills = read_at<uint16_t>(g_array_start, FieldOffsets::kKills);
-    out.rations_used = read_at<uint16_t>(g_array_start, FieldOffsets::kRationsUsed);
-    out.continues = read_at<uint16_t>(g_array_start, FieldOffsets::kContinues);
-    out.saves = read_at<uint16_t>(g_array_start, FieldOffsets::kSaves);
-    out.current_health = read_at<uint16_t>(g_array_start, FieldOffsets::kCurrentHealth);
-    out.max_health = read_at<uint16_t>(g_array_start, FieldOffsets::kMaxHealth);
-    const int16_t diazepam = read_at<int16_t>(g_array_start, FieldOffsets::kDiazepamTimer);
+    const uintptr_t data = reinterpret_cast<uintptr_t>(work.data());
+    out.alerts = read_at<uint16_t>(data, FieldOffsets::kAlerts);
+    out.kills = read_at<uint16_t>(data, FieldOffsets::kKills);
+    out.rations_used = read_at<uint16_t>(data, FieldOffsets::kRationsUsed);
+    out.continues = read_at<uint16_t>(data, FieldOffsets::kContinues);
+    out.saves = read_at<uint16_t>(data, FieldOffsets::kSaves);
+    out.current_health = read_at<uint16_t>(data, FieldOffsets::kCurrentHealth);
+    out.max_health = read_at<uint16_t>(data, FieldOffsets::kMaxHealth);
+    const int16_t diazepam = read_at<int16_t>(data, FieldOffsets::kDiazepamTimer);
     out.diazepam_frames = diazepam > 0 && diazepam <= 1200 ? diazepam : 0;
     const uint32_t game_frames = read_game_frames();
     if (game_frames > 0) {
@@ -540,8 +565,8 @@ bool poll_stats(GameStats& out)
         g_last_game_frames = game_frames;
     }
 
-    const uint8_t radar_state = read_at<uint8_t>(g_array_start, FieldOffsets::kRadarState);
-    const uint8_t stage_prefix = read_at<uint8_t>(g_array_start, FieldOffsets::kStage);
+    const uint8_t radar_state = read_at<uint8_t>(data, FieldOffsets::kRadarState);
+    const uint8_t stage_prefix = read_at<uint8_t>(data, FieldOffsets::kStage);
     const bool gameplay = stage_prefix == 's' || stage_prefix == 'd';
     if (gameplay && radar_state == 0x00) {
         g_radar_seen_on = true;
@@ -572,7 +597,7 @@ bool poll_stats(GameStats& out)
     }
     const int8_t diff = out.mgs1_japanese_original
         ? 0
-        : read_at<int8_t>(g_array_start, FieldOffsets::kDifficulty);
+        : read_at<int8_t>(data, FieldOffsets::kDifficulty);
     if (diff != g_last_diff) {
         LOG_INFO("mgs1 difficulty=%d%s", static_cast<int>(diff),
                  out.mgs1_japanese_original ? " (JP fixed)" : "");
@@ -598,7 +623,7 @@ bool poll_stats(GameStats& out)
     }
 
     char stage[8]{};
-    std::memcpy(stage, g_stats_stage(), 7);
+    std::memcpy(stage, work.data() + FieldOffsets::kStage, 7);
     stage[7] = '\0';
     for (int i = 0; i < 7; ++i) {
         if (stage[i] == '\0') {
