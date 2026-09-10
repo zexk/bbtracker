@@ -31,6 +31,8 @@ struct GameStats {
     int clearing_escapes = 0;
     int mechs_destroyed = 0;
     int pull_ups = 0;
+    int dog_tags = 0;
+    uint32_t dog_tag_mask[32] = {};
 
     int cqc_chokes = 0;
     int headshots = 0;

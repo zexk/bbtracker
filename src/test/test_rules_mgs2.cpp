@@ -5,6 +5,7 @@
 #include "common/codename/codename.h"
 #include "common/codename/rules_mgs2.h"
 #include "common/stats.h"
+#include "games/mgs2/dog_tags.h"
 
 using namespace bb;
 using namespace bb::codename;
@@ -23,6 +24,22 @@ const char* best(const GameStats& s)
 {
     auto m = evaluate_mgs2(s);
     return m ? m->name : "<none>";
+}
+
+void test_dog_tag_bits_and_rosters()
+{
+    uint32_t flags[mgs2::kDogTagWordCount]{};
+    flags[0] = (1u << 0) | (1u << 31);
+    flags[31] = 1u << 31;
+    CHECK(mgs2::dog_tag_count(flags) == 3);
+    CHECK(mgs2::dog_tag_collected(flags, 0));
+    CHECK(mgs2::dog_tag_collected(flags, 31));
+    CHECK(mgs2::dog_tag_collected(flags, 1023));
+    CHECK(!mgs2::dog_tag_collected(flags, 1024));
+
+    CHECK(mgs2::dog_tag_available(mgs2::kDogTags[0], 16, 0));
+    CHECK(!mgs2::dog_tag_available(mgs2::kDogTags[0], 0, 0));
+    CHECK(mgs2::dog_tag_available(mgs2::kDogTags[4], 32, 5));
 }
 
 void test_big_boss_exact()
@@ -317,6 +334,7 @@ void test_animal_tier_names()
 int main()
 {
     constexpr bb::test::Case tests[] = {
+        {"dog_tag_bits_and_rosters", test_dog_tag_bits_and_rosters},
         {"big_boss_exact", test_big_boss_exact},
         {"bb_blocked_by_radar_and_mission", test_bb_blocked_by_radar_and_mission},
         {"big_boss_requirements_include_story_selection",

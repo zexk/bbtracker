@@ -12,6 +12,7 @@
 #include "../../common/log.h"
 #include "../../common/mem.h"
 #include "../../common/run_latch.h"
+#include "dog_tags.h"
 
 namespace bb::mgs2 {
 
@@ -21,6 +22,7 @@ namespace {
 
 constexpr uintptr_t kPlayerPointerOffset = 0x00949340;
 constexpr size_t kStatsBlockOffset = 0x12E;
+constexpr size_t kDogTagFlagsOffset = 0x3C;
 constexpr size_t kRationsOffset = 0x1590;
 constexpr size_t kShipwormOffset = 0x158C;
 constexpr size_t kClearingEscapesOffset = 0x1592;
@@ -153,6 +155,10 @@ bool poll_stats(GameStats& out)
 
     const uintptr_t data = reinterpret_cast<uintptr_t>(snapshot.data());
     out = {};
+    for (size_t i = 0; i < kDogTagWordCount; ++i) {
+        out.dog_tag_mask[i] = read_at<uint32_t>(data, kDogTagFlagsOffset + i * sizeof(uint32_t));
+    }
+    out.dog_tags = dog_tag_count(out.dog_tag_mask);
     out.continues = read_at<uint16_t>(data, kStatsBlockOffset + StatOffsets::kContinues);
     out.saves = read_at<uint16_t>(data, kStatsBlockOffset + StatOffsets::kSaves);
     out.alerts = read_at<uint16_t>(data, kStatsBlockOffset + StatOffsets::kAlerts);
