@@ -14,6 +14,7 @@
 #include "../../common/difficulty.h"
 #include "../../common/log.h"
 #include "../../common/mem.h"
+#include "../../common/run_latch.h"
 
 namespace bb::mgs1 {
 
@@ -36,6 +37,7 @@ std::array<uint32_t, kGameTimeOffsets.size()> g_time_samples{};
 uint64_t g_time_sample_tick = 0;
 int g_game_time_index = -1;
 bool g_integral = false;
+RunLatch g_run;
 
 bool copy_process_memory(uintptr_t address, void* out, size_t size)
 {
@@ -526,16 +528,16 @@ bool poll_stats(GameStats& out)
         g_array_start = 0;
         uintptr_t candidate = 0;
         if (!find_candidate(candidate)) {
-            return false;
+            return g_run.hold(out);
         }
         g_array_start = candidate;
         if (!g_array_start) {
-            return false;
+            return g_run.hold(out);
         }
         const int best_score = candidate_score(g_array_start);
         if (!copy_process_memory(g_array_start, work.data(), work.size())) {
             g_array_start = 0;
-            return false;
+            return g_run.hold(out);
         }
         char stage[8]{};
         std::memcpy(stage, work.data() + FieldOffsets::kStage, 7);
@@ -547,6 +549,7 @@ bool poll_stats(GameStats& out)
     }
 
     const uintptr_t data = reinterpret_cast<uintptr_t>(work.data());
+    out = {};
     out.alerts = read_at<uint16_t>(data, FieldOffsets::kAlerts);
     out.kills = read_at<uint16_t>(data, FieldOffsets::kKills);
     out.rations_used = read_at<uint16_t>(data, FieldOffsets::kRationsUsed);
@@ -635,7 +638,10 @@ bool poll_stats(GameStats& out)
     }
     set_area(out, stage);
 
-    return g_game_time_index >= 0 && gameplay && variant != PsxVariant::Unknown;
+    const RunState state = std::strcmp(stage, "title") == 0 ? RunState::Inactive
+        : g_game_time_index >= 0 && gameplay && variant != PsxVariant::Unknown
+        ? RunState::Active : RunState::Unknown;
+    return g_run.update(out, state);
 }
 
 } // namespace bb::mgs1
