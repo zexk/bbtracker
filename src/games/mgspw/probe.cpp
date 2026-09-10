@@ -20,9 +20,7 @@ namespace bb::mgspw {
 
 namespace {
 
-// Community Cheat Engine anchors (mgspw-snake-swiss-v3.CT, RedCode):
-// each pattern locates the instruction referencing the global, then the
-// rip-relative displacement is resolved to the global itself.
+// Patterns resolve RIP-relative globals.
 constexpr wchar_t kModuleName[] = L"METAL GEAR SOLID PEACE WALKER.exe";
 
 constexpr uint8_t kSaveRootPat[] = {
@@ -40,8 +38,6 @@ constexpr bool kCharArrayWild[std::size(kCharArrayPat)] = {
     false, false, false};
 constexpr int kCharArrayDisp = 8;
 
-// Mission-start init: clears the current-mission-id global to -1 before the
-// script variable is read into it, so the store's displacement names it.
 constexpr uint8_t kMissionIdPat[] = {0x33, 0xDB, 0xBE, 0xFF, 0xFF, 0xFF, 0xFF,
                                      0xB9, 0xFF, 0xFF, 0xFF, 0x00, 0x48, 0x89,
                                      0x1D, 0x00, 0x00, 0x00, 0x00, 0x8B, 0xEB,
@@ -59,7 +55,7 @@ constexpr bool kMissionTimeWild[std::size(kMissionTimePat)] = {
     false, false, false, true, true, true, true, false, false, false, false, false};
 constexpr int kMissionTimeDisp = 3;
 
-// Save-block field offsets (hex, from CT comments/accessors).
+// Save-block field offsets.
 constexpr size_t kStageOff = 0x54;
 constexpr size_t kStageLen = 24;
 constexpr size_t kTotalPlayOff = 0x84;
@@ -89,18 +85,8 @@ uintptr_t g_region_object = 0;  // address holding the region label object
 bool g_scanned = false;
 bool g_dumped = false;
 
-// Lifetime-stat descriptors are one flat array, indexed directly by the low
-// 16 bits of the stat id - the game's own getter (0x1400E3A90) does
-// `record = *PW_STATARRAY - 0x10 + (id & 0xFFFF) * 0x28`. Records are 0x28
-// bytes: +0x10 u32 id, +0x18 inline tally or player-tally pointer, +0x20 i32 career.
-// The 999999 seen at +0x00 and +0x28 is one record's bound plus the next
-// record's, which is what made these look like 48-byte records.
-// The array reallocates between missions, so the pointer is re-read each poll
-// and every record is checked against its expected id before use.
-// Stat-descriptor getter (0x1400E3A90): sub rsp,0x58 / movsx rax,cx /
-// lea rcx,[rax+rax*4] / mov rax,[rip+disp] / movups xmm0,[rax+rcx*8+0x10].
-// The disp lands on the array pointer; +0x10 in that last operand is why the
-// records start one bias below it.
+// Descriptor index: id low 16 bits, stride 0x28, id +0x10, tally +0x18,
+// career +0x20. Array moves between missions; validate every expected id.
 constexpr uint8_t kStatArrayPat[] = {
     0x48, 0x83, 0xEC, 0x58, 0x48, 0x0F, 0xBF, 0xC1, 0x48, 0x8D, 0x0C, 0x80,
     0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x10, 0x44, 0xC8, 0x10};
@@ -108,7 +94,6 @@ constexpr bool kStatArrayWild[] = {
     false, false, false, false, false, false, false, false, false, false, false, false,
     false, false, false, true, true, true, true, false, false, false, false, false};
 
-// Career commit selects this player's mission tally (0x1400E42A7).
 constexpr uint8_t kLocalPlayerPat[] = {
     0x44, 0x0F, 0xB6, 0x15, 0, 0, 0, 0,
     0x48, 0x89, 0x5C, 0x24, 0x30, 0xBB, 0x20, 0x03, 0x00, 0x00};
@@ -168,9 +153,7 @@ static_assert(valid_stage("w01s04a"));
 static_assert(valid_stage("my_outer_trade"));
 static_assert(!valid_stage("w01[s04a"));
 
-// Span covering every descriptor the indexed paths touch: family ids stop
-// at the getter's bound above, and the 0xDD..0x110 codename axes sit below
-// it. Validated once per poll instead of once per record.
+// Covers every indexed family and codename-axis descriptor.
 constexpr size_t kStatRecordsSpan = (kStatIndexMax + 1) * kStatStride;
 
 // The stat descriptor array reallocates between missions: re-resolve its
@@ -193,11 +176,8 @@ constexpr uint32_t kStunRodIds[] = {0x20105};      // stun rod knockouts
 constexpr uint32_t kGrenadeIds[] = {0x200E6};      // lethal, grenade
 constexpr uint32_t kRocketIds[] = {0x200E5};       // lethal, rocket launcher
 constexpr uint32_t kPlacedIds[] = {0x200E8};       // lethal, placed explosive (C4)
-// Kills on enemies that never spotted the player. Confirmed by a run the
-// player reported as 2 stealth kills then 1 after being found: +2.
 constexpr uint32_t kStealthKillIds[] = {0x2007C};
-// Career damage taken, on the same 0-8000 scale as health: a run that ended
-// with the player at 5070/8000 moved it by 2958.
+// Same 0-8000 scale as health.
 constexpr uint32_t kDamageTakenIds[] = {0x20023};
 constexpr uint32_t kArIds[] = {0x200E0};      // lethal, assault rifle
 constexpr uint32_t kShotgunIds[] = {0x200E4}; // lethal, shotgun
@@ -213,8 +193,7 @@ constexpr uint32_t kHeroismIds[] = {0x4420077};
 constexpr uint32_t kNoAlertClearIds[] = {0x442011E};
 constexpr uint32_t kNoKillClearIds[] = {0x442011F};
 constexpr uint32_t kAlertIds[] = {0x420002};
-// Non-headshot kills: zero across every headshot-only run, +3 on a
-// body-shot-only run with the same weapon. 0x2002F moves with it.
+// Non-headshot kills.
 constexpr uint32_t kBodyKillIds[] = {0x200ED};
 
 // Mirror 0x1400E3B60: +0x18 is inline for flag 0x40, otherwise a pointer
@@ -285,13 +264,10 @@ void read_stat_families(uintptr_t block, GameStats& out)
     uint8_t local_player = 0xFF;
     const int player = g_local_player && mem::copy(g_local_player, local_player)
         ? local_player : -1;
-    // Direct index, the way the game's own getter does it. Falls back to the
-    // linear scan below if the array pointer did not resolve.
+    // Direct index, with linear-scan fallback.
     const uintptr_t records = stat_records();
     if (records) {
-        // One validation for the whole descriptor span; the per-record id
-        // check below still guards against layout changes, and out-of-span
-        // indices keep their individual skip above.
+        // Validate span once, then each record id.
         static std::vector<uint8_t> snapshot(kStatRecordsSpan);
         const bool span_ok = mem::copy(records, snapshot.data(), snapshot.size());
         bool all_ok = true;
@@ -308,9 +284,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
                 const uintptr_t rec = reinterpret_cast<uintptr_t>(snapshot.data())
                     + index * kStatStride;
                 const auto* words = reinterpret_cast<const uint32_t*>(rec);
-                // The index is derived from the id, so a record whose id
-                // does not match means the array moved or the layout
-                // changed - never trust the value in that case.
+                // Reject moved arrays or changed layouts.
                 if (words[4] != f.ids[i]) {
                     all_ok = false;
                     continue;
@@ -323,9 +297,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
             return;
         }
     }
-    // One linear pass; readability checked per page (the table moves, but
-    // pages are cheap to test). Max across id matches: the live copy leads
-    // stale snapshot copies.
+    // Max across matches because live copy leads stale snapshots.
     for (size_t page = 0; page < kStatScanSize; page += 0x1000) {
         const uintptr_t base = block + page;
         const size_t span = page + 0x1000 <= kStatScanSize + 44
@@ -359,7 +331,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
     }
 }
 
-// save+0x1BFF0 + id, ids 1..24; see 0x1405448C0 (grade) and 0x140544B20 (grant).
+// save+0x1BFF0 + id, ids 1..24.
 constexpr uintptr_t kCodenameStateOff = 0x1BFF0;
 
 void read_codename_state(uintptr_t block, GameStats& out)
@@ -373,7 +345,7 @@ void read_codename_state(uintptr_t block, GameStats& out)
     out.pw_codename_state_ok = true;
 }
 
-// save+0x1C009 + index, index 1..110; granter 0x140544B80, bit 0 is ownership.
+// save+0x1C009 + index, index 1..110; bit 0 is ownership.
 constexpr uintptr_t kInsigniaStateOff = 0x1C009;
 constexpr size_t kInsigniaCount = 110;
 
@@ -548,9 +520,7 @@ bool poll_stats(GameStats& out)
     if (mission_time && mem::copy(mission_time, mission_clock.data(), mission_clock.size())) {
         out.pw_mission_raw = mem::read<uint64_t>(mission_clock.data(), 0);
         out.pw_mission_play = mem::read<uint32_t>(mission_clock.data(), kMissionPlayOff);
-        // Measured: raw ticks 300/s of active game time (a +42600 delta over
-        // an interval where total play advanced exactly +142s). 3.33ms
-        // resolution still breaks same-second best-time ties.
+        // Active game time at 300 ticks/s.
         out.play_time_seconds = static_cast<double>(out.pw_mission_raw) / 300.0;
         any = true;
         if (!g_dumped) {
@@ -590,9 +560,7 @@ bool poll_stats(GameStats& out)
         out.pw_heroism = mem::read<int32_t>(save.data(), kHeroismOff);
         out.pw_gmp = mem::read<uint32_t>(save.data(), kGmpOff);
         out.pw_clears = mem::read<int32_t>(save.data(), kClearsOff);
-        // Per-mission rank array (u16 by mission id; 0 = S, 0xFFFF = never
-        // cleared). Ids past the live list read as zeros, so stop at the
-        // length that matches the confirmed clear/S counts.
+        // Rank array: 0 = S, 0xFFFF = never cleared; trailing zeros are unused.
         constexpr size_t kRankArrayOff = 0x32B4;
         constexpr size_t kRankArrayLen = 272;
         constexpr size_t kBestTimeOff = 0x29B4;
@@ -611,9 +579,7 @@ bool poll_stats(GameStats& out)
         }
         out.pw_unique_cleared = cleared;
         out.pw_s_missions = s_missions;
-        // Current mission: the id indexes both per-mission arrays (subsets
-        // of the validated span), so the overlay can show this mission's
-        // stored rank and best time.
+        // Current id indexes stored rank and best-time arrays.
         int id = -1;
         if (g_mission_id && mem::copy(g_mission_id, id)) {
             out.pw_mission_id = id;
@@ -709,11 +675,7 @@ bool poll_stats(GameStats& out)
     else if (run_flush_stage(out.pw_stage)) run_visible = false;
     out.pw_in_mission = run_visible;
 
-    // Per-sortie segment: latch career baselines whenever the stage
-    // string changes. Careers land at results tally (actions) or lobby
-    // exit (heroism/XP/GMP), so segment deltas appear then, not live
-    // mid-mission. Unknown (-1) inputs latch as zero deltas until both
-    // sides resolve.
+    // Stage baselines expose post-results career deltas; unresolved inputs yield zero.
     static GameStats seg_base{};
     static char seg_last_stage[32]{};
     static bool seg_have_base = false;

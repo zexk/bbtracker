@@ -211,12 +211,7 @@ std::optional<Match> evaluate_babel(const GameStats& s);
 
 std::vector<ReqStatus> elite_requirements_babel(const GameStats& s);
 
-// One insignia record, by the game's own insignia id (1..110). `over` is the
-// value the counter must exceed (the test is strict); -1 means the grant is
-// not a simple counter compare. `heroism` is the award. Names come from the
-// localization: 0x140544390 formats "sig_%03d_alp_ovl_nearest" and looks the
-// hash up in element 0xb906b5, whose rows run in reverse id order. Six ids
-// have no English label and read "???" in the game too.
+// Insignia id 1..110; `over` is strict, -1 means no mapped counter.
 struct PwInsignia {
     const char* name;
     int over;
@@ -225,14 +220,10 @@ struct PwInsignia {
 
 PwInsignia pw_insignia(int id);
 
-// Career value an insignia is graded on, or -1 when the counter it reads is
-// not one the probe resolves. Only the solo families whose stat id is
-// confirmed are mapped; see "Insignia system" in docs/mgspw_research.md.
+// Career value used by mapped insignias, or -1 when unavailable.
 int pw_insignia_progress(int id, const GameStats& s);
 
-// Candidate grade 0..5 for the title the profile currently matches, plus the
-// single gate that stops the next grade. Mirrors the native evaluator: see
-// "Codename system" in docs/mgspw_research.md.
+// Candidate grade plus first gate blocking next grade.
 struct PwGrade {
     int grade = 0;        // 0 = no grade earned yet
     int next = 0;         // 0 when grade is already 5
@@ -245,10 +236,7 @@ struct PwGrade {
 
 PwGrade pw_grade(const GameStats& s);
 
-// The evaluator's own inputs. `slot` is the twelve weapon slots it reads, all
-// four axes summed; `by_class` rolls those into the six groups the title table
-// is keyed on. Slot 10 belongs to no group. `native` is false when the axes
-// could not be read and the per-counter fallback was used instead.
+// Native weapon slots and their six title classes; slot 10 has no class.
 struct PwAxes {
     int slot[12] = {};
     int by_class[6] = {};

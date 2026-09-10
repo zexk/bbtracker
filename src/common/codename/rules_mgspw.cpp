@@ -1,12 +1,4 @@
-// Peace Walker codename rules.
-//
-// PW does not score a codename from thresholds the way MGS1-4 do. It
-// classifies career play on three axes and hands out the matching title from a
-// 24-entry table; the table below is the game's own, recovered from
-// localization block slot/001FC/3 (names at 0-23, descriptions at 24+index).
-//
-// Native evaluator is mapped in docs/mgspw_research.md. Exact axes are used
-// when probe resolves them; older partial counters remain fallback.
+// Peace Walker classifies career play by weapon class, co-op, and lethality.
 
 #include "codename.h"
 
@@ -26,8 +18,7 @@ struct PwTitle {
     bool nonlethal;
 };
 
-// Index is the game's own title index; FOX (14) is the solo counterpart to
-// FOXHOUND and the only slot whose name string the extraction did not carry.
+// Native title-index order.
 constexpr std::array<PwTitle, 24> kPwTitles{{
     {"WOLF",      WeaponClass::Medium,    true,  false},
     {"WHALE",     WeaponClass::Explosive, true,  true},
@@ -79,11 +70,7 @@ constexpr int kPwSlotClass[12] = {
     static_cast<int>(WeaponClass::Explosive), // 11
 };
 
-// The evaluator picks the single highest slot total and names the class that
-// slot belongs to. It does NOT sum a class first: 2 pistol, 2 shotgun and 3
-// sniper is a long-range career, because sniper is the biggest single type
-// even though the two short-range types outnumber it together.
-// Ties take the first group here, which is the evaluator's own predicate order.
+// Highest slot wins; ties use native predicate order.
 WeaponClass pw_dominant_class(const int (&slots)[12], int top)
 {
     unsigned mask = 0;
@@ -145,9 +132,7 @@ PwProfile pw_profile(const GameStats& s)
         if (p.balanced) p.dominant = WeaponClass::All;
         return p;
     }
-    // No native axes: rebuild the same twelve slots from the per-weapon career
-    // counters, so the dominant type is picked the way the evaluator picks it.
-    // Slots 6 and 10 are unavailable without the native axes.
+    // Rebuild available slots from career counters; slots 6 and 10 stay absent.
     int slots[12]{};
     slots[0] = pw_count(s.pw_cqc_takedowns);
     slots[1] = pw_count(s.pw_stun_rod_takedowns);
@@ -170,8 +155,7 @@ PwProfile pw_profile(const GameStats& s)
         if (p.by_class[i] > 0) ++p.classes_used;
         if (p.by_class[i] > p.top) p.top = p.by_class[i];
     }
-    // The spread test stays on class shares: without the axes there is no
-    // per-slot uniformity to measure, so this approximates it.
+    // Without native slots, class shares approximate spread.
     const bool spread = p.total > 0
         && p.classes_used >= kPwSpreadClasses
         && static_cast<double>(p.top) < static_cast<double>(p.total) * kPwSpreadShare;
@@ -185,10 +169,7 @@ PwProfile pw_profile(const GameStats& s)
 
 } // namespace
 
-// Insignias, by the game's own id. Thresholds and Heroism awards are the
-// .rdata table 0x140543810 assembles on the stack; names are the localization
-// rows those ids resolve to. scripts/pwinsig.py and scripts/pwolang.py
-// regenerate both halves from the install.
+// Native insignia id order, thresholds, and Heroism awards.
 constexpr PwInsignia kPwInsignias[110] = {
     {"Stealth Master (Rank C)", 25, 500},
     {"Stealth Master (Rank B)", 50, 2500},
@@ -325,10 +306,7 @@ int pw_insignia_progress(int id, const GameStats& s)
 
 namespace {
 
-// Gates per grade 1..5, from the native evaluator. Camaraderie steps are the
-// same numbers for both variants: a solo (low) title needs camaraderie at or
-// below its step, a cooperation title strictly above it. All-weapons titles
-// add a Heroism floor on top.
+// Grade 1..5 gates; co-op uses > camaraderie, solo uses <=.
 constexpr int kPwCamaraderieStep[] = {10000, 50000, 100000, 200000, 500000};
 constexpr int kPwHeroismFloor[] = {10000, 50000, 100000, 150000, 250000};
 constexpr double kPwCoopRatioGate[] = {0.05, 0.5, 1.0, 1.0, 1.0};
@@ -404,21 +382,17 @@ PwGrade pw_grade(const GameStats& s)
     const double ratio = pw_coop_ratio(s);
     const int heroism = s.pw_heroism;
 
-    // Highest grade whose every gate passes; grades never decrease natively,
-    // but this is the candidate the evaluator would compute right now.
+    // Highest grade whose every gate passes.
     for (int grade = 1; grade <= 5; ++grade) {
         const int i = grade - 1;
-        // Grade 3 and up need the ratio to reach 1.0, so it is >= not >.
-        // Confirmed in the evaluator: jb against the 1.0 constant, jbe
-        // against 0.5 and 0.05.
+        // Grades 3+ allow equality; grades 1-2 require a strict pass.
         const bool ratio_ok = grade >= 3 ? ratio >= kPwCoopRatioGate[i]
                                          : ratio > kPwCoopRatioGate[i];
         const bool cam_ok = coop ? s.pw_camaraderie > kPwCamaraderieStep[i]
                                  : s.pw_camaraderie <= kPwCamaraderieStep[i];
         const bool flag_ok = grade == 5 ? s.pw_codename_grade5_ok
             : grade == 4 ? s.pw_codename_grade4_ok : true;
-        // Strictly greater: the evaluator skips the grade on jle against the
-        // floor, so exactly 10000 Heroism does not earn grade 1.
+        // Heroism floor is strict.
         const bool heroism_ok = !all_weapons || heroism > kPwHeroismFloor[i];
         if (ratio_ok && cam_ok && flag_ok && heroism_ok) {
             out.grade = grade;
@@ -476,9 +450,7 @@ std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s)
                          static_cast<uint8_t>(op)};
     };
     std::vector<ReqStatus> out;
-    // FOX is the solo all-weapons non-lethal title: spread the takedowns and
-    // stay non-lethal. The two paths gate the spread differently, so each
-    // reports the number its own gate is actually measured on.
+    // FOX requires all-weapons spread and non-lethal play.
     const PwAxes axes = pw_axes(s);
     if (axes.native) {
         // Every slot within a tenth of the average, the average taken over 11.

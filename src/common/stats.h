@@ -87,46 +87,29 @@ struct GameStats {
     bool mgs1_integral = false;
     bool mgs1_japanese_original = false;
 
-    // Peace Walker probe. Offsets are relative to SAVEROOT unless noted; the
-    // per-field comments say what each one has been confirmed against.
+    // Peace Walker offsets are relative to SAVEROOT unless noted.
     uint64_t pw_mission_raw = 0;      // [PW_MISSIONTIME] total active-game ticks, 300/s
     uint32_t pw_total_play = 0;       // [SAVEROOT+0x84] total play, ticks ~1/s
     uint32_t pw_mission_play = 0;     // [PW_MISSIONTIME+0x10] mission time, ticks 300/s
     uint32_t pw_result_time = 0;      // [SAVEROOT+0x3C980] finalized run time, ticks 300/s
     char pw_stage[32] = {};           // [SAVEROOT+0x54] stage string
     int pw_region_id = -1;            // live region label key, st_regionNNNN
-    // Current sortie remains consultable through area loads, cutscenes and
-    // results; cleared on confirmed hub/menu stages.
+    // Latched across loads and cutscenes; cleared in hub/menu.
     bool pw_in_mission = false;
     int pw_player_hp = 0;             // [CHARARRAY[0]+0x11BE] u16, regenerates
-    // [CHARARRAY[0]+0x11C0] u16. Full health is per soldier, not a constant
-    // 8000: PW lets you deploy any MSF member and they do not share a maximum.
+    // [CHARARRAY[0]+0x11C0] u16; maximum varies by soldier.
     int pw_player_max_hp = 0;
     int pw_weapon_id = -1;            // [CHARARRAY[0]+0x14B8]
     int pw_heroism = 0;               // [SAVEROOT+0x64F4] validated lifetime Heroism
     int pw_heroism_delta = 0;         // [SAVEROOT+0x64EC] last-mission delta
     uint32_t pw_gmp = 0;              // [SAVEROOT+0xB52C] validated funds
     int pw_clears = -1;               // [SAVEROOT+0x656C] validated global clear count (replays count)
-    // S ranks come from the per-mission array below, not from a scalar: the
-    // offset once read as an S count turned out to be unrelated.
-    // FOXHOUND lifetime inputs, resolved by descriptor ID (table moves).
-    // -1 = unresolved. Confirmed by quantified missions: headshots +1
-    // on exactly-1-headshot run, kills +3 on 3-kill run, tranq +2 on
-    // 2-tranq run. Max across id matches (live copy leads stale
-    // snapshot copies). Fulton single-evidence (one +1).
+    // Lifetime inputs resolved by descriptor ID; -1 = unresolved.
     int pw_headshots = -1; // id 0x4420031
     int pw_kills = -1;     // ids 0x420008, 0x2007C, 0x200E0
     int pw_tranq = -1;     // ids 0x442002E, 0x200F9
-    // id 0x2008E: Fulton recoveries. Confirmed over four runs, including an
-    // 8-extraction main op where the in-game results screen showed 8.
-    int pw_fulton_recoveries = -1;
-    // id 0x2008F: prisoners extracted, counted apart from enemies. A run the
-    // game summarised as "6 enemies extracted and 1 prisoner" moved 0x2008E
-    // by 6 and this by 1.
-    int pw_prisoner_extractions = -1;
-    // Confirmed over three quantified runs (clean / 6-kill+alert /
-    // 0-kill+alert): 0x442011E only moves when the run had no alert,
-    // 0x442011F only when it had no kill. 0x44200DC moves on every clear.
+    int pw_fulton_recoveries = -1;    // id 0x2008E, enemies
+    int pw_prisoner_extractions = -1; // id 0x2008F, prisoners
     int pw_noitem_clears = -1;   // id 0x44200DC, "no recovery items used"
     int pw_holdups = -1;         // id 0x4420030, "Total Hold-ups"
     int pw_cqc_uses = -1;        // id 0x442007B, "Total CQC Count"
@@ -141,10 +124,7 @@ struct GameStats {
     int pw_mission_id = -1;
     int pw_cur_rank = -1;
     uint32_t pw_cur_best = 0;
-    // Career alerts (id 0x420002) plus the game's own per-mission tally,
-    // the descriptor's +0x18 field: it counts up live during a mission and
-    // the game clears it at mission start, so it beats latching baselines.
-    // -1 = unresolved.
+    // Career and live mission tallies; -1 = unresolved.
     int pw_alerts = -1;
     int pw_m_kills = -1;
     int pw_m_alerts = -1;
@@ -193,9 +173,7 @@ struct GameStats {
     bool pw_codename_grade4_ok = false;     // result+0x29
     bool pw_codename_grade5_ok = false;     // result+0x28
     bool pw_codename_result_ok = false;
-    // Live per-sortie deltas, differenced client-side at stage change
-    // (action careers tick live mid-mission; heroism/XP/GMP settle at
-    // results, so their segments only move post-results).
+    // Client-side deltas; some career totals settle after results.
     int seg_headshots = 0;
     int seg_kills = 0;
     int seg_tranq = 0;

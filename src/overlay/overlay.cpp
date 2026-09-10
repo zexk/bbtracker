@@ -1354,16 +1354,11 @@ constexpr RequirementsFn kRequirementsFns[] = {
 static_assert(std::size(kEvaluateFns) == 8);
 static_assert(std::size(kRequirementsFns) == 8);
 
-// The live half of the Summary: this sortie's clock and tally. Only drawn while
-// a mission is running, so nothing here is ever the previous run's leftovers.
-// Named rather than read from g_game: scripts/test-pw-overlay.py compiles
-// these panels without the hook that owns it.
+// Live sortie clock and tally.
 void draw_mgspw_run(const GameStats& stats)
 {
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
-    // Read straight from the game each frame rather than from the 10 Hz stats
-    // snapshot, so the milliseconds move smoothly. The game ticks this at
-    // 300 Hz, well above any frame rate it will be drawn at.
+    // Poll 300 Hz clock each frame for smooth milliseconds.
     const bool results = std::strcmp(stats.pw_stage, "result") == 0;
     uint32_t ticks = results && stats.pw_result_time
         ? stats.pw_result_time : stats.pw_mission_play;
@@ -1386,13 +1381,10 @@ void draw_mgspw_run(const GameStats& stats)
         const char* rank = stats.pw_cur_rank >= 0 && stats.pw_cur_rank < 4
             ? rank_names[stats.pw_cur_rank] : "-";
         if (stats.pw_cur_best) {
-            // Rank and time are separate bests and may come from different
-            // runs, so they are labelled apart rather than read as one result.
+            // Rank and time are independent bests.
             ImGui::TextDisabled("Mission %d | Best rank %s", stats.pw_mission_id, rank);
             ImGui::TextDisabled("Best time %llu:%02llu.%03llu", best_ms / 60000, (best_ms / 1000) % 60,
                                 best_ms % 1000);
-            // How the clock above stands against that record. The clock itself
-            // stays neutral: it is the reading, this is the judgement of it.
             const double delta = (double(mission_ms) - double(best_ms)) / 1000.0;
             const double size = delta < 0 ? -delta : delta;
             char gap[24];
@@ -1408,17 +1400,13 @@ void draw_mgspw_run(const GameStats& stats)
             ImGui::TextDisabled("Mission %d | No time recorded", stats.pw_mission_id);
         }
     }
-    // Current sortie: segment deltas land at the results tally (actions) or at
-    // lobby exit (heroism/XP/GMP); the master clock ticks live.
+    // Some segment deltas settle at results or lobby exit.
     if (ImGui::BeginTable("pw_current", 2,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("this run", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("mission", ImGuiTableColumnFlags_WidthFixed, ui_size(84));
         ImGui::TableHeadersRow();
-        // The game keeps its own per-mission tally in each stat descriptor
-        // (+0x18); it beats the client-side segment delta because the game
-        // clears it at mission start. Fall back to the segment when a
-        // descriptor is unresolved.
+        // Prefer native mission tally; fall back to client-side delta.
         const auto run_stat = [&](const char* k, int mission_value, int seg) {
             if (mission_value >= 0) {
                 snprintf(buf, sizeof(buf), "%d", mission_value);
@@ -1427,8 +1415,7 @@ void draw_mgspw_run(const GameStats& stats)
             }
             stat_row(k, buf);
         };
-        // Kills and alerts are what the clean-clear bonuses hang on, so a
-        // non-zero either way is coloured: it costs an insignia at results.
+        // Non-zero kills or alerts forfeit clean-clear insignias.
         const auto clean_row = [&](const char* k, int mission_value, int seg) {
             if (mission_value < 0) {
                 run_stat(k, mission_value, seg);
@@ -1480,8 +1467,6 @@ void draw_mgspw_run(const GameStats& stats)
 
 void draw_mgspw_summary(const GameStats& stats)
 {
-    // The run clock is the centrepiece; the codename it all feeds lives on
-    // its own tab.
     const char* stage = stats.pw_stage[0] ? stats.pw_stage : "-";
     const char* name = mgspw_area_name(stage, stats.pw_region_id);
     ImGui::Spacing();
@@ -1610,9 +1595,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
 
 void draw_mgspw_insignia(const GameStats& stats)
 {
-    // The counters the insignia evaluator grades, each against the tier it is
-    // working toward. Every family is three consecutive ids on a rising
-    // threshold, so the family is named by its first id.
+    // Each insignia family has three consecutive rising thresholds.
     static constexpr struct {
         const char* label;
         int first_id;
@@ -1623,8 +1606,6 @@ void draw_mgspw_insignia(const GameStats& stats)
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     if (stats.pw_insignias >= 0) {
         ImGui::Text("%d / 110 insignias earned", stats.pw_insignias);
-        // A meter rather than a filled block: the count above it is the
-        // reading, this is only its shape.
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
                               ImVec4(id_green.x, id_green.y, id_green.z, 0.55f));
         ImGui::ProgressBar(stats.pw_insignias / 110.0f, ImVec2(-FLT_MIN, ui_size(6)), "");
@@ -1640,15 +1621,13 @@ void draw_mgspw_insignia(const GameStats& stats)
         const ImVec4 pending = unset_color();
         for (const auto& family : kFamilies) {
             const int have = codename::pw_insignia_progress(family.first_id, stats);
-            // Tiers run C, B, A on a rising threshold; the first one not yet
-            // beaten is the one being worked toward.
+            // Show first unbeaten C/B/A threshold.
             int target = -1;
             const char* tier_name = "";
             for (int tier = 0; tier < 3 && target < 0; ++tier) {
                 const int over = codename::pw_insignia(family.first_id + tier).over;
                 if (have <= over) {
-                    // The grant test is strict, so the value to reach is one
-                    // above the threshold.
+                    // Grant test is strict.
                     target = over + 1;
                     static constexpr const char* kTiers[] = {"C", "B", "A"};
                     tier_name = kTiers[tier];
@@ -1670,8 +1649,6 @@ void draw_mgspw_insignia(const GameStats& stats)
         }
         ImGui::EndTable();
     }
-    // Only worth saying while something is missing; on a resolved profile the
-    // dash never appears.
     if (unresolved) {
         ImGui::TextDisabled("- = counter not resolved yet");
     }
@@ -1679,8 +1656,7 @@ void draw_mgspw_insignia(const GameStats& stats)
 
 void draw_mgspw_codenames(const GameStats& stats)
 {
-    // FOXHOUND is the all-weapons cooperation non-lethal title, so this tab
-    // is the distribution that decides "all weapons" plus the grade ladder.
+    // Weapon distribution decides all-weapons titles.
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     const codename::PwAxes axes = codename::pw_axes(stats);
     const ImVec4 pending = unset_color();
@@ -1715,15 +1691,11 @@ void draw_mgspw_codenames(const GameStats& stats)
             } else {
                 snprintf(buf, sizeof(buf), "%.0f%s / %.0f%s", r.current, pct, r.limit, pct);
             }
-            // A goal to reach and a limit to stay under fail differently: not
-            // having reached a goal yet is progress, so it reads as pending
-            // until it is close, while going over a limit is a real red.
+            // Unmet goals are pending; exceeded limits fail.
             const auto op = static_cast<codename::Op>(r.op);
             const bool reach = op == codename::Op::Ge || op == codename::Op::Gt;
             const bool near_limit = !reach && r.limit != 0 && r.current >= r.limit * kNearLimitShare;
-            // A limit that fails at zero has nothing under it yet: the spread
-            // rules fail an empty profile, which is no data rather than a
-            // broken limit.
+            // Empty profiles have no spread reading.
             const ImVec4 color = r.pass ? (near_limit ? id_yellow : id_green)
                 : !reach                ? (r.current > 0 ? id_red : unset_color())
                 : r.limit > 0 && r.current >= r.limit * kCloseGoalShare ? id_yellow
@@ -1735,7 +1707,6 @@ void draw_mgspw_codenames(const GameStats& stats)
             align_value(buf);
             ImGui::TextColored(color, "%s", buf);
         }
-        // Context, not a requirement: the counters the axes are read from.
         const auto plain = [&](const char* key, int value) {
             format_count(value, buf, sizeof(buf));
             dim_row(key, buf);
@@ -1759,8 +1730,7 @@ void draw_mgspw_codenames(const GameStats& stats)
             ImGui::TextColored(value > 0 ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : pending,
                                "%s", label);
             ImGui::TableNextColumn();
-            // A zero is a class not carried, not a reading: it dims with its
-            // label rather than standing out as a number.
+            // Dim unused classes.
             format_count(value, buf, sizeof(buf));
             align_value(buf);
             if (value > 0) ImGui::TextUnformatted(buf);
@@ -1771,7 +1741,6 @@ void draw_mgspw_codenames(const GameStats& stats)
             align_value(buf);
             ImGui::TextColored(value > 0 ? share_color : pending, "%s", buf);
         };
-        // Grouped weapon shares; the Summary reports the native slot spread.
         for (int cls = 0; cls < 6; ++cls) {
             share_row(codename::pw_class_name(cls), axes.by_class[cls], axes.total, id_yellow);
         }
@@ -1785,8 +1754,7 @@ void draw_mgspw_codenames(const GameStats& stats)
         ImGui::TableNextColumn();
         align_value(axes.total > 0 ? "100%" : "-");
         ImGui::TextDisabled("%s", axes.total > 0 ? "100%" : "-");
-        // The pair below counts the same takedowns a second way, so it is set
-        // apart from the per-class rows and their total.
+        // Lethality is another view of same takedowns.
         ImGui::TableNextRow(ImGuiTableRowFlags_None, ui_size(6));
         // FOXHOUND is a non-lethal title: non-lethal must beat twice lethal.
         share_row("lethal", axes.lethal, axes.lethal + axes.nonlethal, id_red);
@@ -1799,13 +1767,11 @@ void draw_mgspw_codenames(const GameStats& stats)
     ImGui::Spacing();
     const codename::PwGrade grade = codename::pw_grade(stats);
     const bool coop = stats.pw_camaraderie > codename::kPwCoopCamaraderie;
-    // The grade being worked towards: the first one that fails, the one held
-    // once that is 5, and 1 before any evaluation has happened.
+    // Show first failing grade, held grade 5, or initial grade 1.
     const int target = grade.next ? grade.next : grade.grade ? grade.grade : 1;
     const codename::PwGradeGate gate = codename::pw_grade_gate(target);
     if (!stats.pw_codename_result_ok) {
-        // Nothing has been evaluated yet, so the gates below are what grade 1
-        // will be judged on rather than a standing on them.
+        // Before evaluation, show grade 1 gates without status.
         ImGui::TextDisabled("No grade yet | finish a mission to be evaluated");
     } else if (grade.next) {
         ImGui::TextColored(grade.grade ? id_green : pending, "Grade %d / 5", grade.grade);
@@ -1821,9 +1787,7 @@ void draw_mgspw_codenames(const GameStats& stats)
         ImGui::TableSetupColumn("now", ImGuiTableColumnFlags_WidthFixed, ui_size(70));
         ImGui::TableSetupColumn("goal", ImGuiTableColumnFlags_WidthFixed, ui_size(70));
         ImGui::TableHeadersRow();
-        // A gate reads red only once it is known to fail: an unread counter is
-        // no standing at all, and a gate this title is not judged on is spent
-        // ink either way.
+        // Unread or irrelevant gates have no failure status.
         const auto gate_row = [&](const char* label, bool known, bool judged,
                                   const char* now, const char* goal, bool pass) {
             const ImVec4 color = !known || !judged ? pending : pass ? id_green : id_red;
@@ -1839,8 +1803,7 @@ void draw_mgspw_codenames(const GameStats& stats)
             ImGui::TextColored(color, "%s", goal);
         };
         char now_value[24], goal_value[32], gate_text[24];
-        // A cooperation title needs camaraderie above the step, a solo one at
-        // or below it: the profile picks which of the two this is.
+        // Co-op requires above step; solo requires at or below.
         format_thousands(gate.camaraderie, gate_text, sizeof(gate_text));
         snprintf(goal_value, sizeof(goal_value), "%s%s", coop ? ">" : "<=", gate_text);
         format_thousands(stats.pw_camaraderie, now_value, sizeof(now_value));
@@ -1852,7 +1815,6 @@ void draw_mgspw_codenames(const GameStats& stats)
             format_thousands(gate.heroism, gate_text, sizeof(gate_text));
             snprintf(goal_value, sizeof(goal_value), ">%s", gate_text);
         } else {
-            // The title this profile projects is not judged on Heroism at all.
             snprintf(goal_value, sizeof(goal_value), "any");
         }
         format_thousands(stats.pw_heroism, now_value, sizeof(now_value));
@@ -1869,8 +1831,7 @@ void draw_mgspw_codenames(const GameStats& stats)
                  gate.coop_ratio);
         gate_row("co-op ratio", ratio_known, true, now_value, goal_value,
                  target >= 3 ? ratio >= gate.coop_ratio : ratio > gate.coop_ratio);
-        // The last two grades also want the game's own mission-rank flag, which
-        // is a verdict the evaluator hands back rather than a counter.
+        // Grades 4-5 also require native mission-rank verdict.
         if (target >= 4) {
             const bool flag = target == 5 ? stats.pw_codename_grade5_ok
                                           : stats.pw_codename_grade4_ok;
