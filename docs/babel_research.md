@@ -321,8 +321,7 @@ validated record relationship.
 
 ## Next targets
 
-1. Confirm the values above against a live run, especially the difficulty
-   record layout and the stage-clear moment when `C503` is written.
+1. Confirm the stage-clear moment when `C503` is written.
 2. Identify `C4F4` and decide whether special missions reuse `C46C` or the
    `C0F3` high nibble for their target times.
 3. Check whether the checkpoint snapshot that restores `C4EE..C4F2` on

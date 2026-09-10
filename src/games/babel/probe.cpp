@@ -3,15 +3,17 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 #include "../../common/log.h"
 #include "../../common/mem.h"
+#include "../../common/run_latch.h"
 
 namespace bb::babel {
 
-using bb::mem::range_readable;
 using bb::mem::read;
 
 namespace {
@@ -22,29 +24,37 @@ constexpr uintptr_t kRecordPointerOffset = 0x24;
 constexpr uintptr_t kRecordRomOffset = 0x58;
 constexpr uintptr_t kRecordWram0Offset = 0xB8;
 constexpr uintptr_t kRecordSelectedWramOffset = 0xD0;
-constexpr uintptr_t kWramBankSize = 0x1000;
-
 uintptr_t g_record = 0;
 uintptr_t g_scan_cursor = 0x10000;
+RunLatch g_run;
 
-bool resolve_record(const char* title)
+constexpr bool empty_wram_is_reset()
 {
-    const uintptr_t rom = reinterpret_cast<uintptr_t>(title) - kRomTitleOffset;
+    std::array<uint8_t, kWramSize> wram{};
+    return run_reset(wram.data());
+}
+
+static_assert(empty_wram_is_reset());
+
+bool resolve_record(uintptr_t title)
+{
+    const uintptr_t rom = title - kRomTitleOffset;
+    uintptr_t record = 0;
     if (rom < kRecordPointerOffset
-        || !range_readable(rom - kRecordPointerOffset, sizeof(uintptr_t))) {
+        || !mem::copy(rom - kRecordPointerOffset, record) || !record) {
         return false;
     }
-    const uintptr_t record = read<uintptr_t>(rom - kRecordPointerOffset);
-    if (!record || !range_readable(record + kRecordRomOffset, sizeof(uintptr_t))
-        || read<uintptr_t>(record + kRecordRomOffset) != rom
-        || !range_readable(record + kRecordWram0Offset, sizeof(uintptr_t))
-        || !range_readable(record + kRecordSelectedWramOffset, sizeof(uintptr_t))) {
+    std::array<uint8_t, kRecordSelectedWramOffset - kRecordRomOffset + sizeof(uintptr_t)> data{};
+    if (!mem::copy(record + kRecordRomOffset, data.data(), data.size())) {
         return false;
     }
-    const uintptr_t wram0 = read<uintptr_t>(record + kRecordWram0Offset);
-    const uintptr_t selected = read<uintptr_t>(record + kRecordSelectedWramOffset);
-    if (!range_readable(wram0, 8 * kWramBankSize)
-        || selected < wram0 + kWramBankSize || selected >= wram0 + 8 * kWramBankSize
+    const uintptr_t base = reinterpret_cast<uintptr_t>(data.data());
+    const uintptr_t record_rom = read<uintptr_t>(base);
+    const uintptr_t wram0 = read<uintptr_t>(base + kRecordWram0Offset - kRecordRomOffset);
+    const uintptr_t selected = read<uintptr_t>(
+        base + kRecordSelectedWramOffset - kRecordRomOffset);
+    if (record_rom != rom || !wram0 || wram0 > UINTPTR_MAX - kWramSize
+        || selected < wram0 + kWramBankSize || selected >= wram0 + kWramSize
         || (selected - wram0) % kWramBankSize != 0) {
         return false;
     }
@@ -58,6 +68,9 @@ bool resolve_record(const char* title)
 
 void scan_record()
 {
+    constexpr size_t kScanChunkSize = 0x40000;
+    constexpr size_t kTitleSize = sizeof(kRomTitle) - 1;
+    static std::vector<char> buffer(kScanChunkSize + kTitleSize - 1);
     LARGE_INTEGER frequency{};
     LARGE_INTEGER started{};
     QueryPerformanceFrequency(&frequency);
@@ -72,25 +85,32 @@ void scan_record()
             | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
         if (mbi.State == MEM_COMMIT && (mbi.Protect & kWritable) != 0
             && (mbi.Protect & PAGE_GUARD) == 0 && mbi.RegionSize <= 0x10000000) {
-            const char* next = reinterpret_cast<const char*>(
-                g_scan_cursor > base ? g_scan_cursor : base);
-            const char* limit = reinterpret_cast<const char*>(end);
-            while (next < limit) {
-                const char* hit = static_cast<const char*>(
-                    std::memchr(next, 'M', static_cast<size_t>(limit - next)));
-                if (!hit) break;
-                next = hit + 1;
-                if (static_cast<size_t>(limit - hit) >= sizeof(kRomTitle) - 1
-                    && std::memcmp(hit, kRomTitle, sizeof(kRomTitle) - 1) == 0
-                    && resolve_record(hit)) {
-                    return;
+            uintptr_t address = g_scan_cursor > base ? g_scan_cursor : base;
+            while (address < end) {
+                const size_t primary = std::min(kScanChunkSize, end - address);
+                const size_t read_size = std::min(primary + kTitleSize - 1, end - address);
+                if (!mem::copy(address, buffer.data(), read_size)) break;
+                const char* next = buffer.data();
+                const char* const search_limit = next + primary;
+                const char* const read_limit = buffer.data() + read_size;
+                while (next < search_limit) {
+                    const char* hit = static_cast<const char*>(
+                        std::memchr(next, 'M', static_cast<size_t>(search_limit - next)));
+                    if (!hit) break;
+                    next = hit + 1;
+                    if (static_cast<size_t>(read_limit - hit) >= kTitleSize
+                        && std::memcmp(hit, kRomTitle, kTitleSize) == 0
+                        && resolve_record(address + static_cast<uintptr_t>(hit - buffer.data()))) {
+                        return;
+                    }
                 }
                 LARGE_INTEGER now{};
                 QueryPerformanceCounter(&now);
                 if (now.QuadPart >= deadline) {
-                    g_scan_cursor = reinterpret_cast<uintptr_t>(next);
+                    g_scan_cursor = address + primary;
                     return;
                 }
+                address += primary;
             }
         }
         if (end <= g_scan_cursor) break;
@@ -99,62 +119,37 @@ void scan_record()
     g_scan_cursor = 0x10000;
 }
 
-uint16_t value16(uintptr_t wram0, uintptr_t address)
-{
-    return read<uint16_t>(wram0 + address - 0xC000);
-}
-
 } // namespace
 
 bool poll_stats(GameStats& out)
 {
     if (!g_record) {
         scan_record();
-        if (!g_record) return false;
+        if (!g_record) return g_run.hold(out);
     }
-    if (!range_readable(g_record + kRecordSelectedWramOffset, sizeof(uintptr_t))) {
+    std::array<uint8_t, kRecordSelectedWramOffset - kRecordWram0Offset
+                            + sizeof(uintptr_t)> record{};
+    if (!mem::copy(g_record + kRecordWram0Offset, record.data(), record.size())) {
         g_record = 0;
-        return false;
+        return g_run.hold(out);
     }
-    const uintptr_t wram0 = read<uintptr_t>(g_record + kRecordWram0Offset);
-    const uintptr_t bank6 = wram0 + 6 * kWramBankSize;
-    if (!range_readable(wram0, 8 * kWramBankSize)) {
+    const uintptr_t record_data = reinterpret_cast<uintptr_t>(record.data());
+    const uintptr_t wram0 = read<uintptr_t>(record_data);
+    const uintptr_t selected = read<uintptr_t>(
+        record_data + kRecordSelectedWramOffset - kRecordWram0Offset);
+    if (!wram0 || wram0 > UINTPTR_MAX - kWramSize
+        || selected < wram0 + kWramBankSize || selected >= wram0 + kWramSize
+        || (selected - wram0) % kWramBankSize != 0) {
         g_record = 0;
-        return false;
+        return g_run.hold(out);
     }
-
-    const uint8_t difficulty = read<uint8_t>(wram0 + 0x4E7);
-    const uint8_t stage = read<uint8_t>(wram0 + 0x46C);
-    const uint8_t mode = read<uint8_t>(wram0 + 0x0F3);
-    if (difficulty > 3 || stage > 12 || (mode & 0x0F) != 0) return false;
-
-    const uint8_t frames = read<uint8_t>(wram0 + 0x4F8);
-    const uint8_t seconds = read<uint8_t>(wram0 + 0x4F9);
-    const uint8_t minutes = read<uint8_t>(wram0 + 0x4FA);
-    const uint8_t hours = read<uint8_t>(wram0 + 0x4FB);
-    const uint8_t career_seconds = read<uint8_t>(bank6 + 0xF55);
-    const uint8_t career_minutes = read<uint8_t>(bank6 + 0xF56);
-    const uint8_t career_hours = read<uint8_t>(bank6 + 0xF57);
-    if (frames >= 60 || seconds >= 60 || minutes >= 60 || hours >= 100
-        || career_seconds >= 60 || career_minutes >= 60 || career_hours >= 100) {
-        return false;
-    }
-
-    out = {};
-    out.difficulty_raw = difficulty;
-    out.difficulty_game_byte = difficulty;
-    out.difficulty = difficulty == 0 ? Difficulty::Easy
-        : difficulty == 1 ? Difficulty::Normal
-        : difficulty == 2 ? Difficulty::Hard : Difficulty::Extreme;
-    out.mission = stage;
-    out.alerts = value16(wram0, 0xC4EE) + read<uint16_t>(bank6 + 0xF4A);
-    out.kills = value16(wram0, 0xC4F0) + read<uint16_t>(bank6 + 0xF4C);
-    out.rations_used = value16(wram0, 0xC4F2) + read<uint16_t>(bank6 + 0xF4E);
-    out.saves = read<uint8_t>(wram0 + 0x44A);
-    out.play_time_seconds = career_seconds + career_minutes * 60.0
-        + career_hours * 3600.0 + seconds + minutes * 60.0 + hours * 3600.0
-        + frames / 60.0;
-    return out.play_time_seconds > 0.0;
+    std::array<uint8_t, kWramSize> wram{};
+    if (!mem::copy(wram0, wram.data(), wram.size())) return g_run.hold(out);
+    const uint8_t* const data = wram.data();
+    if (run_reset(data)) return g_run.update(out, RunState::Inactive);
+    if (!decode_wram(data, out)) return g_run.hold(out);
+    return g_run.update(out, out.play_time_seconds > 0.0
+                                 ? RunState::Active : RunState::Unknown);
 }
 
 } // namespace bb::babel

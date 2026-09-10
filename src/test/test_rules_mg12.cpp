@@ -1,7 +1,10 @@
+#include <array>
+#include <cstring>
 #include <string_view>
 
 #include "check.h"
 #include "common/codename/codename.h"
+#include "games/babel/probe.h"
 
 using namespace bb;
 using namespace bb::codename;
@@ -134,6 +137,34 @@ void test_babel_rank_selection()
     CHECK(rank && std::string_view(rank->name) == "CLOW");
 }
 
+void test_babel_wram_decoder()
+{
+    std::array<uint8_t, babel::kWramSize> wram{};
+    uint8_t* bank6 = wram.data() + 6 * babel::kWramBankSize;
+    wram[0x4E7] = 3;
+    wram[0x46C] = 7;
+    wram[0x4F8] = 30;
+    wram[0x4F9] = 4;
+    wram[0x4FA] = 3;
+    bank6[0xF55] = 2;
+    bank6[0xF56] = 1;
+    const uint16_t alerts = 4;
+    const uint16_t career_alerts = 6;
+    std::memcpy(wram.data() + 0x4EE, &alerts, sizeof(alerts));
+    std::memcpy(bank6 + 0xF4A, &career_alerts, sizeof(career_alerts));
+
+    GameStats stats{};
+    CHECK(babel::decode_wram(wram.data(), stats));
+    CHECK(stats.difficulty == Difficulty::Extreme);
+    CHECK(stats.mission == 7);
+    CHECK(stats.alerts == 10);
+    CHECK(stats.play_time_seconds == 246.5);
+    CHECK(!babel::run_reset(wram.data()));
+
+    wram[0x4F8] = 60;
+    CHECK(!babel::decode_wram(wram.data(), stats));
+}
+
 } // namespace
 
 int main()
@@ -145,6 +176,7 @@ int main()
         {"mg2_fox_time_gate", test_mg2_fox_time_gate},
         {"mg2_lower_rank_boundaries", test_mg2_lower_rank_boundaries},
         {"babel_rank_selection", test_babel_rank_selection},
+        {"babel_wram_decoder", test_babel_wram_decoder},
     };
 
     return bb::test::run("mg12", tests);
