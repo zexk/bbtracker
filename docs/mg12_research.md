@@ -31,6 +31,28 @@ so call targets must be followed before assigning behavior.
 state is module-relative, so probes should wait for the selected DLL and reject
 unreadable or implausible fields.
 
+## Shipped asset layout
+
+Each locale ships parallel `stage/mg1` and `stage/mg2` trees. Their small
+`manifest.txt` files map installed paths to cache names; `bp_assets.txt` is empty in
+this build.
+
+- `cache/<language>.raw` contains localized dialogue and UI text. It also carries
+  the complete codename strings in native result order. For example, MG1's English
+  block lists `CHICKEN` through `BIG BOSS` at offsets near `0x15E87E`, while MG2's
+  equivalent block sits near `0x4CCD5`.
+- `cache/00180720.gcx` is compiled GCX UI/script data. Its `_bp` counterpart begins
+  with `LCGB`, is larger, and leaves menu and save-location labels readable as plain
+  strings. These labels provide full localized area-name lists for both games.
+- `pk0001a1.sdx` begins with `IPSQ` and contains `IWAV` chunks, identifying it as
+  packaged audio rather than gameplay script or rank data.
+- Five `.la2` cache files accompany each game. Their role remains unidentified;
+  nothing currently needed by tracker points through them.
+
+These GCX files are not Peace Walker `.olang` containers. They lack `RBX\0` magic
+and cannot be read by `scripts/pwolang.py`; plain-string recovery is sufficient for
+known codename and location tables.
+
 ## MG2 rank state
 
 MG2 end-screen rank evaluation starts at `mg2.dll+0x256BA`. Its counter getters
@@ -86,12 +108,9 @@ that cap falls through to ZEBRA even when clear time is under four hours.
 
 ### MG2 area names (located, not yet wired)
 
-Localized location strings live in `<locale>/stage/mg2/cache/00180720.gcx`
-(e.g. `fr/stage/mg2/cache/00180720.gcx`), one per shipped language. Same
-container magic (`43e6d30f`) as the Peace Walker/Ghost Babel `olang` archives,
-so `scripts/pwolang.py`'s parser should read it with the same approach. Native
-order gives roughly 50 location labels from `Infiltration Point` through the
-Big Boss battle and rendezvous. Not yet extracted into `names.h`-style tables:
+Localized location strings live in `<locale>/stage/mg2/cache/_bp/00180720.gcx`.
+Native order gives roughly 50 location labels from `Infiltration Point` through
+the Big Boss battle and rendezvous. Not yet extracted into `names.h`-style tables:
 first need the live area-index address below.
 
 Live area index: still unresolved. Static disassembly (ImageBase
@@ -169,18 +188,23 @@ Big Boss/Fox checks encoded by the evaluator:
 The evaluator first permits at most 3 kills before entering its best-time rank
 branch, then applies the strict zero-kill check for Big Boss/Fox.
 
-Raw timer boundaries are:
+Full rank ladder is:
 
-| Boundary | Real time |
-| --- | --- |
-| `0xAFC8` | `0:50:00` |
-| `0x13C68` | `1:30:00` |
-| `0x1A5E0` | `2:00:00` |
-| `0x34BC0` | `4:00:00` |
-| `0x69780` | `8:00:00` |
-| `0x9E340` | `12:00:00` |
-| `0xD2F00` | `16:00:00` |
-| `0x107AC0` | `20:00:00` |
+| Result index | Codename | Boundary | Real time |
+| --- | --- | --- | --- |
+| 9/10 | FOX / BIG BOSS | `< 0xAFC8` | `< 0:50:00` |
+| 8 | EAGLE | `< 0xAFC8` | `< 0:50:00` |
+| 7 | PANTHER | `< 0x13C68` | `< 1:30:00` |
+| 6 | JACKAL | `< 0x1A5E0` | `< 2:00:00` |
+| 5 | ZEBRA | `< 0x34BC0` | `< 4:00:00` |
+| 4 | DEER | `< 0x69780` | `< 8:00:00` |
+| 3 | ELEPHANT | `< 0x9E340` | `< 12:00:00` |
+| 2 | HIPPOPOTAMUS | `< 0xD2F00` | `< 16:00:00` |
+| 1 | TURTLE | `< 0x107AC0` | `< 20:00:00` |
+| 0 | CHICKEN | otherwise | `>= 20:00:00` |
+
+EAGLE through ZEBRA also require at most 3 kills. More than 3 kills falls through
+to DEER even below four hours.
 
 `mg1.dll+0x2E5FC`, published online as health, is not health. Code clears it on
 state transitions and tests it while handling player death. Do not use it as a

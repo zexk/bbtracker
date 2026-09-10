@@ -16,10 +16,38 @@ void test_mg1_big_boss_time_and_kill_gates()
     auto rank = evaluate_mg1(stats);
     CHECK(rank && std::string_view(rank->name) == "BIG BOSS");
     stats.kills = 1;
-    CHECK(!evaluate_mg1(stats));
+    rank = evaluate_mg1(stats);
+    CHECK(rank && std::string_view(rank->name) == "EAGLE");
     stats.kills = 0;
     stats.play_time_seconds = 3000;
-    CHECK(!evaluate_mg1(stats));
+    rank = evaluate_mg1(stats);
+    CHECK(rank && std::string_view(rank->name) == "PANTHER");
+}
+
+void test_mg1_lower_rank_boundaries()
+{
+    GameStats stats{};
+    stats.difficulty = Difficulty::Easy;
+    stats.continues = 1;
+
+    constexpr struct {
+        double seconds;
+        const char* name;
+    } cases[] = {
+        {2999, "EAGLE"}, {3000, "PANTHER"}, {5400, "JACKAL"},
+        {7200, "ZEBRA"}, {14400, "DEER"}, {28800, "ELEPHANT"},
+        {43200, "HIPPOPOTAMUS"}, {57600, "TURTLE"}, {72000, "CHICKEN"},
+    };
+    for (const auto& test : cases) {
+        stats.play_time_seconds = test.seconds;
+        const auto rank = evaluate_mg1(stats);
+        CHECK(rank && std::string_view(rank->name) == test.name);
+    }
+
+    stats.play_time_seconds = 1;
+    stats.kills = 4;
+    const auto rank = evaluate_mg1(stats);
+    CHECK(rank && std::string_view(rank->name) == "DEER");
 }
 
 void test_mg2_fox_time_gate()
@@ -98,6 +126,7 @@ int main()
 {
     constexpr bb::test::Case tests[] = {
         {"mg1_big_boss_time_and_kill_gates", test_mg1_big_boss_time_and_kill_gates},
+        {"mg1_lower_rank_boundaries", test_mg1_lower_rank_boundaries},
         {"mg2_fox_time_gate", test_mg2_fox_time_gate},
         {"mg2_lower_rank_boundaries", test_mg2_lower_rank_boundaries},
         {"babel_rank_selection", test_babel_rank_selection},
