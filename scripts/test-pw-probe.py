@@ -16,6 +16,7 @@ def block(start, end):
 
 code = r'''
 #include <cassert>
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <iterator>
@@ -31,6 +32,21 @@ bool range_readable(uintptr_t address, size_t size) {
         if (address >= base && address - base <= length
             && size <= length - (address - base)) return true;
     return false;
+}
+namespace bb::mem {
+bool copy(uintptr_t address, void* out, size_t size) {
+    if (!range_readable(address, size)) return false;
+    std::memcpy(out, reinterpret_cast<const void*>(address), size);
+    return true;
+}
+template<class T> bool copy(uintptr_t address, T& out) {
+    return copy(address, &out, sizeof(out));
+}
+template<class T> T read(uintptr_t address) {
+    T value{};
+    std::memcpy(&value, reinterpret_cast<const void*>(address), sizeof(value));
+    return value;
+}
 }
 template<class T> void put(uintptr_t address, T value) {
     std::memcpy(reinterpret_cast<void*>(address), &value, sizeof(value));

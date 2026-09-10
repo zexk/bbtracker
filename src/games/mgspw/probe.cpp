@@ -4,17 +4,17 @@
 #include <windows.h>
 
 #include <atomic>
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <iterator>
 #include <string_view>
+#include <vector>
 
 #include "../../common/log.h"
 #include "../../common/mem.h"
 
 namespace bb::mgspw {
-
-using bb::mem::range_readable;
 
 namespace {
 
@@ -154,6 +154,18 @@ static_assert(run_flush_stage("my_outer_trade"));
 static_assert(!run_flush_stage("result"));
 static_assert(!run_flush_stage("w01s04a"));
 
+constexpr bool valid_stage(std::string_view stage)
+{
+    for (char c : stage) {
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) return false;
+    }
+    return true;
+}
+
+static_assert(valid_stage("w01s04a"));
+static_assert(valid_stage("my_outer_trade"));
+static_assert(!valid_stage("w01[s04a"));
+
 // Span covering every descriptor the indexed paths touch: family ids stop
 // at the getter's bound above, and the 0xDD..0x110 codename axes sit below
 // it. Validated once per poll instead of once per record.
@@ -163,10 +175,8 @@ constexpr size_t kStatRecordsSpan = (kStatIndexMax + 1) * kStatStride;
 // records base each poll, or 0 when the pointer cell is unreadable.
 uintptr_t stat_records()
 {
-    if (!g_stat_array || !range_readable(g_stat_array, sizeof(uintptr_t))) {
-        return 0;
-    }
-    const uintptr_t array = *reinterpret_cast<volatile const uintptr_t*>(g_stat_array);
+    uintptr_t array = 0;
+    if (!g_stat_array || !mem::copy(g_stat_array, array)) return 0;
     return array > kStatArrayBias ? array - kStatArrayBias : 0;
 }
 constexpr uint32_t kHeadshotIds[] = {0x4420031};
@@ -209,16 +219,21 @@ constexpr uint32_t kBodyKillIds[] = {0x200ED};
 // to nine player tallies. The caller has already validated the descriptor.
 int mission_stat(uintptr_t record, int player)
 {
-    const uint32_t flags = *reinterpret_cast<volatile const uint32_t*>(record + 0x10) >> 16;
+    const uint32_t flags = mem::read<uint32_t>(record + 0x10) >> 16;
     if (flags & 0x220) return -1;
     uintptr_t address = record + 0x18;
     if (!(flags & 0x40)) {
         if (player < 0 || player > 8) return -1;
-        const uintptr_t pointer = *reinterpret_cast<volatile const uintptr_t*>(address);
-        if (!pointer || !range_readable(pointer, (player + 1) * sizeof(int32_t))) return -1;
+        const uintptr_t pointer = mem::read<uintptr_t>(address);
+        if (!pointer) return -1;
         address = pointer + player * sizeof(int32_t);
     }
-    const int value = *reinterpret_cast<volatile const int32_t*>(address);
+    int value = -1;
+    if ((flags & 0x40) != 0) {
+        value = mem::read<int32_t>(address);
+    } else if (!mem::copy(address, value)) {
+        return -1;
+    }
     return value >= 0 && value <= static_cast<int>(kStatMax) ? value : -1;
 }
 
@@ -265,8 +280,9 @@ void read_stat_families(uintptr_t block, GameStats& out)
             *f.mission_field = -1;
         }
     }
-    const int player = g_local_player && range_readable(g_local_player, 1)
-        ? *reinterpret_cast<volatile const uint8_t*>(g_local_player) : -1;
+    uint8_t local_player = 0xFF;
+    const int player = g_local_player && mem::copy(g_local_player, local_player)
+        ? local_player : -1;
     // Direct index, the way the game's own getter does it. Falls back to the
     // linear scan below if the array pointer did not resolve.
     const uintptr_t records = stat_records();
@@ -274,7 +290,8 @@ void read_stat_families(uintptr_t block, GameStats& out)
         // One validation for the whole descriptor span; the per-record id
         // check below still guards against layout changes, and out-of-span
         // indices keep their individual skip above.
-        const bool span_ok = range_readable(records, kStatRecordsSpan);
+        static std::vector<uint8_t> snapshot(kStatRecordsSpan);
+        const bool span_ok = mem::copy(records, snapshot.data(), snapshot.size());
         bool all_ok = true;
         for (const Family& f : families) {
             for (size_t i = 0; i < f.count; ++i) {
@@ -282,12 +299,13 @@ void read_stat_families(uintptr_t block, GameStats& out)
                 if (index > kStatIndexMax) {
                     continue;
                 }
-                const uintptr_t rec = records + index * kStatStride;
-                if (!span_ok && !range_readable(rec, kStatStride)) {
+                if (!span_ok) {
                     all_ok = false;
                     continue;
                 }
-                const auto* words = reinterpret_cast<volatile const uint32_t*>(rec);
+                const uintptr_t rec = reinterpret_cast<uintptr_t>(snapshot.data())
+                    + index * kStatStride;
+                const auto* words = reinterpret_cast<const uint32_t*>(rec);
                 // The index is derived from the id, so a record whose id
                 // does not match means the array moved or the layout
                 // changed - never trust the value in that case.
@@ -308,14 +326,14 @@ void read_stat_families(uintptr_t block, GameStats& out)
     // stale snapshot copies.
     for (size_t page = 0; page < kStatScanSize; page += 0x1000) {
         const uintptr_t base = block + page;
-        if (!range_readable(base, 0x1000)) {
-            continue;
-        }
         const size_t span = page + 0x1000 <= kStatScanSize + 44
             ? 0x1000
             : kStatScanSize + 44 - page;
+        std::array<uint8_t, 0x1000> snapshot{};
+        if (!mem::copy(base, snapshot.data(), span)) continue;
         for (size_t off = 0; off + 48 <= span; off += 4) {
-            const auto* rec = reinterpret_cast<volatile const uint32_t*>(base + off);
+            const uintptr_t rec_address = reinterpret_cast<uintptr_t>(snapshot.data()) + off;
+            const auto* rec = reinterpret_cast<const uint32_t*>(rec_address);
             if (rec[0] != kStatMax || rec[10] != kStatMax) {
                 continue;
             }
@@ -330,7 +348,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
                         *f.field = value;
                     }
                     if (f.mission_field) {
-                        const int mission = mission_stat(base + off, player);
+                        const int mission = mission_stat(rec_address, player);
                         if (mission > *f.mission_field) *f.mission_field = mission;
                     }
                 }
@@ -348,7 +366,7 @@ void read_codename_state(uintptr_t block, GameStats& out)
     const uintptr_t base = block + kCodenameStateOff;
     for (size_t id = 1; id < std::size(out.pw_codename_state); ++id) {
         out.pw_codename_state[id] =
-            *reinterpret_cast<volatile const uint8_t*>(base + id);
+            mem::read<uint8_t>(base + id);
     }
     out.pw_codename_state_ok = true;
 }
@@ -363,7 +381,7 @@ void read_insignia_state(uintptr_t block, GameStats& out)
     const uintptr_t base = block + kInsigniaStateOff;
     int owned = 0;
     for (size_t index = 1; index <= kInsigniaCount; ++index) {
-        owned += *reinterpret_cast<volatile const uint8_t*>(base + index) & 1;
+        owned += mem::read<uint8_t>(base + index) & 1;
     }
     out.pw_insignias = owned;
 }
@@ -375,14 +393,15 @@ void read_codename_axes(GameStats& out)
     if (!records) return;
     // One validation for the whole axes span (a subset of the descriptor
     // span above); per-record checks stay as the fallback.
-    const bool span_ok = range_readable(records, kStatRecordsSpan);
+    static std::vector<uint8_t> snapshot(kStatRecordsSpan);
+    if (!mem::copy(records, snapshot.data(), snapshot.size())) return;
+    const uintptr_t base = reinterpret_cast<uintptr_t>(snapshot.data());
     for (int axis = 0; axis < 4; ++axis) {
         for (int slot = 0; slot < 12; ++slot) {
             const uint32_t index = 0xDD + axis * 13 + slot;
-            const uintptr_t rec = records + index * kStatStride;
-            if (!span_ok && !range_readable(rec, kStatStride)) return;
-            if (*reinterpret_cast<volatile const uint32_t*>(rec + 0x10) != (0x20000u | index)) return;
-            const int value = *reinterpret_cast<volatile const int32_t*>(rec + 0x20);
+            const uintptr_t rec = base + index * kStatStride;
+            if (mem::read<uint32_t>(rec + 0x10) != (0x20000u | index)) return;
+            const int value = mem::read<int32_t>(rec + 0x20);
             if (value < 0 || value > static_cast<int>(kStatMax)) return;
             out.pw_codename_axes[axis][slot] = value;
         }
@@ -493,11 +512,7 @@ constexpr size_t kSaveBlockSpan = kInsigniaStateOff + kInsigniaCount + 1;
 bool poll_mission_clock(uint32_t& ticks)
 {
     const uintptr_t mission_time = g_mission_time.load();
-    if (!mission_time || !range_readable(mission_time + kMissionPlayOff, 4)) {
-        return false;
-    }
-    ticks = *reinterpret_cast<volatile const uint32_t*>(mission_time + kMissionPlayOff);
-    return true;
+    return mission_time && mem::copy(mission_time + kMissionPlayOff, ticks);
 }
 
 bool poll_stats(GameStats& out)
@@ -514,22 +529,23 @@ bool poll_stats(GameStats& out)
     // The game resolves stage/mission state to a region; reuse that result.
     // Objects are replaced on load and absent in menus. Match the game's
     // handle/self-pointer checks before accepting the region index.
-    if (g_region_object >= 8 && range_readable(g_region_object - 8, 16)) {
-        const auto object = *reinterpret_cast<volatile const uintptr_t*>(g_region_object);
-        const auto handle = *reinterpret_cast<volatile const uint32_t*>(g_region_object - 8);
-        if (object && range_readable(object, 0x114)
-            && *reinterpret_cast<volatile const uint32_t*>(object + 0x28) == handle
-            && *reinterpret_cast<volatile const uintptr_t*>(object + 0x30) == object) {
-            out.pw_region_id = region_id(
-                *reinterpret_cast<volatile const int32_t*>(object + 0x110));
+    std::array<uint8_t, 16> region_slot{};
+    if (g_region_object >= 8
+        && mem::copy(g_region_object - 8, region_slot.data(), region_slot.size())) {
+        const auto object = mem::read<uintptr_t>(region_slot.data(), 8);
+        const auto handle = mem::read<uint32_t>(region_slot.data(), 0);
+        std::array<uint8_t, 0x114> region{};
+        if (object && mem::copy(object, region.data(), region.size())
+            && mem::read<uint32_t>(region.data(), 0x28) == handle
+            && mem::read<uintptr_t>(region.data(), 0x30) == object) {
+            out.pw_region_id = region_id(mem::read<int32_t>(region.data(), 0x110));
         }
     }
 
-    if (mission_time && range_readable(mission_time, 0x18)) {
-        out.pw_mission_raw =
-            *reinterpret_cast<volatile const uint64_t*>(mission_time);
-        out.pw_mission_play =
-            *reinterpret_cast<volatile const uint32_t*>(mission_time + kMissionPlayOff);
+    std::array<uint8_t, 0x18> mission_clock{};
+    if (mission_time && mem::copy(mission_time, mission_clock.data(), mission_clock.size())) {
+        out.pw_mission_raw = mem::read<uint64_t>(mission_clock.data(), 0);
+        out.pw_mission_play = mem::read<uint32_t>(mission_clock.data(), kMissionPlayOff);
         // Measured: raw ticks 300/s of active game time (a +42600 delta over
         // an interval where total play advanced exactly +142s). 3.33ms
         // resolution still breaks same-second best-time ties.
@@ -538,51 +554,47 @@ bool poll_stats(GameStats& out)
         if (!g_dumped) {
             g_dumped = true;
             LOG_INFO("MGSPW mission timer block:");
-            log_hex_dump(reinterpret_cast<const uint8_t*>(mission_time - 0x20), 0x60);
+            std::array<uint8_t, 0x60> dump{};
+            if (mission_time >= 0x20 && mem::copy(mission_time - 0x20, dump.data(), dump.size())) {
+                log_hex_dump(dump.data(), dump.size());
+            }
         }
     }
 
     uintptr_t save_block = 0;
     const uintptr_t saveroot_ptr = g_saveroot_ptr.load();
-    if (saveroot_ptr && range_readable(saveroot_ptr, sizeof(uintptr_t))) {
-        save_block = *reinterpret_cast<volatile const uintptr_t*>(saveroot_ptr);
-    }
+    if (saveroot_ptr) mem::copy(saveroot_ptr, save_block);
     // One validation for the whole save block: every save-relative read
     // below lands inside this span, so the per-field checks collapse here.
     // A partially-mapped block reads as absent, the way each failed check
     // below used to leave its fields at their init values.
-    if (save_block && range_readable(save_block, kSaveBlockSpan)) {
+    static std::vector<uint8_t> save(kSaveBlockSpan);
+    if (save_block && mem::copy(save_block, save.data(), save.size())) {
+        const uintptr_t saved = reinterpret_cast<uintptr_t>(save.data());
         char stage[32]{};
-        std::memcpy(stage, reinterpret_cast<const void*>(save_block + kStageOff),
-                    kStageLen);
+        std::memcpy(stage, save.data() + kStageOff, kStageLen);
         stage[sizeof(stage) - 1] = '\0';
+        if (!valid_stage(stage)) stage[0] = '\0';
         std::memcpy(out.pw_stage, stage, sizeof(out.pw_stage));
         std::memcpy(out.area_code, stage, sizeof(out.area_code) - 1);
         any = true;
-        out.pw_total_play =
-            *reinterpret_cast<volatile const uint32_t*>(save_block + kTotalPlayOff);
-        out.pw_result_time =
-            *reinterpret_cast<volatile const uint32_t*>(save_block + kResultTimeOff);
+        out.pw_total_play = mem::read<uint32_t>(save.data(), kTotalPlayOff);
+        out.pw_result_time = mem::read<uint32_t>(save.data(), kResultTimeOff);
         constexpr size_t kHeroismOff = 0x64F4;
         constexpr size_t kHeroismDeltaOff = 0x64EC;
         constexpr size_t kGmpOff = 0xB52C;
         constexpr size_t kClearsOff = 0x656C;
-        out.pw_heroism_delta =
-            *reinterpret_cast<volatile const int32_t*>(save_block + kHeroismDeltaOff);
-        out.pw_heroism =
-            *reinterpret_cast<volatile const int32_t*>(save_block + kHeroismOff);
-        out.pw_gmp =
-            *reinterpret_cast<volatile const uint32_t*>(save_block + kGmpOff);
-        out.pw_clears =
-            *reinterpret_cast<volatile const int32_t*>(save_block + kClearsOff);
+        out.pw_heroism_delta = mem::read<int32_t>(save.data(), kHeroismDeltaOff);
+        out.pw_heroism = mem::read<int32_t>(save.data(), kHeroismOff);
+        out.pw_gmp = mem::read<uint32_t>(save.data(), kGmpOff);
+        out.pw_clears = mem::read<int32_t>(save.data(), kClearsOff);
         // Per-mission rank array (u16 by mission id; 0 = S, 0xFFFF = never
         // cleared). Ids past the live list read as zeros, so stop at the
         // length that matches the confirmed clear/S counts.
         constexpr size_t kRankArrayOff = 0x32B4;
         constexpr size_t kRankArrayLen = 272;
         constexpr size_t kBestTimeOff = 0x29B4;
-        const auto* ranks =
-            reinterpret_cast<volatile const uint16_t*>(save_block + kRankArrayOff);
+        const auto* ranks = reinterpret_cast<const uint16_t*>(save.data() + kRankArrayOff);
         int cleared = 0;
         int s_missions = 0;
         for (size_t i = 0; i < kRankArrayLen; ++i) {
@@ -600,14 +612,14 @@ bool poll_stats(GameStats& out)
         // Current mission: the id indexes both per-mission arrays (subsets
         // of the validated span), so the overlay can show this mission's
         // stored rank and best time.
-        if (g_mission_id && range_readable(g_mission_id, 4)) {
-            const int id = *reinterpret_cast<volatile const int32_t*>(g_mission_id);
+        int id = -1;
+        if (g_mission_id && mem::copy(g_mission_id, id)) {
             out.pw_mission_id = id;
             if (id > 0 && static_cast<size_t>(id) < kRankArrayLen) {
-                const uint16_t rank =
-                    *reinterpret_cast<volatile const uint16_t*>(save_block + kRankArrayOff + id * 2);
-                const uint32_t best =
-                    *reinterpret_cast<volatile const uint32_t*>(save_block + kBestTimeOff + id * 4);
+                const uint16_t rank = mem::read<uint16_t>(
+                    save.data(), kRankArrayOff + id * 2);
+                const uint32_t best = mem::read<uint32_t>(
+                    save.data(), kBestTimeOff + id * 4);
                 out.pw_cur_rank = rank == 0xFFFF ? -1 : static_cast<int>(rank);
                 out.pw_cur_best = best == 0xFFFFFFFFu ? 0 : best;
             } else {
@@ -617,74 +629,69 @@ bool poll_stats(GameStats& out)
         }
         read_stat_families(save_block, out);
         read_codename_axes(out);
-        read_codename_state(save_block, out);
-        read_insignia_state(save_block, out);
+        read_codename_state(saved, out);
+        read_insignia_state(saved, out);
         static uintptr_t last_dump_block = 0;
         if (save_block != last_dump_block) {
             last_dump_block = save_block;
             LOG_INFO("MGSPW save header block %p:", reinterpret_cast<const void*>(save_block));
-            log_hex_dump(reinterpret_cast<const uint8_t*>(save_block + 0x40), 0x60);
+            log_hex_dump(save.data() + 0x40, 0x60);
         }
         for (int i = 0; i < 16; ++i) {
-            const uint16_t use = *reinterpret_cast<volatile const uint16_t*>(
-                save_block + kWeaponArrayOff + i * kWeaponStride + kWeaponUseOff);
+            const uint16_t use = mem::read<uint16_t>(
+                save.data(), kWeaponArrayOff + i * kWeaponStride + kWeaponUseOff);
             out.pw_weapon_use[i] = static_cast<int>(use);
         }
     }
 
-    if (g_online_root && range_readable(g_online_root, sizeof(uintptr_t))) {
-        const uintptr_t root = *reinterpret_cast<volatile const uintptr_t*>(g_online_root);
+    uintptr_t root = 0;
+    if (g_online_root && mem::copy(g_online_root, root)) {
         const uintptr_t table = root ? root + 0x5008 : 0;
-        if (table && range_readable(table, 4)) {
-            const int count = *reinterpret_cast<volatile const int32_t*>(table);
-            if (count >= 0 && count <= 64
-                && range_readable(table, 0x110 * static_cast<size_t>(count + 1))) {
-                out.pw_camaraderie = 0;
-                for (int i = 0; i < count; ++i) {
-                    out.pw_camaraderie += *reinterpret_cast<volatile const int32_t*>(
-                        table + 0x110 * static_cast<size_t>(i + 1));
+        int count = -1;
+        if (table && mem::copy(table, count)) {
+            if (count >= 0 && count <= 64) {
+                static std::vector<uint8_t> players;
+                players.resize(0x110 * static_cast<size_t>(count + 1));
+                if (mem::copy(table, players.data(), players.size())) {
+                    out.pw_camaraderie = 0;
+                    for (int i = 0; i < count; ++i) {
+                        out.pw_camaraderie += mem::read<int32_t>(
+                            players.data(), 0x110 * static_cast<size_t>(i + 1));
+                    }
                 }
             }
         }
     }
 
-    if (g_result_object && range_readable(g_result_object, sizeof(uintptr_t))) {
-        const uintptr_t object = *reinterpret_cast<volatile const uintptr_t*>(g_result_object);
+    uintptr_t object = 0;
+    if (g_result_object && mem::copy(g_result_object, object)) {
         constexpr size_t kResultOff = 0x43D0;
-        if (object && range_readable(object + kResultOff, 0x2B)) {
-            out.pw_codename_missions_required =
-                *reinterpret_cast<volatile const int32_t*>(object + kResultOff + 0x20);
-            out.pw_codename_missions_counted =
-                *reinterpret_cast<volatile const int32_t*>(object + kResultOff + 0x24);
-            out.pw_codename_grade5_ok =
-                *reinterpret_cast<volatile const uint8_t*>(object + kResultOff + 0x28) != 0;
-            out.pw_codename_grade4_ok =
-                *reinterpret_cast<volatile const uint8_t*>(object + kResultOff + 0x29) != 0;
-            out.pw_codename_result_ok =
-                *reinterpret_cast<volatile const uint8_t*>(object + kResultOff + 0x2A) != 0;
+        std::array<uint8_t, 0x2B> result{};
+        if (object && mem::copy(object + kResultOff, result.data(), result.size())) {
+            out.pw_codename_missions_required = mem::read<int32_t>(result.data(), 0x20);
+            out.pw_codename_missions_counted = mem::read<int32_t>(result.data(), 0x24);
+            out.pw_codename_grade5_ok = mem::read<uint8_t>(result.data(), 0x28) != 0;
+            out.pw_codename_grade4_ok = mem::read<uint8_t>(result.data(), 0x29) != 0;
+            out.pw_codename_result_ok = mem::read<uint8_t>(result.data(), 0x2A) != 0;
         }
     }
 
-    if (g_chararray_ptr && range_readable(g_chararray_ptr, sizeof(uintptr_t))) {
-        const uintptr_t arr =
-            *reinterpret_cast<volatile const uintptr_t*>(g_chararray_ptr);
-        if (arr && range_readable(arr, kCharCount * sizeof(uintptr_t))) {
-            const uintptr_t player =
-                *reinterpret_cast<volatile const uintptr_t*>(arr);
+    uintptr_t arr = 0;
+    if (g_chararray_ptr && mem::copy(g_chararray_ptr, arr)) {
+        std::array<uintptr_t, kCharCount> characters{};
+        if (arr && mem::copy(arr, characters.data(), sizeof(characters))) {
+            const uintptr_t player = characters[0];
             if (player) {
-                if (range_readable(player + kHpOff, 4)) {
-                    out.pw_player_hp = static_cast<int>(
-                        *reinterpret_cast<volatile const int16_t*>(player + kHpOff));
-                    out.pw_player_max_hp = static_cast<int>(
-                        *reinterpret_cast<volatile const uint16_t*>(player + kMaxHpOff));
+                std::array<uint8_t, 4> health{};
+                if (mem::copy(player + kHpOff, health.data(), health.size())) {
+                    out.pw_player_hp = static_cast<int>(mem::read<int16_t>(health.data(), 0));
+                    out.pw_player_max_hp = static_cast<int>(mem::read<uint16_t>(health.data(), 2));
                     out.current_health = out.pw_player_hp;
                     out.max_health = out.pw_player_max_hp > 0 ? out.pw_player_max_hp
                                                              : kNominalMaxHp;
                 }
-                if (range_readable(player + kWeaponIdOff, 2)) {
-                    out.pw_weapon_id = static_cast<int>(
-                        *reinterpret_cast<volatile const int16_t*>(player + kWeaponIdOff));
-                }
+                int16_t weapon = -1;
+                if (mem::copy(player + kWeaponIdOff, weapon)) out.pw_weapon_id = weapon;
                 any = true;
             }
         }
