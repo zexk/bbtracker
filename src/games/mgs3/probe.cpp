@@ -294,6 +294,7 @@ bool poll_stats(GameStats& out)
         g_last_diff04 = diff04;
     }
     out.difficulty_game_byte = diff06;
+    out.difficulty_raw = diff06;
     out.difficulty = master_collection_difficulty(diff06);
     if (story_base && range_readable(story_base, 0x40)) {
         const uint16_t story_vm =
