@@ -646,17 +646,6 @@ const char* difficulty_name(Difficulty d)
     }
 }
 
-const char* alert_state_name(uint8_t state)
-{
-    switch (state) {
-    case 0: return "clear";
-    case 1: return "alert";
-    case 2: return "evasion";
-    case 3: return "caution";
-    default: return "?";
-    }
-}
-
 struct AreaName {
     const char* code;
     const char* name;
@@ -2096,9 +2085,6 @@ void draw_panel()
             plain_count("times seen", stats.times_seen);
             plain_count("mechs destroyed", stats.mechs_destroyed);
             plain_count("pull-ups", stats.pull_ups);
-            dim_row("alert state", stats.alert_state_available
-                                         ? alert_state_name(stats.alert_state)
-                                         : "unavailable");
         } else if (g_game == Game::MGS3) {
             char buf[16];
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);

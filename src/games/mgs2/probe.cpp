@@ -249,8 +249,6 @@ bool poll_stats(GameStats& out)
     if (g_game_state && range_readable(g_game_state, 0x150)
         && game_state_matches_live(g_game_state, out)) {
         out.radar_type = read_at<uint8_t>(g_game_state, GameStateOffsets::kRadarType);
-        out.alert_state = read_at<uint16_t>(g_game_state, GameStateOffsets::kAlertState);
-        out.alert_state_available = true;
         out.radar_off = out.radar_type == 4;
     } else {
         g_game_state = 0;

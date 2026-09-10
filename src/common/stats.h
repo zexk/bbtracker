@@ -64,8 +64,6 @@ struct GameStats {
     uint16_t special_items_mask = 0;
     bool radar_off = false;
     uint8_t radar_type = 0;
-    uint8_t alert_state = 0;
-    bool alert_state_available = false;
 
     int current_health = 0;
     int max_health = 0;
