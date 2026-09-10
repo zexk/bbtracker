@@ -4,12 +4,6 @@ Rule tables live under `src/common/codename/`. Community documentation is not
 always consistent, so unresolved differences are listed here instead of being
 hidden in code comments.
 
-MGS4 rules, PC memory layout, and reverse-engineering reference:
-[mgs4_research.md](mgs4_research.md).
-
-Peace Walker rules, PC memory layout, and reverse-engineering reference:
-[mgspw_research.md](mgspw_research.md).
-
 ## MGS1
 
 Source: [muni_shinobu's original MGS codename chart](https://www.tentenpro.com/muni_shinobu/mgs/codename.html).
@@ -155,8 +149,7 @@ a Tsuchinoko and carrying it across an area transition.
 Peace Walker awards no rank. Missions carry their own S to C rank, written by
 script and stored per mission, and the career instead earns a codename out of
 24 and insignias out of 110. Rules come from the game's own evaluator rather
-than from community charts; see "Codename system" and "Insignia system" in
-[mgspw_research.md](mgspw_research.md).
+than from community charts.
 
 The codename is three independent axes: which weapon class dominates career
 takedowns, whether camaraderie is over 10000 (cooperation titles) and whether
