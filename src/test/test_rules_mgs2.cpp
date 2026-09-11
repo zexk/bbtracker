@@ -42,13 +42,37 @@ void test_dog_tag_bits_and_rosters()
 
     CHECK(std::string_view(mgs2::kDogTagAreas[0]) == "w00a");
     CHECK(std::string_view(mgs2::kDogTagAreas[33]) == "w43a");
+    int bluff = 0;
     for (const auto& tag : mgs2::kDogTags) {
+        bluff += tag.bluff;
         bool grouped = false;
         for (const char* area : mgs2::kDogTagAreas) {
             grouped |= std::string_view(tag.area) == area;
         }
         CHECK(grouped);
     }
+    CHECK(bluff == 72);
+    CHECK(!mgs2::kDogTags[9].bluff); // Hideo Kojima uses country "0", but is not a guard.
+    CHECK(mgs2::kDogTags[14].bluff);
+    CHECK(std::string_view(mgs2::dog_tag_name(mgs2::kDogTags[10], false)) == "Ross E Bowman");
+    CHECK(std::string_view(mgs2::dog_tag_name(mgs2::kDogTags[10], true)) == "Josh Spires");
+
+    constexpr size_t flag_count = sizeof(mgs2::kDogTagFlags) / sizeof(mgs2::kDogTagFlags[0]);
+    for (const auto& gate : mgs2::kDogTagGates) {
+        CHECK(gate.id < 394);
+        CHECK(gate.trigger != nullptr);
+        if (gate.source == mgs2::DogTagGateSource::Flag) {
+            CHECK(gate.value < flag_count);
+        }
+    }
+    CHECK(mgs2::dog_tag_gate(206) == nullptr);
+    CHECK(mgs2::dog_tag_gate(207) != nullptr);
+    // w19a second guard only after Fatman.
+    CHECK(!mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(207), 121, 0));
+    CHECK(mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(207), 122, 0));
+    // w02a door repair guard until its flag (index 1) is set.
+    CHECK(mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(118), 0, 0));
+    CHECK(!mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(118), 0, uint32_t{1} << 1));
 }
 
 void test_big_boss_exact()

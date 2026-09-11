@@ -71,6 +71,7 @@ follows:
 | Offset | Source variable | Tracker field | Width |
 | ---: | --- | --- | ---: |
 | `0x06` | `GM_Configuration` | run state and current radar type | 16-bit |
+| `0x08` | `GM_Configuration2` | 2001/2002 dog-tag roster | 32-bit |
 | `0x10` | `GM_GameLevel` | difficulty | 16-bit |
 | `0x2C` | `GM_SaveAreaDir` | area code (first four characters) | char array |
 | `0xFA` | `GM_Vitality` | current health | 16-bit |
@@ -91,6 +92,14 @@ follows:
 | `0x1592` | `GM_ClearingCount` | clearing escapes | 16-bit |
 | `0x1594` | `GM_RedFindCount` | red exclamation count (`times seen`) | 16-bit |
 | `0x1596` | `GM_ClearCodeFlag` | special-item and radar history | 16-bit |
+
+Story state used by the dog-tag gate table lives in the GCL variable buffer, not
+`linkvarbuf`. `NewGclVariableMove` relocates the buffers inside
+`gcl_variable_buf` (module `+0x17D51E0`) between two layouts: if `linkvarbuf` is
+within `MAX_LINKVARBUF` (`5528`) of the buffer base, `var_buf` follows it at
+`+2 * 5528`; otherwise `var_buf = linkvarbuf - MAX_VAR_BUF` (`7168`). `$w:p_story`
+is a little-endian short at `var_buf + 0x68`; `$f:` flags are bits at
+`var_buf + (variable.sym address & 0xFFFF)`, bit `(address >> 16) & 0xF`.
 
 `show_codename.c::ResultToCodename` consumes these values directly. It rounds play
 time up to whole minutes and converts damage with `(GM_DamageCount + 50) /

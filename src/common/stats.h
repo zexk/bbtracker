@@ -34,6 +34,9 @@ struct GameStats {
     int raiden_pull_ups = 0;
     int dog_tags = 0;
     uint32_t dog_tag_mask[32] = {};
+    bool mgs2_dog_tags_2002 = false;
+    uint16_t mgs2_p_story = 0xFFFF;
+    uint32_t mgs2_dog_tag_flags = 0;
 
     int cqc_chokes = 0;
     int headshots = 0;

@@ -45,6 +45,45 @@ constexpr uint16_t kStoryFlags = kStoryTankerActive | kStoryTankerCleared;
 constexpr uint16_t kRadarSettingMask = 0x0024;
 constexpr uint16_t kSpecialItemUsed = 0x0020;
 constexpr uint16_t kRadarUsed = 0x2000;
+constexpr uint32_t kDogTags2002 = 0x00008000;
+constexpr uintptr_t kGclVariableBufRva = 0x017D51E0;
+constexpr size_t kLinkVarBufSize = 5528; // MAX_LINKVARBUF
+constexpr size_t kVarBufSize = 7168;     // MAX_VAR_BUF
+constexpr size_t kStoryOffset = 0x68;    // $w:p_story
+
+// NewGclVariableMove relocates linkvarbuf inside gcl_variable_buf. In one
+// layout linkvarbuf is near the start and var_buf follows it; in the other
+// var_buf is first and linkvarbuf sits one MAX_VAR_BUF past it.
+uintptr_t var_buf_address(uintptr_t module_base, uintptr_t linkvarbuf)
+{
+    const uintptr_t gcl_buf = module_base + kGclVariableBufRva;
+    const uintptr_t delta = linkvarbuf - gcl_buf;
+    return delta < kLinkVarBufSize ? linkvarbuf + 2 * kLinkVarBufSize
+                                   : linkvarbuf - kVarBufSize;
+}
+
+uint16_t read_p_story(uintptr_t var_buf)
+{
+    uint8_t bytes[2] = {};
+    if (!mem::copy(var_buf + kStoryOffset, bytes, sizeof(bytes))) {
+        return 0xFFFF;
+    }
+    return static_cast<uint16_t>(bytes[0] | (bytes[1] << 8));
+}
+
+uint32_t read_dog_tag_flags(uintptr_t var_buf)
+{
+    uint32_t flags = 0;
+    size_t index = 0;
+    for (const DogTagFlag& flag : kDogTagFlags) {
+        uint8_t byte = 0;
+        if (mem::copy(var_buf + flag.offset, byte) && ((byte >> flag.bit) & 1u) != 0) {
+            flags |= uint32_t{1} << index;
+        }
+        ++index;
+    }
+    return flags;
+}
 
 constexpr uint16_t used_special_items(uint16_t clear_code_flags)
 {
@@ -94,6 +133,7 @@ uintptr_t g_last_player = 0;
 struct StatOffsets {
     constexpr static size_t kAreaCode = 0x2C;
     constexpr static size_t kConfiguration = 0x06;
+    constexpr static size_t kConfiguration2 = 0x08;
     constexpr static size_t kDifficulty = 0x10;
     constexpr static size_t kContinues = 4;
     constexpr static size_t kSaves = 8;
@@ -189,7 +229,18 @@ bool poll_stats(GameStats& out)
     out.special_items_mask = used_special_items(clear_code_flags);
     out.special_item_used = (clear_code_flags & kSpecialItemUsed) != 0;
     const uint16_t configuration = read_at<uint16_t>(data, StatOffsets::kConfiguration);
+    const uint32_t configuration2 = read_at<uint32_t>(data, StatOffsets::kConfiguration2);
     out.radar_type = configuration & kRadarSettingMask;
+    out.mgs2_dog_tags_2002 = (configuration2 & kDogTags2002) != 0;
+    const uintptr_t var_buf = var_buf_address(base, player);
+    out.mgs2_p_story = read_p_story(var_buf);
+    out.mgs2_dog_tag_flags = read_dog_tag_flags(var_buf);
+    static uintptr_t last_var_buf = 0;
+    if (var_buf != last_var_buf) {
+        LOG_INFO("mgs2 var_buf %p (linkvar %p)", reinterpret_cast<const void*>(var_buf),
+                 reinterpret_cast<const void*>(player));
+        last_var_buf = var_buf;
+    }
     // Codename judge checks whether radar was ever used, not current setting.
     out.radar_off = (clear_code_flags & kRadarUsed) == 0;
 
@@ -204,6 +255,21 @@ bool poll_stats(GameStats& out)
         LOG_INFO("mgs2 configuration 0x%04x, difficulty %u", configuration,
                  out.difficulty_raw);
         last_configuration = configuration;
+    }
+    static uint32_t last_configuration2 = 0xFFFFFFFF;
+    if (configuration2 != last_configuration2) {
+        LOG_INFO("mgs2 configuration2 0x%08x, dog tags %s", configuration2,
+                 out.mgs2_dog_tags_2002 ? "2002" : "2001");
+        last_configuration2 = configuration2;
+    }
+    static uint16_t last_p_story = 0xFFFF;
+    static uint32_t last_dog_tag_flags = 0xFFFFFFFF;
+    if (out.mgs2_p_story != last_p_story || out.mgs2_dog_tag_flags != last_dog_tag_flags) {
+        LOG_INFO("mgs2 p_story %u, dog tag flags 0x%02x",
+                 static_cast<unsigned>(out.mgs2_p_story),
+                 static_cast<unsigned>(out.mgs2_dog_tag_flags));
+        last_p_story = out.mgs2_p_story;
+        last_dog_tag_flags = out.mgs2_dog_tag_flags;
     }
     out.mission = codename_mission(read_at<uint16_t>(data, kTitleMenuStatusOffset));
 

@@ -754,6 +754,36 @@ const char* mgs2_area_name(const char* code)
     return exact_area_name(code, kAreas);
 }
 
+const char* mgs2_area_state(const GameStats& stats)
+{
+    if (stats.mgs2_p_story == 0xFFFF || stats.mgs2_p_story > 600) return nullptr;
+    for (const mgs2::DogTagAreaState& state : mgs2::kDogTagAreaStates) {
+        if (std::strcmp(stats.area_code, state.area) == 0) {
+            return stats.mgs2_p_story >= state.story ? state.after : state.before;
+        }
+    }
+    struct FlagState {
+        const char* area;
+        int flag;
+        const char* before;
+        const char* after;
+    };
+    static constexpr FlagState kFlagStates[] = {
+        {"w02a", 1, "before door repair", "after door repair"},
+        {"w24d", 2, "before exercise soldier", "after exercise soldier"},
+        {"w01b", 3, "before shadow", "after shadow"},
+        {"w00c", 4, "before right door", "after right door"},
+        {"w45a", 6, "before Tengu", "after Tengu"},
+    };
+    for (const FlagState& state : kFlagStates) {
+        if (std::strcmp(stats.area_code, state.area) == 0) {
+            const bool set = (stats.mgs2_dog_tag_flags & (uint32_t{1} << state.flag)) != 0;
+            return set ? state.after : state.before;
+        }
+    }
+    return nullptr;
+}
+
 const char* mgs3_area_name(const char* code)
 {
     static constexpr AreaName kAreas[] = {
@@ -1270,8 +1300,34 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
                     header = true;
                 }
                 const bool done = mgs2::dog_tag_collected(stats.dog_tag_mask, tag.id);
-                ImGui::TextColored(done ? id_colors(g_game).green : unset_color(), "%s  %s",
-                                   done ? "x" : "-", tag.name);
+                const bool state_known = stats.mgs2_p_story != 0xFFFF
+                    && stats.mgs2_p_story <= 600;
+                const mgs2::DogTagGate* gate =
+                    state_known ? mgs2::dog_tag_gate(tag.id) : nullptr;
+                const bool gate_ok = !gate
+                    || mgs2::dog_tag_gate_available(*gate, stats.mgs2_p_story,
+                                                    stats.mgs2_dog_tag_flags);
+                ImVec4 color = done ? id_colors(g_game).green : unset_color();
+                if (!done && gate && !gate_ok) {
+                    color = gate->kind == mgs2::DogTagGateKind::Until
+                        ? id_colors(g_game).red : unset_color();
+                }
+                char suffix[48] = {};
+                if (gate) {
+                    std::snprintf(suffix, sizeof(suffix), "  [%s %s]",
+                                  gate->kind == mgs2::DogTagGateKind::After ? "after"
+                                                                             : "until",
+                                  gate->trigger);
+                }
+                char text[160];
+                std::snprintf(text, sizeof(text), "%s  %s%s", done ? "x" : "-",
+                              mgs2::dog_tag_name(tag, stats.mgs2_dog_tags_2002), suffix);
+                ImGui::TextColored(color, "%s", text);
+                if (tag.bluff) {
+                    ImVec2 pos = ImGui::GetItemRectMin();
+                    pos.x += 1.0f;
+                    ImGui::GetWindowDrawList()->AddText(pos, ImGui::GetColorU32(color), text);
+                }
             }
         }
     }
@@ -2094,10 +2150,15 @@ void draw_panel()
     }
 
     if (stats.area_code[0]) {
-        char buf[96];
+        char buf[128];
         const char* area = area_name(g_game, stats.area_code);
-        snprintf(buf, sizeof(buf), area ? "%s (%s)" : "%s", area ? area : stats.area_code,
-                 stats.area_code);
+        const char* state = g_game == Game::MGS2 ? mgs2_area_state(stats) : nullptr;
+        if (area && state) {
+            snprintf(buf, sizeof(buf), "%s (%s) (%s)", area, state, stats.area_code);
+        } else {
+            snprintf(buf, sizeof(buf), area ? "%s (%s)" : "%s", area ? area : stats.area_code,
+                     stats.area_code);
+        }
         if (g_game == Game::MGS2) {
             char stage_time[16];
             format_time(stats.stage_time_seconds, stage_time, sizeof(stage_time));
