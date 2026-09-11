@@ -44,7 +44,7 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           mkdir -p dist
-          gh release download "$TAG" --pattern "bbtracker-${{ matrix.game }}-*.zip" --dir dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "bbtracker-${{ matrix.game }}-*.zip" --dir dist
 
       - name: Upload ${{ matrix.game }} to Nexus Mods
         if: matrix.file_id != ''
