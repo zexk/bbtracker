@@ -8,6 +8,11 @@
 
 namespace bb {
 
+struct AreaName {
+    const char* code;
+    const char* name;
+};
+
 // Records the area the run is in and logs each transition. Every probe reads a
 // short stage string on each poll, sanitises it its own way, then wants the
 // same thing done with the result: truncate it into GameStats::area_code and
