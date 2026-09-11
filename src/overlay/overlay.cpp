@@ -1765,9 +1765,11 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         ImGui::TableHeadersRow();
         const auto weapon = [&](const char* label, int slot, int lethal, int nonlethal) {
             if (stats.pw_codename_axes_ok) {
-                lethal = stats.pw_codename_axes[0][slot];
-                nonlethal = stats.pw_codename_axes[1][slot]
-                    + stats.pw_codename_axes[2][slot] + stats.pw_codename_axes[3][slot];
+                if (lethal >= 0) lethal = stats.pw_codename_axes[0][slot];
+                if (nonlethal >= 0) {
+                    nonlethal = stats.pw_codename_axes[1][slot]
+                        + stats.pw_codename_axes[2][slot] + stats.pw_codename_axes[3][slot];
+                }
             }
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
