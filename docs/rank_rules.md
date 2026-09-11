@@ -101,6 +101,16 @@ within `MAX_LINKVARBUF` (`5528`) of the buffer base, `var_buf` follows it at
 is a little-endian short at `var_buf + 0x68`; `$f:` flags are bits at
 `var_buf + (variable.sym address & 0xFFFF)`, bit `(address >> 16) & 0xF`.
 
+`scn/dogtag_data.h` stores two names per guard: the 2001 roster and the 2002
+roster. `GM_CONFIG_DOGTAGS_2002` (`0x8000` in `GM_Configuration2`) selects the
+second, so the tracker follows the run's setting. `enemy.c` sets
+`ENE_STATUS_BLUFF` for regular guards whose tag carries country `"0"`; those
+tough guards resist a first hold-up and are shown in bold. Tags that are only
+available during a story window are listed in `kDogTagGates`
+(`src/games/mgs2/dog_tags.h`) with either a `$w:p_story` threshold (`Fatman`,
+`Vamp sniper`) or a stage flag (`door repair`, `falling soldier`); the overlay
+labels each with its trigger and marks missed entries.
+
 `show_codename.c::ResultToCodename` consumes these values directly. It rounds play
 time up to whole minutes and converts damage with `(GM_DamageCount + 50) /
 GM_VitalityMax`; tracker reproduces both operations. Mech kills, Sea Louse, and
