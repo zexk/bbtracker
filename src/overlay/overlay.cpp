@@ -2114,12 +2114,9 @@ void draw_panel()
                                   viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
                             initial_layout, ImVec2(0.0f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(ui_size(g_game == Game::MGSPW ? 360 : 380), ui_size(480)), initial_layout);
-    if (g_game == Game::MGSPW) {
-        ImGui::SetNextWindowSizeConstraints(ImVec2(ui_size(360), ui_size(300)),
-                                            ImVec2(FLT_MAX, FLT_MAX));
-    }
-    ImGui::Begin(panel_title, &g.show,
-                 ImGuiWindowFlags_NoCollapse | (g_game == Game::MGSPW ? 0 : ImGuiWindowFlags_AlwaysAutoResize));
+    ImGui::Begin(panel_title, nullptr,
+                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
+                     | (g_game == Game::MGSPW ? 0 : ImGuiWindowFlags_AlwaysAutoResize));
     g.reset_window = false;
 
     if (!have_stats) {
