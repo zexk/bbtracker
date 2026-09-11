@@ -140,9 +140,12 @@ conversion. Difficulty byte values are 10 through 60; European Extreme uses Extr
 rank rules.
 
 Kerotan count comes from a 64-bit hit mask at story-block offset `0x242`.
-Checklist order is raw bits 1 through 63 followed by raw bit 0, so overlay rotates
-mask right one bit before display. Current-area state maps live area code to that
-rotated checklist bit. Runtime area suffixes such as `_0` are ignored for this lookup.
+The game numbers the 64 flags in stage order and keeps the last entry in raw bit
+0, so the overlay rotates the mask right one bit before mapping entries.
+Current-area state maps the live area code to that rotated bit. Runtime area
+suffixes such as `_0` are ignored for this lookup. The earlier checklist followed
+a guide's route order, which put Dremuchij East one entry early: a live run set
+raw bit 7 for `s002a`, while the guide list expected bit 6.
 
 The earlier stats-block offset `0x6532` only reached the same address for one observed
 stats/story pointer spacing. Other rooms and cutscenes move those blocks independently,
