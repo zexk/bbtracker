@@ -1284,6 +1284,13 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
         ImGui::SameLine();
         ImGui::TextDisabled("(%d total flags)", stats.dog_tags);
     }
+    {
+        const char* variant = stats.mgs2_dog_tags_2002 ? "2002" : "2001";
+        const float width = ImGui::CalcTextSize(variant).x;
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - width);
+        ImGui::TextUnformatted(variant);
+    }
     if (ImGui::BeginChild("mgs2_dog_tags", ImVec2(0, ui_size(360)), true)) {
         apply_scroll(scroll);
         // ponytail: fixed 34 x 394 scan; index only if roster becomes dynamic.
@@ -2113,6 +2120,14 @@ void draw_panel()
             dim_row(key, buf);
         };
 
+        // One summary row for a pair that reads better inline.
+        auto inline_pair = [&](const char* key, const char* left, int left_value,
+                               const char* right, int right_value) {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%s %d | %s %d", left, left_value, right, right_value);
+            dim_row(key, buf);
+        };
+
         if (g_game == Game::MGS1) {
             plain_count("saves", stats.saves);
             plain_pair("health", stats.current_health, stats.max_health);
@@ -2130,8 +2145,8 @@ void draw_panel()
             plain_count("clearing escapes", stats.clearing_escapes);
             plain_count("times seen", stats.times_seen);
             plain_count("mechs destroyed", stats.mechs_destroyed);
-            plain_count("Snake pull-ups", stats.snake_pull_ups);
-            plain_count("Raiden pull-ups", stats.raiden_pull_ups);
+            inline_pair("pull-ups", "Snake", stats.snake_pull_ups, "Raiden",
+                        stats.raiden_pull_ups);
         } else if (g_game == Game::MGS3) {
             char buf[16];
             snprintf(buf, sizeof(buf), "%d / 48", stats.plants_captured);
