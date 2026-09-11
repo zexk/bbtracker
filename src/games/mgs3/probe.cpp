@@ -233,6 +233,17 @@ bool poll_stats(GameStats& out)
 
     uint64_t kerotan_mask = 0;
     if (story_base) mem::copy(story_base + StatOffsets::kStoryKerotans, kerotan_mask);
+    {
+        static uint64_t last_raw_mask = 0;
+        static uintptr_t last_story_base = 0;
+        if (kerotan_mask != last_raw_mask || story_base != last_story_base) {
+            LOG_INFO("kerotan raw=0x%016llX story=%p",
+                     static_cast<unsigned long long>(kerotan_mask),
+                     reinterpret_cast<const void*>(story_base));
+            last_raw_mask = kerotan_mask;
+            last_story_base = story_base;
+        }
+    }
     out.kerotan_mask = std::rotr(kerotan_mask, 1);
     out.kerotans = std::popcount(kerotan_mask);
 
