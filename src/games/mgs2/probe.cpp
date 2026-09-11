@@ -99,10 +99,17 @@ constexpr bool menu_area(std::string_view area)
         || area == "mkse" || area == "sele" || area == "trme";
 }
 
+// Chapter intro: opening telop ("muse" = museum) and demo/cutscene stages.
+constexpr bool intro_area(std::string_view area)
+{
+    return area == "muse" || (!area.empty() && area[0] == 'd');
+}
+
 constexpr RunState run_state(uint16_t configuration, std::string_view area)
 {
     if (menu_area(area)) return RunState::Inactive;
-    if ((configuration & kStoryFlags) != 0 || (area.size() == 4 && area[0] == 'w')) {
+    if (intro_area(area) || (configuration & kStoryFlags) != 0
+        || (area.size() == 4 && area[0] == 'w')) {
         return RunState::Active;
     }
     return RunState::Unknown;
@@ -110,7 +117,8 @@ constexpr RunState run_state(uint16_t configuration, std::string_view area)
 
 static_assert(run_state(kStoryTankerActive, "w00a") == RunState::Active);
 static_assert(run_state(0, "w00a") == RunState::Active);
-static_assert(run_state(0x4000, "d001") == RunState::Unknown);
+static_assert(run_state(0x4000, "d001") == RunState::Active);
+static_assert(run_state(0, "muse") == RunState::Active);
 static_assert(run_state(kStoryTankerActive, "n_ti") == RunState::Inactive);
 static_assert(run_state(0, "") == RunState::Unknown);
 
