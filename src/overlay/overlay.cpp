@@ -1252,7 +1252,8 @@ bool begin_fitted_child(const char* id)
 {
     ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f), ImVec2(FLT_MAX, ui_size(360)));
     return ImGui::BeginChild(id, ImVec2(0, 0),
-                             ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
+                             ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeX
+                                 | ImGuiChildFlags_AutoResizeY);
 }
 
 void checklist(const char* id, const char* const* names, size_t count, uint64_t mask, int scroll)
