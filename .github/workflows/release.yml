@@ -25,7 +25,6 @@ jobs:
         env:
           VERSION: ${{ github.ref_name }}
         run: |
-          echo "NEXUS_VERSION=${VERSION#v}" >> "$GITHUB_ENV"
           mkdir dist
           cp result/bin/bbtracker_*.asi dist/
           cp result-stage-selector/* dist/
@@ -44,12 +43,48 @@ jobs:
           generate_release_notes: true
           files: dist/*.zip
 
-      - name: Upload to Nexus Mods
+      - name: Upload dist for Nexus
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist
+
+  nexus:
+    needs: release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - game: babel
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_BABEL }}
+          - game: mg12
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MG12 }}
+          - game: mgs1
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MGS1 }}
+          - game: mgs2
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MGS2 }}
+          - game: mgs3
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MGS3 }}
+          - game: mgs4
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MGS4 }}
+          - game: mgspw
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MGSPW }}
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Set Nexus version
+        run: echo "NEXUS_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - name: Upload ${{ matrix.game }} to Nexus Mods
+        if: matrix.file_id != ''
         uses: Nexus-Mods/upload-action@v1.0.0-beta.10
         with:
           api_key: ${{ secrets.NEXUSMODS_API_KEY }}
-          file_id: ${{ vars.NEXUSMODS_FILE_ID }}
-          filename: dist/bbtracker-${{ github.ref_name }}.zip
+          file_id: ${{ matrix.file_id }}
+          filename: dist/bbtracker-${{ matrix.game }}-${{ github.ref_name }}.zip
           version: ${{ env.NEXUS_VERSION }}
           archive_existing_version: true
           update_mod_version: true
