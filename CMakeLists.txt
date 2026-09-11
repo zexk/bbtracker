@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(bbtracker LANGUAGES C CXX)
+project(bbtracker VERSION 0.3.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -67,6 +67,7 @@ if(WIN32)
     src/overlay/overlay.cpp)
   target_include_directories(core PUBLIC src)
   target_link_libraries(core PUBLIC imgui minhook d3d11 d3d12 dxgi d3dcompiler dwmapi)
+  target_compile_definitions(core PUBLIC BB_VERSION="${PROJECT_VERSION}")
 
   function(bb_asi name label)
     file(GLOB sources CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/games/${name}/*.cpp)

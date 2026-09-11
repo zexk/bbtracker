@@ -21,7 +21,12 @@
     let
       systems = [ "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
-      version = "0.3.1";
+      cmakeProjectLine = nixpkgs.lib.findFirst
+        (line: nixpkgs.lib.hasPrefix "project(bbtracker" line)
+        "project(bbtracker VERSION 0.0.0 LANGUAGES C CXX)"
+        (nixpkgs.lib.splitString "\n" (builtins.readFile ./CMakeLists.txt));
+      version = builtins.head
+        (builtins.match "project\\(bbtracker VERSION ([0-9]+\\.[0-9]+\\.[0-9]+).*" cmakeProjectLine);
     in
     {
       packages = forAllSystems (system:

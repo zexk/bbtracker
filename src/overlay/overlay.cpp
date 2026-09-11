@@ -2544,7 +2544,8 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
     if (!log_init(log_path.c_str())) {
         return;
     }
-    LOG_INFO("bbtracker starting (%s), toggle key vk=0x%02X", g_label, kToggleKey);
+    LOG_INFO("bbtracker %s starting (%s), toggle key vk=0x%02X", BB_VERSION, g_label,
+             kToggleKey);
 
     bool logged_wait_module = false;
     bool logged_wait_renderer = false;
