@@ -1702,7 +1702,7 @@ void draw_mgspw_run(const GameStats& stats)
     }
 }
 
-void draw_mgspw_summary(const GameStats& stats)
+void draw_mgspw_summary(const GameStats& stats, int)
 {
     const char* stage = stats.pw_stage[0] ? stats.pw_stage : "-";
     const char* name = mgspw_area_name(stage, stats.pw_region_id);
@@ -1830,7 +1830,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
     ImGui::EndChild();
 }
 
-void draw_mgspw_insignia(const GameStats& stats)
+void draw_mgspw_insignia(const GameStats& stats, int)
 {
     // Each insignia family has three consecutive rising thresholds.
     static constexpr struct {
@@ -1891,7 +1891,7 @@ void draw_mgspw_insignia(const GameStats& stats)
     }
 }
 
-void draw_mgspw_codenames(const GameStats& stats)
+void draw_mgspw_codenames(const GameStats& stats, int)
 {
     // Weapon distribution decides all-weapons titles.
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
@@ -2084,96 +2084,20 @@ void draw_mgspw_codenames(const GameStats& stats)
     }
 }
 
-void draw_panel()
+void draw_mgs3_captures(const GameStats& stats, int scroll)
 {
-    static GameStats stats{};
-    static bool have_stats = false;
-    static uint64_t next_poll = 0;
-    const uint64_t now = GetTickCount64();
-    if (now >= next_poll) {
-        AcquireSRWLockShared(&g_stats_lock);
-        stats = g_stats;
-        have_stats = g_have_stats;
-        ReleaseSRWLockShared(&g_stats_lock);
-        if (have_stats) {
-            const auto eval_fn = kEvaluateFns[static_cast<int>(g_game)];
-            g_eval.match = eval_fn ? eval_fn(stats) : std::optional<codename::Match>{};
-            const auto req_fn = kRequirementsFns[static_cast<int>(g_game)];
-            g_eval.reqs = req_fn ? req_fn(stats) : std::vector<codename::ReqStatus>{};
-            g_eval.matches = g_game == Game::MGS4 ? codename::all_matches_mgs4(stats)
-                                                  : std::vector<codename::Match>{};
-        }
-        next_poll = now + 100;
-    }
-    const char* panel_title = g_game == Game::MGS3 || g_game == Game::MGSPW
-        ? "FOXHOUND tracker"
-        : "BIG BOSS tracker";
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const ImGuiCond initial_layout = g.reset_window ? ImGuiCond_Always : ImGuiCond_FirstUseEver;
-    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + ui_size(16),
-                                  viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
-                            initial_layout, ImVec2(0.0f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(ui_size(g_game == Game::MGSPW ? 360 : 380), ui_size(480)), initial_layout);
-    ImGui::Begin(panel_title, nullptr,
-                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
-                     | (g_game == Game::MGSPW ? 0 : ImGuiWindowFlags_AlwaysAutoResize));
-    g.reset_window = false;
+    ImGui::Text("%d / 48", stats.plants_captured);
+    checklist("captures", kMgs3Captures, std::size(kMgs3Captures), stats.capture_mask, scroll);
+}
 
-    if (!have_stats) {
-        ImGui::TextDisabled("no active ranked run");
-        ImGui::End();
-        return;
-    }
+void draw_mgs3_kerotans(const GameStats& stats, int scroll)
+{
+    ImGui::Text("%d / 64", stats.kerotans);
+    checklist("kerotans", kMgs3Kerotans, std::size(kMgs3Kerotans), stats.kerotan_mask, scroll);
+}
 
-    static int selected_tab = 0;
-    const int tab_count = g_game == Game::MGS2 ? 2 : g_game == Game::MGS3 ? 3
-        : g_game == Game::MGS4 ? 2
-        : g_game == Game::MGSPW                                             ? 4
-                                                                            : 0;
-    if (tab_count && key_pressed(kTabKey)) {
-        selected_tab = (selected_tab + 1) % tab_count;
-    }
-    const bool scroll_up = key_pressed(VK_UP);
-    const bool scroll_down = key_pressed(VK_DOWN);
-    const int scroll = scroll_up ? -1 : scroll_down ? 1 : 0;
-    const bool tabs = tab_count && ImGui::BeginTabBar("tracker_tabs");
-    if (g_game == Game::MGSPW) {
-        if (!tabs || ImGui::BeginTabItem(
-                         "Summary", nullptr,
-                         selected_tab == 0 ? ImGuiTabItemFlags_SetSelected : 0)) {
-            draw_mgspw_summary(stats);
-            if (tabs) {
-                ImGui::EndTabItem();
-            }
-        }
-        if (tabs && ImGui::BeginTabItem(
-                        "Career", nullptr,
-                        selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
-            draw_mgspw_global(stats, scroll);
-            ImGui::EndTabItem();
-        }
-        if (tabs && ImGui::BeginTabItem(
-                        "Insignia", nullptr,
-                        selected_tab == 2 ? ImGuiTabItemFlags_SetSelected : 0)) {
-            draw_mgspw_insignia(stats);
-            ImGui::EndTabItem();
-        }
-        if (tabs && ImGui::BeginTabItem(
-                        "Codenames", nullptr,
-                        selected_tab == 3 ? ImGuiTabItemFlags_SetSelected : 0)) {
-            draw_mgspw_codenames(stats);
-            ImGui::EndTabItem();
-        }
-        if (tabs) {
-            ImGui::EndTabBar();
-        }
-        ImGui::End();
-        return;
-    }
-    (void)scroll;
-    const bool summary = !tabs || ImGui::BeginTabItem(
-        "Summary", nullptr, selected_tab == 0 ? ImGuiTabItemFlags_SetSelected : 0);
-    if (summary) {
+void draw_summary(const GameStats& stats, int)
+{
     const auto& match = g_eval.match;
 
     const auto [id_green, id_yellow, id_red] = id_colors(g_game);
@@ -2370,35 +2294,98 @@ void draw_panel()
         ImGui::PopTextWrapPos();
     }
 
-    if (tabs) {
-        ImGui::EndTabItem();
+}
+
+using PanelTabDraw = void (*)(const GameStats&, int);
+
+struct PanelTab {
+    const char* title;
+    PanelTabDraw draw;
+};
+
+constexpr PanelTab kGenericTabs[] = {{"Summary", draw_summary}};
+constexpr PanelTab kMgs2Tabs[] = {{"Summary", draw_summary}, {"Dog Tags", draw_mgs2_dog_tags}};
+constexpr PanelTab kMgs3Tabs[] = {{"Summary", draw_summary},
+                                  {"Capture", draw_mgs3_captures},
+                                  {"Kerotan", draw_mgs3_kerotans}};
+constexpr PanelTab kMgs4Tabs[] = {{"Summary", draw_summary}, {"Feats", draw_mgs4_feats}};
+constexpr PanelTab kMgspwTabs[] = {{"Summary", draw_mgspw_summary},
+                                   {"Career", draw_mgspw_global},
+                                   {"Insignia", draw_mgspw_insignia},
+                                   {"Codenames", draw_mgspw_codenames}};
+
+std::span<const PanelTab> panel_tabs(Game game)
+{
+    switch (game) {
+    case Game::MGS2: return kMgs2Tabs;
+    case Game::MGS3: return kMgs3Tabs;
+    case Game::MGS4: return kMgs4Tabs;
+    case Game::MGSPW: return kMgspwTabs;
+    default: return kGenericTabs;
     }
+}
+
+void draw_panel()
+{
+    static GameStats stats{};
+    static bool have_stats = false;
+    static uint64_t next_poll = 0;
+    const uint64_t now = GetTickCount64();
+    if (now >= next_poll) {
+        AcquireSRWLockShared(&g_stats_lock);
+        stats = g_stats;
+        have_stats = g_have_stats;
+        ReleaseSRWLockShared(&g_stats_lock);
+        if (have_stats) {
+            const auto eval_fn = kEvaluateFns[static_cast<int>(g_game)];
+            g_eval.match = eval_fn ? eval_fn(stats) : std::optional<codename::Match>{};
+            const auto req_fn = kRequirementsFns[static_cast<int>(g_game)];
+            g_eval.reqs = req_fn ? req_fn(stats) : std::vector<codename::ReqStatus>{};
+            g_eval.matches = g_game == Game::MGS4 ? codename::all_matches_mgs4(stats)
+                                                  : std::vector<codename::Match>{};
+        }
+        next_poll = now + 100;
+    }
+    const char* panel_title = g_game == Game::MGS3 || g_game == Game::MGSPW
+        ? "FOXHOUND tracker"
+        : "BIG BOSS tracker";
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const ImGuiCond initial_layout = g.reset_window ? ImGuiCond_Always : ImGuiCond_FirstUseEver;
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + ui_size(16),
+                                  viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
+                            initial_layout, ImVec2(0.0f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(ui_size(g_game == Game::MGSPW ? 360 : 380), ui_size(480)), initial_layout);
+    ImGui::Begin(panel_title, nullptr,
+                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
+                     | (g_game == Game::MGSPW ? 0 : ImGuiWindowFlags_AlwaysAutoResize));
+    g.reset_window = false;
+
+    if (!have_stats) {
+        ImGui::TextDisabled("no active ranked run");
+        ImGui::End();
+        return;
     }
 
-    if (tabs && g_game == Game::MGS4 && ImGui::BeginTabItem(
-                    "Feats", nullptr, selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
-        draw_mgs4_feats(stats, scroll);
-        ImGui::EndTabItem();
+    static int selected_tab = 0;
+    const std::span<const PanelTab> tabs = panel_tabs(g_game);
+    const bool tab_bar = tabs.size() > 1;
+    if (tab_bar && key_pressed(kTabKey)) {
+        selected_tab = (selected_tab + 1) % static_cast<int>(tabs.size());
     }
-    if (tabs && g_game == Game::MGS2 && ImGui::BeginTabItem(
-                    "Dog Tags", nullptr, selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
-        draw_mgs2_dog_tags(stats, scroll);
-        ImGui::EndTabItem();
-    }
-    if (tabs && g_game == Game::MGS3 && ImGui::BeginTabItem(
-                    "Capture", nullptr, selected_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
-        ImGui::Text("%d / 48", stats.plants_captured);
-        checklist("captures", kMgs3Captures, std::size(kMgs3Captures), stats.capture_mask, scroll);
-        ImGui::EndTabItem();
-    }
-    if (tabs && g_game == Game::MGS3 && ImGui::BeginTabItem(
-                    "Kerotan", nullptr, selected_tab == 2 ? ImGuiTabItemFlags_SetSelected : 0)) {
-        ImGui::Text("%d / 64", stats.kerotans);
-        checklist("kerotans", kMgs3Kerotans, std::size(kMgs3Kerotans), stats.kerotan_mask, scroll);
-        ImGui::EndTabItem();
-    }
-    if (tabs) {
+    const bool scroll_up = key_pressed(VK_UP);
+    const bool scroll_down = key_pressed(VK_DOWN);
+    const int scroll = scroll_up ? -1 : scroll_down ? 1 : 0;
+    if (tab_bar && ImGui::BeginTabBar("tracker_tabs")) {
+        for (int i = 0; i < static_cast<int>(tabs.size()); ++i) {
+            if (ImGui::BeginTabItem(tabs[i].title, nullptr,
+                                    selected_tab == i ? ImGuiTabItemFlags_SetSelected : 0)) {
+                tabs[i].draw(stats, scroll);
+                ImGui::EndTabItem();
+            }
+        }
         ImGui::EndTabBar();
+    } else {
+        tabs[0].draw(stats, scroll);
     }
 
     ImGui::End();
