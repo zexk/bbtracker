@@ -1,0 +1,58 @@
+name: Nexus Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to upload (e.g. v0.4.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - game: babel
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_BABEL }}
+          - game: mg12
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MG12 }}
+          - game: mgs1
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MGS1 }}
+          - game: mgs2
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MGS2 }}
+          - game: mgs3
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MGS3 }}
+          - game: mgs4
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MGS4 }}
+          - game: mgspw
+            file_id: ${{ vars.NEXUSMODS_FILE_ID_MGSPW }}
+    steps:
+      - name: Set version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: echo "NEXUS_VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          mkdir -p dist
+          gh release download "$TAG" --pattern "bbtracker-${{ matrix.game }}-*.zip" --dir dist
+
+      - name: Upload ${{ matrix.game }} to Nexus Mods
+        if: matrix.file_id != ''
+        uses: Nexus-Mods/upload-action@v1.0.0-beta.10
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          file_id: ${{ matrix.file_id }}
+          filename: dist/bbtracker-${{ matrix.game }}-${{ inputs.tag }}.zip
+          version: ${{ env.NEXUS_VERSION }}
+          archive_existing_version: true
+          update_mod_version: true
