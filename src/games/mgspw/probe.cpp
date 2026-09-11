@@ -467,10 +467,10 @@ void ensure_resolved()
 
 } // namespace
 
-// Highest save-relative read is the insignia state; the stage string, play
-// tallies, heroism, rank arrays, weapons and codename state all sit below
-// it, so one validation covers the whole block per poll.
-constexpr size_t kSaveBlockSpan = kInsigniaStateOff + kInsigniaCount + 1;
+// Highest save-relative read is the finalized result time; the stage string,
+// play tallies, heroism, rank arrays, weapons, codename and insignia state
+// all sit below it, so one snapshot covers the whole block per poll.
+constexpr size_t kSaveBlockSpan = kResultTimeOff + sizeof(uint32_t);
 
 bool poll_mission_clock(uint32_t& ticks)
 {
