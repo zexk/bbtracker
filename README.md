@@ -14,7 +14,7 @@ ladder, and insignia progress.
 
 - Live projected rank and codename
 - Rank requirements and remaining allowances
-- Run stats, special-rank counters, MGS3 checklists, and MGS4 feat progress
+- Run stats, special-rank counters, MGS2 dog tags, MGS3 checklists, and MGS4 feat progress
 - Peace Walker codename projection, insignia progress, and career counters
 - Windows, Linux, and Steam Deck support through ASI Loader and Proton
 
