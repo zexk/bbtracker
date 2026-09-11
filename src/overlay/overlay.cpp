@@ -1250,11 +1250,18 @@ void join_flags(char* out, size_t len, uint16_t mask, std::span<const char* cons
     }
 }
 
+bool begin_fitted_child(const char* id)
+{
+    ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f), ImVec2(FLT_MAX, ui_size(360)));
+    return ImGui::BeginChild(id, ImVec2(0, 0),
+                             ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
+}
+
 void checklist(const char* id, const char* const* names, size_t count, uint64_t mask, int scroll)
 {
     const ImVec4 done_color = id_colors(g_game).green;
     const ImVec4 todo_color = unset_color();
-    if (ImGui::BeginChild(id, ImVec2(0, ui_size(360)), true)) {
+    if (begin_fitted_child(id)) {
         apply_scroll(scroll);
         for (size_t i = 0; i < count; ++i) {
             const bool done = (mask & (uint64_t{1} << i)) != 0;
@@ -1274,7 +1281,7 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
         }
         return false;
     };
-    if (ImGui::BeginChild("mgs4_feats", ImVec2(0, ui_size(360)), true)) {
+    if (begin_fitted_child("mgs4_feats")) {
         apply_scroll(scroll);
         if (ImGui::BeginTable("mgs4_feat_rows", 2,
                               ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
@@ -1417,7 +1424,7 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - width);
         ImGui::TextUnformatted(variant);
     }
-    if (ImGui::BeginChild("mgs2_dog_tags", ImVec2(0, ui_size(360)), true)) {
+    if (begin_fitted_child("mgs2_dog_tags")) {
         apply_scroll(scroll);
         // ponytail: fixed 34 x 394 scan; index only if roster becomes dynamic.
         for (const char* area_code : mgs2::kDogTagAreas) {
@@ -1730,7 +1737,7 @@ void draw_mgspw_summary(const GameStats& stats, int)
 
 void draw_mgspw_global(const GameStats& stats, int scroll)
 {
-    ImGui::BeginChild("pw_career_scroll", ImVec2(0, ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing()));
+    begin_fitted_child("pw_career_scroll");
     apply_scroll(scroll);
     char buf[64];
     const auto count = [&](const char* label, int value) {
@@ -2351,13 +2358,18 @@ void draw_panel()
         : "BIG BOSS tracker";
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImGuiCond initial_layout = g.reset_window ? ImGuiCond_Always : ImGuiCond_FirstUseEver;
-    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + ui_size(16),
-                                  viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
-                            initial_layout, ImVec2(0.0f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(ui_size(g_game == Game::MGSPW ? 360 : 380), ui_size(480)), initial_layout);
+    const ImVec2 anchor(viewport->WorkPos.x + ui_size(16),
+                        viewport->WorkPos.y + viewport->WorkSize.y * 0.5f);
+    ImGui::SetNextWindowPos(anchor, initial_layout, ImVec2(0.0f, 0.5f));
     ImGui::Begin(panel_title, nullptr,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
-                     | (g_game == Game::MGSPW ? 0 : ImGuiWindowFlags_AlwaysAutoResize));
+                     | ImGuiWindowFlags_AlwaysAutoResize);
+    static float placed_height = -1.0f;
+    const float panel_height = ImGui::GetWindowHeight();
+    if (panel_height != placed_height) {
+        ImGui::SetWindowPos(ImVec2(anchor.x, anchor.y - panel_height * 0.5f));
+        placed_height = panel_height;
+    }
     g.reset_window = false;
 
     if (!have_stats) {
