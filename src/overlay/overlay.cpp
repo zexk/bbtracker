@@ -1789,10 +1789,6 @@ void draw_mgspw_insignia(const GameStats& stats, int)
         push_font(g_font_semibold, 1.0f);
         ImGui::Text("%d / 110 insignias earned", stats.pw_insignias);
         ImGui::PopFont();
-        ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
-                              ImVec4(id_green.x, id_green.y, id_green.z, 0.55f));
-        ImGui::ProgressBar(stats.pw_insignias / 110.0f, ImVec2(-FLT_MIN, ui_size(6)), "");
-        ImGui::PopStyleColor();
     }
     ImGui::Spacing();
     bool unresolved = false;
