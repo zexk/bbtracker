@@ -178,7 +178,7 @@ SerialHit scan_disc_serial()
 
     SerialHit result{};
     mem::scan(cursor, buffer, kScanChunkSize, kSerialOverlap, mem::kReadable,
-              0, 0x4000000, 1000,
+              0, 0x4000000, 20,
               [&](uintptr_t, const uint8_t* data, size_t primary, size_t size) {
         const char* next = reinterpret_cast<const char*>(data);
         const char* const search_limit = next + primary;
@@ -210,15 +210,9 @@ char g_serial[sizeof(SerialHit{}.serial)]{};
 
 PsxVariant disc_variant()
 {
-    static uint64_t next_scan = 0;
     if (g_variant != PsxVariant::Unknown) {
         return g_variant;
     }
-    const uint64_t now = GetTickCount64();
-    if (now < next_scan) {
-        return PsxVariant::Unknown;
-    }
-    next_scan = now + 250;
     const SerialHit hit = scan_disc_serial();
     if (hit.variant == PsxVariant::Unknown) {
         return PsxVariant::Unknown;
@@ -392,7 +386,6 @@ bool find_candidate(uintptr_t& out)
     };
     static uintptr_t cursor = 0x10000;
     static std::vector<Candidate> candidates;
-    static uint64_t next_scan = 0;
     constexpr size_t kScanChunkSize = 0x100000;
     static std::vector<uint8_t> buffer(kScanChunkSize + kWorkRegionSize - 1);
 
@@ -426,13 +419,8 @@ bool find_candidate(uintptr_t& out)
         }
     }
 
-    if (now_ms < next_scan) {
-        return false;
-    }
-    next_scan = now_ms + 1000;
-
     mem::scan(cursor, buffer, kScanChunkSize, kWorkRegionSize - 1,
-              mem::kReadable, 0x200, 0x4000000, 1000,
+              mem::kReadable, 0x200, 0x4000000, 20,
               [&](uintptr_t address, const uint8_t* data, size_t primary, size_t size) {
         for (size_t i = 0; i < primary && i + kWorkRegionSize <= size; ++i) {
             if (!looks_like_stage_anchor(data + i) || is_logger_table(data + i)) continue;
