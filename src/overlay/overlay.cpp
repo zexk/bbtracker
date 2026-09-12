@@ -1996,7 +1996,7 @@ void draw_summary(const GameStats& stats, int)
 
     if (ImGui::BeginTable("reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("requirement", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, ui_size(120));
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 
         if (!stats.mgs1_japanese_original) {
             const bool classic_mg = g_game == Game::MG1 || g_game == Game::MG2;
