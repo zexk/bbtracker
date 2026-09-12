@@ -1474,8 +1474,9 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
                                                                              : "until",
                                   gate->trigger);
                 }
-                if (tag.bluff) push_font(g_font_bold, 1.0f);
-                push_font(g_font_semibold, 1.0f);
+                const float bluff_scale = tag.bluff ? 1.15f : 1.0f;
+                if (tag.bluff) push_font(g_font_bold, bluff_scale);
+                push_font(g_font_semibold, bluff_scale);
                 ImGui::TextColored(color, "%s", done ? "✓" : "✗");
                 ImGui::PopFont();
                 ImGui::SameLine();
