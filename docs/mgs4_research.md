@@ -129,6 +129,32 @@ magazine pages       = u16[0x19e] + u16[0x1a0]
 box/drum time        = u32[0x1b8] + u32[0x1bc]
 ```
 
+## Flashbacks
+
+Field `0x5a34` is a career total, not a run counter. It is carried across
+playthroughs: a save with four clears read `181` at Act 1 after 61 minutes of
+play. Target `273` is the Bonus DP cap. No run-scoped second counter is
+identified in the run-stat block; undocumented fields at `0x1a4`, `0x1a6`, and
+`0x1c8..0x1d2` are the remaining candidates and need a live before/after save
+pair to rule in or out. Until then a current-run count must be derived by
+latching `0x5a34` when the run starts and reporting the delta.
+
+Per-flashback state was not found in `MGS4.SAV`. Scans for a 273-byte 0/1 array,
+a 273-entry u16 0/1 array, and 35-byte bitsets with popcount `181` (or the inverse
+`92`) all came up empty. The unexplained pair of 595-byte arrays at `0x5588`
+(value `2`) and `0x57db` (value `8`) share one fully populated 486-entry occupancy
+pattern, so they are not a partial progress list; identity unresolved, possibly
+music/database unlocks.
+
+Flashback prompts are not staged from GCX script strings: 70 stage scripts were
+extracted from `ww/stage/stage_data_compressed.1/2.pak` and their string tables
+deciphered (650,556 strings); no flashback strings and no raw `flash` references
+appear. Likely homes are cutscene/event data or native code. Native anchors found
+so far: input action `FlashBack` in `.rdata` at file offset `0x16608c8`, and RTTI
+class `VOCELOT_FLASHBACK@@` at file offset `0x1d6978b`. Cross-referencing the
+counter or the flashback entities needs a runtime `.text` capture
+(`probe-mgs4-memory.py --dump-text`), since the shipped `.text` is protected.
+
 ## Difficulty and progress
 
 | Raw | Display name | Tracker tier |
@@ -501,7 +527,8 @@ Open items:
 - box/drum component identities;
 - run-save integrity algorithm;
 - native trigger sites for Steam achievements;
-- whether emblem predicates run only at results or maintain cached state.
+- whether emblem predicates run only at results or maintain cached state;
+- flashback per-run counter and per-flashback viewed state (see Flashbacks).
 
 None blocks current tracker. All 40 emblem predicates and every required live
 aggregate are implemented for target build.
