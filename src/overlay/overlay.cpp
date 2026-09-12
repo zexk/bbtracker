@@ -1178,6 +1178,7 @@ ImVec4 unset_color()
 // DPI and 4K scaling in apply_ui_scale().
 constexpr float kTitleScale = 1.7f;
 constexpr float kSectionScale = 1.15f;
+constexpr float kNoteScale = 0.88f;
 
 void push_font(ImFont* font, float scale)
 {
@@ -1420,7 +1421,9 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
     ImGui::Text("%d / %d", collected, available);
     if (collected != stats.dog_tags) {
         ImGui::SameLine();
+        push_font(nullptr, kNoteScale);
         ImGui::TextDisabled("(%d total flags)", stats.dog_tags);
+        ImGui::PopFont();
     }
     {
         const char* variant = stats.mgs2_dog_tags_2002 ? "2002" : "2001";
@@ -1459,16 +1462,20 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
                 }
                 char suffix[48] = {};
                 if (gate) {
-                    std::snprintf(suffix, sizeof(suffix), "  [%s %s]",
+                    std::snprintf(suffix, sizeof(suffix), "[%s %s]",
                                   gate->kind == mgs2::DogTagGateKind::After ? "after"
                                                                              : "until",
                                   gate->trigger);
                 }
-                char text[160];
-                std::snprintf(text, sizeof(text), "%s  %s%s", done ? "✓" : "✗",
-                              mgs2::dog_tag_name(tag, stats.mgs2_dog_tags_2002), suffix);
                 if (tag.bluff) push_font(g_font_bold, 1.0f);
-                ImGui::TextColored(color, "%s", text);
+                ImGui::TextColored(color, "%s  %s", done ? "✓" : "✗",
+                                   mgs2::dog_tag_name(tag, stats.mgs2_dog_tags_2002));
+                if (suffix[0]) {
+                    ImGui::SameLine();
+                    push_font(nullptr, kNoteScale);
+                    ImGui::TextColored(color, "%s", suffix);
+                    ImGui::PopFont();
+                }
                 if (tag.bluff) ImGui::PopFont();
             }
         }
@@ -1533,9 +1540,11 @@ void draw_mgspw_run(const GameStats& stats)
             ? rank_names[stats.pw_cur_rank] : "-";
         if (stats.pw_cur_best) {
             // Rank and time are independent bests.
+            push_font(nullptr, kNoteScale);
             ImGui::TextDisabled("Mission %d | Best rank %s", stats.pw_mission_id, rank);
             ImGui::TextDisabled("Best time %llu:%02llu.%03llu", best_ms / 60000, (best_ms / 1000) % 60,
                                 best_ms % 1000);
+            ImGui::PopFont();
             const double delta = (double(mission_ms) - double(best_ms)) / 1000.0;
             const double size = delta < 0 ? -delta : delta;
             char gap[24];
@@ -1803,7 +1812,9 @@ void draw_mgspw_insignia(const GameStats& stats, int)
         ImGui::EndTable();
     }
     if (unresolved) {
+        push_font(nullptr, kNoteScale);
         ImGui::TextDisabled("- = counter not resolved yet");
+        ImGui::PopFont();
     }
 }
 
@@ -1822,6 +1833,7 @@ void draw_mgspw_codenames(const GameStats& stats, int)
     ImGui::TextColored(title_color, "%s", match ? match->name : "---");
     ImGui::PopFont();
     ImGui::SameLine();
+    push_font(nullptr, kNoteScale);
     ImGui::TextDisabled("projected");
     if (stats.pw_codename_state_ok) {
         int owned = 0;
@@ -1831,7 +1843,12 @@ void draw_mgspw_codenames(const GameStats& stats, int)
         ImGui::SameLine();
         ImGui::TextDisabled("| %d / 24 earned", owned);
     }
-    if (!axes.native) ImGui::TextDisabled("Estimated from available counters");
+    ImGui::PopFont();
+    if (!axes.native) {
+        push_font(nullptr, kNoteScale);
+        ImGui::TextDisabled("Estimated from available counters");
+        ImGui::PopFont();
+    }
     char buf[64];
     ImGui::Spacing();
     if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
@@ -1927,7 +1944,9 @@ void draw_mgspw_codenames(const GameStats& stats, int)
     const codename::PwGradeGate gate = codename::pw_grade_gate(target);
     if (!stats.pw_codename_result_ok) {
         // Before evaluation, show grade 1 gates without status.
+        push_font(nullptr, kNoteScale);
         ImGui::TextDisabled("No grade yet | finish a mission to be evaluated");
+        ImGui::PopFont();
     } else if (grade.next) {
         ImGui::TextColored(grade.grade ? id_green : pending, "Grade %d / 5", grade.grade);
         ImGui::SameLine();
@@ -1996,9 +2015,11 @@ void draw_mgspw_codenames(const GameStats& stats, int)
         ImGui::EndTable();
     }
     if (stats.pw_codename_missions_required > 0) {
+        push_font(nullptr, kNoteScale);
         ImGui::TextDisabled("ratio = %d / %d missions counted",
                             stats.pw_codename_missions_counted,
                             stats.pw_codename_missions_required);
+        ImGui::PopFont();
     }
 }
 
