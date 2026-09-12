@@ -29,6 +29,8 @@ code = r'''
 using namespace bb;
 Game g_game = Game::MGS4;
 bool (*g_clock_fn)(uint32_t&) = nullptr;
+ImFont* g_font_semibold = nullptr;
+ImFont* g_font_bold = nullptr;
 const char* mgspw_area_name(const char*, int) { return "Puerto del Alba"; }
 '''
 code += block("struct IdColors", "void checklist")

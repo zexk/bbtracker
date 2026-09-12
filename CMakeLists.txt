@@ -5,6 +5,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Non-ASCII UI strings (accents, ✓/✗) must survive MSVC's codepage default.
+if(MSVC)
+  add_compile_options(/utf-8)
+endif()
+
 set(GAMES mg12 mgs1 mgs2 mgs3 mgs4 mgspw babel)
 set(RANKED_GAMES mg12 mgs1 mgs2 mgs3 mgs4 mgspw)
 set(RULE_SOURCES
@@ -39,6 +44,32 @@ if(WIN32)
     set(MINHOOK_DIR "${minhook_source_SOURCE_DIR}")
   endif()
 
+  # The flake passes nixpkgs' inter.src (the upstream release archive, whose
+  # extras/ttf holds the static cuts). Other builds download the same pinned
+  # release.
+  set(INTER_DIR "$ENV{interSrc}" CACHE PATH "Path to the Inter font release")
+  if(NOT INTER_DIR)
+    FetchContent_Declare(inter_source
+      URL https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip
+      URL_HASH SHA256=9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e)
+    FetchContent_MakeAvailable(inter_source)
+    set(INTER_DIR "${inter_source_SOURCE_DIR}")
+  endif()
+
+  set(BB_FONT_CPP "${CMAKE_CURRENT_BINARY_DIR}/generated/inter_fonts.cpp")
+  add_custom_command(
+    OUTPUT "${BB_FONT_CPP}"
+    COMMAND "${CMAKE_COMMAND}"
+      "-DFONTS=inter_regular=${INTER_DIR}/extras/ttf/Inter-Regular.ttf|inter_semibold=${INTER_DIR}/extras/ttf/Inter-SemiBold.ttf|inter_bold=${INTER_DIR}/extras/ttf/Inter-Bold.ttf"
+      "-DOUTPUT=${BB_FONT_CPP}"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_fonts.cmake"
+    DEPENDS
+      "${INTER_DIR}/extras/ttf/Inter-Regular.ttf"
+      "${INTER_DIR}/extras/ttf/Inter-SemiBold.ttf"
+      "${INTER_DIR}/extras/ttf/Inter-Bold.ttf"
+    COMMENT "Embedding Inter font data"
+    VERBATIM)
+
   if(MINGW)
     add_link_options(-static -static-libgcc -static-libstdc++)
   endif()
@@ -64,6 +95,7 @@ if(WIN32)
   add_library(core STATIC
     src/common/log.cpp
     ${RULE_SOURCES}
+    ${BB_FONT_CPP}
     src/overlay/overlay.cpp)
   target_include_directories(core PUBLIC src)
   target_link_libraries(core PUBLIC imgui minhook d3d11 d3d12 dxgi d3dcompiler dwmapi)
@@ -86,6 +118,7 @@ if(WIN32)
   bb_asi(babel "METAL GEAR: GHOST BABEL")
 
   install(TARGETS ${GAMES} RUNTIME DESTINATION bin)
+  install(FILES "${INTER_DIR}/LICENSE.txt" DESTINATION bin RENAME Inter-OFL-1.1.txt)
 endif()
 
 if(UNIX)

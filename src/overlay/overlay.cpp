@@ -34,6 +34,14 @@
 #include "../games/mgs3/checklists.h"
 #include "../games/mgspw/names.h"
 
+// Embedded from the Inter release pinned in CMakeLists.txt.
+extern const unsigned char inter_regular[];
+extern const unsigned int inter_regular_size;
+extern const unsigned char inter_semibold[];
+extern const unsigned int inter_semibold_size;
+extern const unsigned char inter_bold[];
+extern const unsigned int inter_bold_size;
+
 namespace bb {
 namespace {
 
@@ -72,6 +80,8 @@ const char* g_label = "?";
 StatsFn g_stats_fn = nullptr;
 ClockFn g_clock_fn = nullptr;
 Game g_game = Game::MGS3;
+ImFont* g_font_semibold = nullptr;
+ImFont* g_font_bold = nullptr;
 OverlayState g{};
 GameStats g_stats{};
 bool g_have_stats = false;
@@ -161,6 +171,16 @@ void begin_imgui()
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
     io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
+    ImFontConfig font_cfg;
+    font_cfg.FontDataOwnedByAtlas = false;
+    io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(inter_regular),
+                                   static_cast<int>(inter_regular_size), 13.0f, &font_cfg);
+    g_font_semibold = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(inter_semibold),
+                                                     static_cast<int>(inter_semibold_size), 13.0f,
+                                                     &font_cfg);
+    g_font_bold = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(inter_bold),
+                                                 static_cast<int>(inter_bold_size), 13.0f,
+                                                 &font_cfg);
     apply_ui_scale();
     ImGui_ImplWin32_Init(g.hwnd);
 }
@@ -1154,6 +1174,30 @@ ImVec4 unset_color()
     return ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
 }
 
+// Dynamic fonts allow any size; panel ranks scale from the base so they track
+// DPI and 4K scaling in apply_ui_scale().
+constexpr float kTitleScale = 1.7f;
+constexpr float kSectionScale = 1.15f;
+
+void push_font(ImFont* font, float scale)
+{
+    ImGui::PushFont(font, ImGui::GetStyle().FontSizeBase * scale);
+}
+
+void table_headers_row()
+{
+    push_font(g_font_semibold, 1.0f);
+    ImGui::TableHeadersRow();
+    ImGui::PopFont();
+}
+
+void section_text(const char* text)
+{
+    push_font(g_font_semibold, kSectionScale);
+    ImGui::SeparatorText(text);
+    ImGui::PopFont();
+}
+
 // Thousands as "50k" / "12.8k". The PW grade gates run to six figures, which
 // is more digits than the columns they sit in can carry.
 void format_thousands(double value, char* buf, size_t len)
@@ -1267,7 +1311,7 @@ void checklist(const char* id, const char* const* names, const uint8_t* bits, si
             const size_t bit = bits ? bits[i] : i;
             const bool done = (mask & (uint64_t{1} << bit)) != 0;
             ImGui::TextColored(done ? done_color : todo_color,
-                               "%s  %s", done ? "x" : "-", names[i]);
+                               "%s  %s", done ? "✓" : "✗", names[i]);
         }
     }
     ImGui::EndChild();
@@ -1397,7 +1441,7 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
                 }
                 if (!header) {
                     const char* area = area_name(Game::MGS2, area_code);
-                    ImGui::SeparatorText(area ? area : area_code);
+                    section_text(area ? area : area_code);
                     header = true;
                 }
                 const bool done = mgs2::dog_tag_collected(stats.dog_tag_mask, tag.id);
@@ -1421,14 +1465,11 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
                                   gate->trigger);
                 }
                 char text[160];
-                std::snprintf(text, sizeof(text), "%s  %s%s", done ? "x" : "-",
+                std::snprintf(text, sizeof(text), "%s  %s%s", done ? "✓" : "✗",
                               mgs2::dog_tag_name(tag, stats.mgs2_dog_tags_2002), suffix);
+                if (tag.bluff) push_font(g_font_bold, 1.0f);
                 ImGui::TextColored(color, "%s", text);
-                if (tag.bluff) {
-                    ImVec2 pos = ImGui::GetItemRectMin();
-                    pos.x += 1.0f;
-                    ImGui::GetWindowDrawList()->AddText(pos, ImGui::GetColorU32(color), text);
-                }
+                if (tag.bluff) ImGui::PopFont();
             }
         }
     }
@@ -1478,10 +1519,10 @@ void draw_mgspw_run(const GameStats& stats)
     const unsigned long long mission_ms = static_cast<unsigned long long>(ticks) * 1000ULL / 300ULL;
     const unsigned long long best_ms =
         static_cast<unsigned long long>(stats.pw_cur_best) * 1000ULL / 300ULL;
-    ImGui::SetWindowFontScale(2.0f);
+    push_font(g_font_semibold, kTitleScale);
     ImGui::Text("%llu:%02llu.%03llu", mission_ms / 60000, (mission_ms / 1000) % 60,
                 mission_ms % 1000);
-    ImGui::SetWindowFontScale(1.0f);
+    ImGui::PopFont();
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -1515,7 +1556,7 @@ void draw_mgspw_run(const GameStats& stats)
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("this run", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("mission", ImGuiTableColumnFlags_WidthFixed, ui_size(84));
-        ImGui::TableHeadersRow();
+        table_headers_row();
         // Prefer native mission tally; fall back to client-side delta.
         const auto run_stat = [&](const char* k, int mission_value, int seg) {
             if (mission_value >= 0) {
@@ -1628,7 +1669,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         ImGui::TableSetupColumn("takedowns", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("lethal", ImGuiTableColumnFlags_WidthFixed, ui_size(75));
         ImGui::TableSetupColumn("non-lethal", ImGuiTableColumnFlags_WidthFixed, ui_size(85));
-        ImGui::TableHeadersRow();
+        table_headers_row();
         const auto weapon = [&](const char* label, int slot, int lethal, int nonlethal) {
             if (stats.pw_codename_axes_ok) {
                 if (lethal >= 0) lethal = stats.pw_codename_axes[0][slot];
@@ -1667,7 +1708,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("career", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("total", ImGuiTableColumnFlags_WidthFixed, ui_size(126));
-        ImGui::TableHeadersRow();
+        table_headers_row();
         format_time(stats.pw_total_play, buf, sizeof(buf));
         stat_row("play time", buf);
         char total[16], delta[16];
@@ -1729,7 +1770,7 @@ void draw_mgspw_insignia(const GameStats& stats, int)
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("counter", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("next", ImGuiTableColumnFlags_WidthFixed, ui_size(100));
-        ImGui::TableHeadersRow();
+        table_headers_row();
         const ImVec4 pending = unset_color();
         for (const auto& family : kFamilies) {
             const int have = codename::pw_insignia_progress(family.first_id, stats);
@@ -1777,7 +1818,9 @@ void draw_mgspw_codenames(const GameStats& stats, int)
         : std::strcmp(match->name, "FOXHOUND") == 0 || std::strcmp(match->name, "FOX") == 0
             ? id_green
             : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    push_font(g_font_semibold, kSectionScale);
     ImGui::TextColored(title_color, "%s", match ? match->name : "---");
+    ImGui::PopFont();
     ImGui::SameLine();
     ImGui::TextDisabled("projected");
     if (stats.pw_codename_state_ok) {
@@ -1794,7 +1837,7 @@ void draw_mgspw_codenames(const GameStats& stats, int)
     if (ImGui::BeginTable("pw_reqs", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("FOX / FOXHOUND", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("have / need", ImGuiTableColumnFlags_WidthFixed, ui_size(100));
-        ImGui::TableHeadersRow();
+        table_headers_row();
         for (const codename::ReqStatus& r : g_eval.reqs) {
             const char* pct =
                 static_cast<codename::ReqFmt>(r.fmt) == codename::ReqFmt::Percent ? "%" : "";
@@ -1833,7 +1876,7 @@ void draw_mgspw_codenames(const GameStats& stats, int)
         ImGui::TableSetupColumn("takedowns", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("count", ImGuiTableColumnFlags_WidthFixed, ui_size(50));
         ImGui::TableSetupColumn("share", ImGuiTableColumnFlags_WidthFixed, ui_size(50));
-        ImGui::TableHeadersRow();
+        table_headers_row();
         const auto share_row = [&](const char* label, int value, int total,
                                    const ImVec4& share_color) {
             const double share = total > 0 ? 100.0 * value / total : 0.0;
@@ -1898,7 +1941,7 @@ void draw_mgspw_codenames(const GameStats& stats, int)
         ImGui::TableSetupColumn(header, ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("now", ImGuiTableColumnFlags_WidthFixed, ui_size(70));
         ImGui::TableSetupColumn("goal", ImGuiTableColumnFlags_WidthFixed, ui_size(70));
-        ImGui::TableHeadersRow();
+        table_headers_row();
         // Unread or irrelevant gates have no failure status.
         const auto gate_row = [&](const char* label, bool known, bool judged,
                                   const char* now, const char* goal, bool pass) {
@@ -1990,9 +2033,9 @@ void draw_summary(const GameStats& stats, int)
         : std::strcmp(match->name, "BIG BOSS") == 0 || std::strcmp(match->name, "FOXHOUND") == 0
             ? id_green : match->kind == codename::Kind::Worst ? id_red
             : ImGui::GetStyleColorVec4(ImGuiCol_Text);
-    ImGui::SetWindowFontScale(2.0f);
+    push_font(g_font_semibold, kTitleScale);
     ImGui::TextColored(codename_color, "%s", match ? match->name : "---");
-    ImGui::SetWindowFontScale(1.0f);
+    ImGui::PopFont();
 
     ImGui::Separator();
     ImGui::Spacing();
@@ -2138,7 +2181,7 @@ void draw_summary(const GameStats& stats, int)
             snprintf(buf, sizeof(buf), "%d / 64  %s", stats.kerotans,
                      current_kerotan >= 0
                              && (stats.kerotan_mask & (uint64_t{1} << current_kerotan)) != 0
-                         ? "x" : "-");
+                         ? "✓" : "✗");
             dim_row("kerotans", buf);
             plain_count("meals eaten", stats.meals_eaten);
         } else if (g_game == Game::MGS4) {

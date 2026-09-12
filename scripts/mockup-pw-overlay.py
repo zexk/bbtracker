@@ -41,6 +41,8 @@ code = r'''
 using namespace bb;
 bool (*g_clock_fn)(uint32_t&) = nullptr;
 Game g_game = Game::MGSPW;
+ImFont* g_font_semibold = nullptr;
+ImFont* g_font_bold = nullptr;
 const char* mgspw_area_name(const char*, int) { return "El Cenagal: Jungle"; }
 '''
 code += block("void apply_game_theme()\n{", "bool init_imgui(IDXGISwapChain* swap_chain)")

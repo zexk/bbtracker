@@ -48,7 +48,7 @@ Follow fix project's Proton/Steam Deck DLL-override instructions when applicable
 ## Build
 
 Requires Git, CMake, Ninja, and Visual Studio with Desktop development with C++ workload.
-Run from Developer PowerShell; CMake downloads pinned ImGui and MinHook sources automatically:
+Run from Developer PowerShell; CMake downloads pinned ImGui, MinHook, and Inter font sources automatically:
 
 ```powershell
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -66,5 +66,9 @@ ctest --test-dir build --output-on-failure
 ```
 
 Rank sources and known gaps: [docs/rank_rules.md](docs/rank_rules.md).
+
+Bundles a subset of the [Inter](https://rsms.me/inter/) typeface, renamed
+"BB Tracker Sans" as the SIL Open Font License requires of modified versions
+(`Inter-OFL-1.1.txt` next to the built ASIs).
 
 MIT licensed. See [LICENSE](LICENSE).

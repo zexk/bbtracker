@@ -34,6 +34,16 @@
           pkgs = nixpkgs.legacyPackages.${system};
           mingw = pkgs.pkgsCross.mingwW64;
 
+          # Full Inter release, subset per weight and renamed (OFL reserved
+          # name) to keep the embedded payload tiny.
+          interFonts = pkgs.runCommand "bbtracker-inter-fonts" {
+            nativeBuildInputs = [ (pkgs.python3.withPackages (ps: [ ps.fonttools ])) ];
+          } ''
+            mkdir -p $out/extras/ttf
+            python3 ${./scripts/subset_fonts.py} ${pkgs.inter.src} $out/extras/ttf
+            cp ${pkgs.inter.src}/LICENSE.txt $out/LICENSE.txt
+          '';
+
           bbtracker = mingw.stdenv.mkDerivation {
             pname = "bbtracker";
             inherit version;
@@ -45,6 +55,7 @@
             ];
 
             inherit imgui minhook;
+            interSrc = interFonts;
 
             meta = with pkgs.lib; {
               description = "Live rank and codename tracker for Metal Gear: Master Collection";
