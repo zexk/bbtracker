@@ -1339,7 +1339,9 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
                 const bool done = matched(name);
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
+                push_font(g_font_semibold, 1.0f);
                 ImGui::TextColored(done ? done_color : pending_color, "%s", name);
+                ImGui::PopFont();
                 ImGui::TableNextColumn();
                 ImGui::TextColored(done ? done_color : pending_color, "%s", value);
             };
