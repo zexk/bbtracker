@@ -48,6 +48,9 @@
             pname = "bbtracker";
             inherit version;
             src = self;
+            # PE strip -S keeps the multi-MB COFF symbol table; -s drops it.
+            stripDebugFlags = [ "-s" ];
+            cmakeBuildType = "MinSizeRel";
 
             nativeBuildInputs = [
               mingw.buildPackages.cmake
@@ -68,6 +71,7 @@
             pname = "mgs4-stage-selector";
             inherit version;
             src = self;
+            stripDebugFlags = [ "-s" ];
 
             buildPhase = ''
               runHook preBuild

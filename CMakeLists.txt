@@ -71,7 +71,11 @@ if(WIN32)
     VERBATIM)
 
   if(MINGW)
-    add_link_options(-static -static-libgcc -static-libstdc++)
+    # --exclude-all-symbols: PE auto-export of every global bloats .edata and
+    # pins dead code; DllMain is the entry point, nothing needs exporting.
+    add_compile_options(-ffunction-sections -fdata-sections)
+    add_link_options(-static -static-libgcc -static-libstdc++
+                     -Wl,--exclude-all-symbols -Wl,--gc-sections)
   endif()
 
   add_library(imgui STATIC
