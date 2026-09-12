@@ -2293,9 +2293,11 @@ void draw_panel()
     const ImVec2 anchor(viewport->WorkPos.x + ui_size(16),
                         viewport->WorkPos.y + viewport->WorkSize.y * 0.5f);
     ImGui::SetNextWindowPos(anchor, initial_layout, ImVec2(0.0f, 0.5f));
+    push_font(g_font_semibold, kSectionScale);
     ImGui::Begin(panel_title, nullptr,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
                      | ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::PopFont();
     static float placed_height = -1.0f;
     const float panel_height = ImGui::GetWindowHeight();
     if (panel_height != placed_height) {
@@ -2321,8 +2323,12 @@ void draw_panel()
     const int scroll = scroll_up ? -1 : scroll_down ? 1 : 0;
     if (tab_bar && ImGui::BeginTabBar("tracker_tabs")) {
         for (int i = 0; i < static_cast<int>(tabs.size()); ++i) {
-            if (ImGui::BeginTabItem(tabs[i].title, nullptr,
-                                    selected_tab == i ? ImGuiTabItemFlags_SetSelected : 0)) {
+            push_font(selected_tab == i ? g_font_bold : g_font_semibold, 1.0f);
+            const bool open = ImGui::BeginTabItem(tabs[i].title, nullptr,
+                                                  selected_tab == i
+                                                      ? ImGuiTabItemFlags_SetSelected : 0);
+            ImGui::PopFont();
+            if (open) {
                 tabs[i].draw(stats, scroll);
                 ImGui::EndTabItem();
             }
