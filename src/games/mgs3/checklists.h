@@ -26,31 +26,51 @@ inline constexpr const char* kCaptures[] = {
 
 inline constexpr const char* kKerotans[] = {
     "01 Dremuchij South (VM)", "02 Dremuchij Swampland (VM)", "03 Dremuchij North (VM)",
-    "04 Dolinovodno (VM)", "05 Rassvet (VM)", "06 Dremuchij South",
-    "07 Dremuchij East", "08 Dremuchij Swampland", "09 Dremuchij North",
-    "10 Dolinovodno", "11 Rassvet", "12 Chyornyj Prud",
-    "13 Bolshaya Past South", "14 Bolshaya Past Base", "15 Bolshaya Past Crevice",
+    "04 Dolinovodno (VM)", "05 Rassvet (VM)", "06 Dremuchij East",
+    "07 Rassvet", "08 Dolinovodno", "09 Dremuchij North", "10 Dremuchij Swampland",
+    "11 Dremuchij South", "12 Chyornyj Prud", "13 Bolshaya Past South",
+    "14 Bolshaya Past Base", "15 Bolshaya Past Crevice",
     "16 Chyornaya Peschera Cave Branch", "17 Chyornaya Peschera Cave", "18 Chyornaya Peschera Cave Entrance",
     "19 Ponizovje South", "20 Ponizovje West", "21 Ponizovje Warehouse Exterior",
-    "22 Ponizovje Warehouse 1F", "23 Svyatogornyj South", "24 Graniny Gorki South",
-    "25 Graniny Gorki Lab Exterior Perimeter", "26 Graniny Gorki Lab Exterior Yard", "27 Graniny Gorki Lab 1F",
-    "28 Graniny Gorki Lab B1 East", "29 Graniny Gorki Lab B1 West", "30 Svyatogornyj West",
-    "31 Svyatogornyj East", "32 Sokrovenno South", "33 Sokrovenno West",
-    "34 Sokrovenno North", "35 Krasnogorje Tunnel", "36 Krasnogorje Mountain Base",
-    "37 Krasnogorje Mountainside", "38 Krasnogorje Mountaintop", "39 Krasnogorje Mountaintop Ruins",
-    "40 Krasnogorje Mountaintop Behind Ruins", "41 Groznyj Grad Underground Tunnel", "42 Groznyj Grad Southwest",
-    "43 Groznyj Grad Northwest", "44 Groznyj Grad Northeast", "45 Groznyj Grad Southeast",
-    "46 Weapons Lab East Wing 2F", "47 Weapons Lab West Wing 2F Corridor", "48 Groznyj Grad Holding Facility",
-    "49 Weapons Lab Main Wing 1F", "50 Groznyj Grad B1F", "51 Tikhogornyj",
-    "52 Tikhogornyj Behind Waterfall", "53 Groznyj Grad Escape", "54 Groznyj Grad Runway South",
-    "55 Groznyj Grad Runway", "56 Groznyj Grad Runway After WIG", "57 Rail Bridge C3",
-    "58 Rail Bridge Shagohod", "59 Rail Bridge North", "60 Lazorevo South",
-    "61 Lazorevo North", "62 Zaozyorje West", "63 Zaozyorje East",
-    "64 Rokovoj Bereg",
+    "22 Ponizovje Warehouse 1F", "23 Graniny Gorki South",
+    "24 Graniny Gorki Lab Exterior Perimeter", "25 Graniny Gorki Lab Exterior Yard", "26 Graniny Gorki Lab 1F",
+    "27 Graniny Gorki Lab B1 East", "28 Graniny Gorki Lab B1 West", "29 Svyatogornyj South",
+    "30 Svyatogornyj West", "31 Svyatogornyj East", "32 Sokrovenno South",
+    "33 Sokrovenno West", "34 Sokrovenno North", "35 Krasnogorje Tunnel",
+    "36 Krasnogorje Mountain Base", "37 Krasnogorje Mountainside", "38 Krasnogorje Mountaintop",
+    "39 Krasnogorje Mountaintop Behind Ruins", "40 Krasnogorje Mountaintop Ruins",
+    "41 Groznyj Grad Underground Tunnel", "42 Groznyj Grad Southwest", "43 Groznyj Grad Northwest",
+    "44 Groznyj Grad Northeast", "45 Groznyj Grad Southeast", "46 Groznyj Grad Holding Facility",
+    "47 Weapons Lab East Wing 2F", "48 Weapons Lab West Wing 2F Corridor", "49 Tikhogornyj",
+    "50 Tikhogornyj Behind Waterfall", "51 Weapons Lab Main Wing 1F", "52 Groznyj Grad B1F",
+    "53 Groznyj Grad Escape", "54 Groznyj Grad Runway South", "55 Groznyj Grad Runway",
+    "56 Groznyj Grad Runway After WIG", "57 Rail Bridge C3", "58 Rail Bridge Shagohod",
+    "59 Rail Bridge North", "60 Lazorevo South", "61 Lazorevo North",
+    "62 Zaozyorje West", "63 Zaozyorje East", "64 Rokovoj Bereg",
 };
+
+// The game numbers its flags by stage; the checklist follows the collecting
+// route guides use. Each row carries its own rotated bit into the mask.
+inline constexpr uint8_t kKerotanBits[] = {
+    0, 1, 2, 3, 4, 6, 10, 9, 8, 7, 5, 11, 12, 13, 14, 15,
+    16, 17, 18, 19, 20, 21, 23, 24, 25, 26, 27, 28, 22, 29, 30, 31,
+    32, 33, 34, 35, 36, 37, 39, 38, 40, 41, 42, 43, 44, 47, 45, 46,
+    50, 51, 48, 49, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+};
+
+constexpr bool kerotan_bits_cover_mask()
+{
+    uint64_t seen = 0;
+    for (uint8_t bit : kKerotanBits) {
+        seen |= uint64_t{1} << bit;
+    }
+    return seen == ~uint64_t{0};
+}
 
 static_assert(std::size(kCaptures) == 48);
 static_assert(std::size(kKerotans) == 64);
+static_assert(std::size(kKerotanBits) == std::size(kKerotans));
+static_assert(kerotan_bits_cover_mask());
 
 inline int area_kerotan(const char* code)
 {

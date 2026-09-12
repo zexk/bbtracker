@@ -1256,14 +1256,16 @@ bool begin_fitted_child(const char* id)
                                  | ImGuiChildFlags_AutoResizeY);
 }
 
-void checklist(const char* id, const char* const* names, size_t count, uint64_t mask, int scroll)
+void checklist(const char* id, const char* const* names, const uint8_t* bits, size_t count,
+               uint64_t mask, int scroll)
 {
     const ImVec4 done_color = id_colors(g_game).green;
     const ImVec4 todo_color = unset_color();
     if (begin_fitted_child(id)) {
         apply_scroll(scroll);
         for (size_t i = 0; i < count; ++i) {
-            const bool done = (mask & (uint64_t{1} << i)) != 0;
+            const size_t bit = bits ? bits[i] : i;
+            const bool done = (mask & (uint64_t{1} << bit)) != 0;
             ImGui::TextColored(done ? done_color : todo_color,
                                "%s  %s", done ? "x" : "-", names[i]);
         }
@@ -1960,13 +1962,14 @@ void draw_mgspw_codenames(const GameStats& stats, int)
 void draw_mgs3_captures(const GameStats& stats, int scroll)
 {
     ImGui::Text("%d / 48", stats.plants_captured);
-    checklist("captures", mgs3::kCaptures, std::size(mgs3::kCaptures), stats.capture_mask, scroll);
+    checklist("captures", mgs3::kCaptures, nullptr, std::size(mgs3::kCaptures), stats.capture_mask, scroll);
 }
 
 void draw_mgs3_kerotans(const GameStats& stats, int scroll)
 {
     ImGui::Text("%d / 64", stats.kerotans);
-    checklist("kerotans", mgs3::kKerotans, std::size(mgs3::kKerotans), stats.kerotan_mask, scroll);
+    checklist("kerotans", mgs3::kKerotans, mgs3::kKerotanBits, std::size(mgs3::kKerotans),
+              stats.kerotan_mask, scroll);
 }
 
 void draw_summary(const GameStats& stats, int)

@@ -4,11 +4,22 @@
 #include "check.h"
 #include "common/codename/codename.h"
 #include "common/stats.h"
+#include "games/mgs3/checklists.h"
 
 using namespace bb;
 using namespace bb::codename;
 
 namespace {
+
+constexpr uint8_t kerotan_bit_for(std::string_view name)
+{
+    for (size_t i = 0; i < std::size(mgs3::kKerotans); ++i) {
+        if (name == mgs3::kKerotans[i]) {
+            return mgs3::kKerotanBits[i];
+        }
+    }
+    return 0xFF;
+}
 
 GameStats sloppy(Difficulty d)
 {
@@ -302,6 +313,33 @@ void test_animal_tier_names()
     }
 }
 
+void test_kerotan_checklist_bits()
+{
+    // Checklist rows are route-ordered; bits follow the game's stage order.
+    // Live: s002a (Dremuchij East) sets raw bit 7, rotated into index 6.
+    CHECK(kerotan_bit_for("06 Dremuchij East") == 6);
+    // Second-visit flags number by stage, so South sits at rotated index 5.
+    CHECK(kerotan_bit_for("11 Dremuchij South") == 5);
+    CHECK(kerotan_bit_for("07 Rassvet") == 10);
+    // Live: s005a (second Dolinovodno) sets raw bit 10, rotated into index 9.
+    CHECK(kerotan_bit_for("08 Dolinovodno") == 9);
+    CHECK(kerotan_bit_for("09 Dremuchij North") == 8);
+    CHECK(kerotan_bit_for("10 Dremuchij Swampland") == 7);
+    // Stage numbering runs Svyatogornyj South before Graniny Gorki South.
+    CHECK(kerotan_bit_for("29 Svyatogornyj South") == 22);
+    CHECK(kerotan_bit_for("23 Graniny Gorki South") == 23);
+    // The lab and Tikhogornyj sections are authored out of route order.
+    CHECK(kerotan_bit_for("39 Krasnogorje Mountaintop Behind Ruins") == 39);
+    CHECK(kerotan_bit_for("40 Krasnogorje Mountaintop Ruins") == 38);
+    CHECK(kerotan_bit_for("46 Groznyj Grad Holding Facility") == 47);
+    CHECK(kerotan_bit_for("47 Weapons Lab East Wing 2F") == 45);
+    CHECK(kerotan_bit_for("48 Weapons Lab West Wing 2F Corridor") == 46);
+    CHECK(kerotan_bit_for("49 Tikhogornyj") == 50);
+    CHECK(kerotan_bit_for("50 Tikhogornyj Behind Waterfall") == 51);
+    CHECK(kerotan_bit_for("51 Weapons Lab Main Wing 1F") == 48);
+    CHECK(kerotan_bit_for("52 Groznyj Grad B1F") == 49);
+}
+
 } // namespace
 
 int main()
@@ -320,6 +358,7 @@ int main()
         {"regular_fallback", test_regular_fallback},
         {"elite_requirements_statuses", test_elite_requirements_statuses},
         {"animal_tier_names", test_animal_tier_names},
+        {"kerotan_checklist_bits", test_kerotan_checklist_bits},
     };
 
     return bb::test::run("mgs3", tests);

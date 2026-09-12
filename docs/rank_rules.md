@@ -151,11 +151,13 @@ rank rules.
 
 Kerotan count comes from a 64-bit hit mask at story-block offset `0x242`.
 The game numbers the 64 flags in stage order and keeps the last entry in raw bit
-0, so the overlay rotates the mask right one bit before mapping entries.
-Current-area state maps the live area code to that rotated bit. Runtime area
-suffixes such as `_0` are ignored for this lookup. The earlier checklist followed
-a guide's route order, which put Dremuchij East one entry early: a live run set
-raw bit 7 for `s002a`, while the guide list expected bit 6.
+0, so the overlay rotates the mask right one bit before mapping areas. The
+checklist itself is listed in collecting-route order and each row carries its
+own rotated bit (`kKerotanBits`), so guide numbering stays familiar without
+lighting the wrong row. Current-area state maps the live area code to its
+rotated bit; runtime suffixes such as `_0` are ignored for this lookup. Verified
+from play: `s002a` sets raw bit 7 (Dremuchij East) and `s005a` sets raw bit 10
+(second Dolinovodno), so stage numbering is not route numbering.
 
 The earlier stats-block offset `0x6532` only reached the same address for one observed
 stats/story pointer spacing. Other rooms and cutscenes move those blocks independently,
