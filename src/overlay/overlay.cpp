@@ -1311,8 +1311,11 @@ void checklist(const char* id, const char* const* names, const uint8_t* bits, si
         for (size_t i = 0; i < count; ++i) {
             const size_t bit = bits ? bits[i] : i;
             const bool done = (mask & (uint64_t{1} << bit)) != 0;
-            ImGui::TextColored(done ? done_color : todo_color,
-                               "%s  %s", done ? "✓" : "✗", names[i]);
+            push_font(g_font_semibold, 1.0f);
+            ImGui::TextColored(done ? done_color : todo_color, "%s", done ? "✓" : "✗");
+            ImGui::PopFont();
+            ImGui::SameLine();
+            ImGui::TextColored(done ? done_color : todo_color, "%s", names[i]);
         }
     }
     ImGui::EndChild();
@@ -1470,8 +1473,11 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
                                   gate->trigger);
                 }
                 if (tag.bluff) push_font(g_font_bold, 1.0f);
-                ImGui::TextColored(color, "%s  %s", done ? "✓" : "✗",
-                                   mgs2::dog_tag_name(tag, stats.mgs2_dog_tags_2002));
+                push_font(g_font_semibold, 1.0f);
+                ImGui::TextColored(color, "%s", done ? "✓" : "✗");
+                ImGui::PopFont();
+                ImGui::SameLine();
+                ImGui::TextColored(color, "%s", mgs2::dog_tag_name(tag, stats.mgs2_dog_tags_2002));
                 if (suffix[0]) {
                     ImGui::SameLine();
                     push_font(nullptr, kNoteScale);
@@ -1543,7 +1549,7 @@ void draw_mgspw_run(const GameStats& stats)
         if (stats.pw_cur_best) {
             // Rank and time are independent bests.
             push_font(nullptr, kNoteScale);
-            ImGui::TextDisabled("Mission %d | Best rank", stats.pw_mission_id);
+            ImGui::TextDisabled("Mission %d · Best rank", stats.pw_mission_id);
             ImGui::SameLine(0.0f, ui_size(4.0f));
             push_font(g_font_semibold, 1.0f);
             ImGui::TextDisabled("%s", rank);
@@ -1563,7 +1569,7 @@ void draw_mgspw_run(const GameStats& stats)
             ImGui::SameLine();
             ImGui::TextColored(delta <= 0 ? id_green : id_red, "%s", gap);
         } else {
-            ImGui::TextDisabled("Mission %d | No time recorded", stats.pw_mission_id);
+            ImGui::TextDisabled("Mission %d · No time recorded", stats.pw_mission_id);
         }
     }
     // Some segment deltas settle at results or lobby exit.
@@ -1853,7 +1859,7 @@ void draw_mgspw_codenames(const GameStats& stats, int)
             owned += stats.pw_codename_state[id] & 1;
         }
         ImGui::SameLine();
-        ImGui::TextDisabled("| %d / 24 earned", owned);
+        ImGui::TextDisabled("· %d / 24 earned", owned);
     }
     ImGui::PopFont();
     if (!axes.native) {
@@ -1957,17 +1963,17 @@ void draw_mgspw_codenames(const GameStats& stats, int)
     if (!stats.pw_codename_result_ok) {
         // Before evaluation, show grade 1 gates without status.
         push_font(nullptr, kNoteScale);
-        ImGui::TextDisabled("No grade yet | finish a mission to be evaluated");
+        ImGui::TextDisabled("No grade yet · finish a mission to be evaluated");
         ImGui::PopFont();
     } else if (grade.next) {
         push_font(g_font_semibold, 1.0f);
         ImGui::TextColored(grade.grade ? id_green : pending, "Grade %d / 5", grade.grade);
         ImGui::PopFont();
         ImGui::SameLine();
-        ImGui::TextColored(id_yellow, "| next: %d", grade.next);
+        ImGui::TextColored(id_yellow, "→ next %d", grade.next);
     } else {
         push_font(g_font_semibold, 1.0f);
-        ImGui::TextColored(id_green, "Grade 5 / 5 | highest grade held");
+        ImGui::TextColored(id_green, "Grade 5 / 5 · highest grade held");
         ImGui::PopFont();
     }
     char header[32];
@@ -2187,7 +2193,7 @@ void draw_summary(const GameStats& stats, int)
         auto inline_pair = [&](const char* key, const char* left, int left_value,
                                const char* right, int right_value) {
             char buf[64];
-            snprintf(buf, sizeof(buf), "%s %d | %s %d", left, left_value, right, right_value);
+            snprintf(buf, sizeof(buf), "%s %d · %s %d", left, left_value, right, right_value);
             dim_row(key, buf);
         };
 
@@ -2241,7 +2247,7 @@ void draw_summary(const GameStats& stats, int)
             char stage_time[16];
             format_time(stats.stage_time_seconds, stage_time, sizeof(stage_time));
             const size_t used = std::strlen(buf);
-            snprintf(buf + used, sizeof(buf) - used, " | %s", stage_time);
+            snprintf(buf + used, sizeof(buf) - used, " · %s", stage_time);
         }
         ImGui::Spacing();
         ImGui::PushTextWrapPos(0.0f);
