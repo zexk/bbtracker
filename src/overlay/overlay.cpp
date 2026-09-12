@@ -2044,14 +2044,13 @@ void draw_summary(const GameStats& stats, int)
                                    : stats.radar_type == 0x20 ? "TYPE-B"
                                    : (stats.radar_type & 4) != 0 ? "OFF"
                                                               : "?";
-                snprintf(ratio, sizeof(ratio), "%s (%s)",
-                         stats.radar_off ? "UNUSED" : "USED", type);
+                snprintf(ratio, sizeof(ratio), "%s", type);
             } else if (std::strcmp(r.label, "campaign") == 0 && g_game == Game::MGS2) {
                 const char* selected = stats.mission == 0    ? "Plant"
                                        : stats.mission == 16 ? "Tanker"
                                        : stats.mission == 32 ? "Tanker + Plant"
                                                              : "?";
-                snprintf(ratio, sizeof(ratio), "%s / Tanker + Plant", selected);
+                snprintf(ratio, sizeof(ratio), "%s", selected);
             } else switch (static_cast<codename::ReqFmt>(r.fmt)) {
             case codename::ReqFmt::Time: {
                 char cur[16];
