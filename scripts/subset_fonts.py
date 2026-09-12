@@ -11,6 +11,7 @@ notice stay untouched.
 Usage: subset_fonts.py <inter-release-root> <output-dir>
 """
 import sys
+import tempfile
 from pathlib import Path
 
 from fontTools import subset
@@ -29,6 +30,10 @@ UNICODES = ",".join([
     "U+2713", "U+2717",            # ✓ ✗ state glyphs
 ])
 FAMILY = "BB Tracker Sans"
+TABULAR = {
+    "0": "zero.tf", "1": "one.tf", "2": "two.tf", "3": "three.tf", "4": "four.tf",
+    "5": "five.tf", "6": "six.tf", "7": "seven.tf", "8": "eight.tf", "9": "nine.tf",
+}
 STYLES = {
     "Inter-Regular.ttf": "Regular",
     "Inter-SemiBold.ttf": "SemiBold",
@@ -56,20 +61,40 @@ def rename(font, style):
         name.setName(value, name_id, 3, 1, 0x409)
 
 
+def bake_tabular_digits(font):
+    """Point the ASCII digits at Inter's tabular variants.
+
+    ImGui cannot apply the tnum OpenType feature, so remap the cmap instead;
+    the subsetter then keeps the .tf glyphs because the cmap references them.
+    """
+    glyphs = set(font.getGlyphOrder())
+    for table in font["cmap"].tables:
+        if not table.isUnicode():
+            continue
+        for digit, name in TABULAR.items():
+            if ord(digit) in table.cmap and name in glyphs:
+                table.cmap[ord(digit)] = name
+
+
 def main():
     src_root, out_dir = Path(sys.argv[1]), Path(sys.argv[2])
     out_dir.mkdir(parents=True, exist_ok=True)
     for filename, style in STYLES.items():
         source = src_root / "extras" / "ttf" / filename
         target = out_dir / filename
-        subset.main([
-            str(source),
-            f"--unicodes={UNICODES}",
-            "--layout-features=",
-            "--name-IDs=0,1,2,3,4,5,6,13,14",
-            "--no-hinting",
-            f"--output-file={target}",
-        ])
+        with tempfile.TemporaryDirectory() as tmp:
+            remapped = Path(tmp) / filename
+            font = TTFont(source)
+            bake_tabular_digits(font)
+            font.save(remapped)
+            subset.main([
+                str(remapped),
+                f"--unicodes={UNICODES}",
+                "--layout-features=",
+                "--name-IDs=0,1,2,3,4,5,6,13,14",
+                "--no-hinting",
+                f"--output-file={target}",
+            ])
         font = TTFont(target)
         rename(font, style)
         font.save(target)
