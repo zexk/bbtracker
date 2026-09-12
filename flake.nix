@@ -44,6 +44,37 @@
             cp ${pkgs.inter.src}/LICENSE.txt $out/LICENSE.txt
           '';
 
+          # Static FreeType trimmed to the TrueType driver, auto-hinter, and
+          # smooth rasterizer, with codecs off. The default module table keeps
+          # every driver alive and would add over a megabyte per ASI.
+          freetype = mingw.stdenv.mkDerivation {
+            pname = "bbtracker-freetype";
+            version = "2.14.3";
+            src = pkgs.freetype.src;
+
+            nativeBuildInputs = [
+              mingw.buildPackages.cmake
+              mingw.buildPackages.ninja
+            ];
+
+            postPatch = ''
+              cp ${./cmake/freetype_modules.h} include/freetype/config/ftmodule.h
+            '';
+
+            cmakeFlags = [
+              "-DBUILD_SHARED_LIBS=OFF"
+              # The cmake hook passes absolute install dirs; freetype's
+              # pkg-config template prepends ${prefix} to them.
+              "-DCMAKE_INSTALL_LIBDIR=lib"
+              "-DCMAKE_INSTALL_INCLUDEDIR=include"
+              "-DFT_DISABLE_ZLIB=TRUE"
+              "-DFT_DISABLE_BZIP2=TRUE"
+              "-DFT_DISABLE_PNG=TRUE"
+              "-DFT_DISABLE_HARFBUZZ=TRUE"
+              "-DFT_DISABLE_BROTLI=TRUE"
+            ];
+          };
+
           bbtracker = mingw.stdenv.mkDerivation {
             pname = "bbtracker";
             inherit version;
@@ -59,6 +90,7 @@
 
             inherit imgui minhook;
             interSrc = interFonts;
+            inherit freetype;
 
             meta = with pkgs.lib; {
               description = "Live rank and codename tracker for Metal Gear: Master Collection";

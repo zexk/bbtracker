@@ -88,6 +88,35 @@ if(WIN32)
     ${IMGUI_DIR}/backends/imgui_impl_win32.cpp)
   target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
 
+  # FreeType rasterizer with the auto-hinter, for crisp glyphs at UI sizes.
+  # The flake builds a trimmed static copy (see cmake/freetype_modules.h);
+  # other builds fetch and patch the same release.
+  set(FREETYPE_DIR "$ENV{freetype}" CACHE PATH "Path to the FreeType install")
+  if(FREETYPE_DIR)
+    add_library(bb_freetype STATIC IMPORTED)
+    set_target_properties(bb_freetype PROPERTIES
+      IMPORTED_LOCATION "${FREETYPE_DIR}/lib/libfreetype.a"
+      INTERFACE_INCLUDE_DIRECTORIES "${FREETYPE_DIR}/include/freetype2")
+  else()
+    set(FT_DISABLE_ZLIB TRUE CACHE BOOL "" FORCE)
+    set(FT_DISABLE_BZIP2 TRUE CACHE BOOL "" FORCE)
+    set(FT_DISABLE_PNG TRUE CACHE BOOL "" FORCE)
+    set(FT_DISABLE_HARFBUZZ TRUE CACHE BOOL "" FORCE)
+    set(FT_DISABLE_BROTLI TRUE CACHE BOOL "" FORCE)
+    FetchContent_Declare(freetype_source
+      GIT_REPOSITORY https://github.com/freetype/freetype.git
+      GIT_TAG VER-2-14-3
+      GIT_SHALLOW TRUE
+      PATCH_COMMAND "${CMAKE_COMMAND}" -E copy
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/freetype_modules.h"
+        include/freetype/config/ftmodule.h)
+    FetchContent_MakeAvailable(freetype_source)
+    add_library(bb_freetype ALIAS freetype)
+  endif()
+  target_sources(imgui PRIVATE ${IMGUI_DIR}/misc/freetype/imgui_freetype.cpp)
+  target_link_libraries(imgui PUBLIC bb_freetype)
+  target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_FREETYPE)
+
   add_library(minhook STATIC
     ${MINHOOK_DIR}/src/buffer.c
     ${MINHOOK_DIR}/src/hook.c

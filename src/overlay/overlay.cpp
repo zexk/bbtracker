@@ -4,6 +4,7 @@
 #include <imgui_impl_dx11.h>
 #include <imgui_impl_dx12.h>
 #include <imgui_impl_win32.h>
+#include <misc/freetype/imgui_freetype.h>
 
 #include <windows.h>
 #include <d3d11.h>
@@ -173,6 +174,8 @@ void begin_imgui()
     io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
     ImFontConfig font_cfg;
     font_cfg.FontDataOwnedByAtlas = false;
+    // Light auto-hinting: vertical stem snapping without distorting advances.
+    font_cfg.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
     io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(inter_regular),
                                    static_cast<int>(inter_regular_size), 13.0f, &font_cfg);
     g_font_semibold = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(inter_semibold),
