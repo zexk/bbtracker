@@ -1541,7 +1541,11 @@ void draw_mgspw_run(const GameStats& stats)
         if (stats.pw_cur_best) {
             // Rank and time are independent bests.
             push_font(nullptr, kNoteScale);
-            ImGui::TextDisabled("Mission %d | Best rank %s", stats.pw_mission_id, rank);
+            ImGui::TextDisabled("Mission %d | Best rank", stats.pw_mission_id);
+            ImGui::SameLine(0.0f, ui_size(4.0f));
+            push_font(g_font_semibold, 1.0f);
+            ImGui::TextDisabled("%s", rank);
+            ImGui::PopFont();
             ImGui::TextDisabled("Best time %llu:%02llu.%03llu", best_ms / 60000, (best_ms / 1000) % 60,
                                 best_ms % 1000);
             ImGui::PopFont();
@@ -1648,7 +1652,11 @@ void draw_mgspw_summary(const GameStats& stats, int)
 
     ImGui::Spacing();
     const auto match = codename::evaluate_mgspw(stats);
-    ImGui::TextDisabled("Projected codename: %s", match ? match->name : "-");
+    ImGui::TextDisabled("Projected codename:");
+    ImGui::SameLine(0.0f, ui_size(4.0f));
+    push_font(g_font_semibold, 1.0f);
+    ImGui::TextDisabled("%s", match ? match->name : "-");
+    ImGui::PopFont();
 }
 
 void draw_mgspw_global(const GameStats& stats, int scroll)
@@ -1767,7 +1775,9 @@ void draw_mgspw_insignia(const GameStats& stats, int)
     };
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     if (stats.pw_insignias >= 0) {
+        push_font(g_font_semibold, 1.0f);
         ImGui::Text("%d / 110 insignias earned", stats.pw_insignias);
+        ImGui::PopFont();
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
                               ImVec4(id_green.x, id_green.y, id_green.z, 0.55f));
         ImGui::ProgressBar(stats.pw_insignias / 110.0f, ImVec2(-FLT_MIN, ui_size(6)), "");
@@ -1948,11 +1958,15 @@ void draw_mgspw_codenames(const GameStats& stats, int)
         ImGui::TextDisabled("No grade yet | finish a mission to be evaluated");
         ImGui::PopFont();
     } else if (grade.next) {
+        push_font(g_font_semibold, 1.0f);
         ImGui::TextColored(grade.grade ? id_green : pending, "Grade %d / 5", grade.grade);
+        ImGui::PopFont();
         ImGui::SameLine();
         ImGui::TextColored(id_yellow, "| next: %d", grade.next);
     } else {
+        push_font(g_font_semibold, 1.0f);
         ImGui::TextColored(id_green, "Grade 5 / 5 | highest grade held");
+        ImGui::PopFont();
     }
     char header[32];
     snprintf(header, sizeof(header), "grade %d needs", target);
