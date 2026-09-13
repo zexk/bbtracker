@@ -158,7 +158,7 @@ struct SerialHit {
 SerialHit scan_disc_serial()
 {
     static uintptr_t cursor = 0x10000;
-    constexpr size_t kScanChunkSize = 0x100000;
+    constexpr size_t kScanChunkSize = 0x40000;
     constexpr size_t kSerialOverlap = 15;
     static std::vector<uint8_t> buffer(kScanChunkSize + kSerialOverlap);
 
@@ -178,7 +178,7 @@ SerialHit scan_disc_serial()
 
     SerialHit result{};
     mem::scan(cursor, buffer, kScanChunkSize, kSerialOverlap, mem::kReadable,
-              0, 0x4000000, 20,
+              0, 0x4000000, 100,
               [&](uintptr_t, const uint8_t* data, size_t primary, size_t size) {
         const char* next = reinterpret_cast<const char*>(data);
         const char* const search_limit = next + primary;
@@ -374,7 +374,7 @@ bool is_logger_table(const uint8_t* p)
 
 bool find_candidate(uintptr_t& out)
 {
-    // ponytail: whole-process search can cost 50ms per poll; use a verified PSX RAM pointer
+    // ponytail: whole-process search targets 10ms per poll; use a verified PSX RAM pointer
     // when available and keep this scan as the compatibility fallback.
     struct Candidate {
         uintptr_t address;
@@ -386,7 +386,7 @@ bool find_candidate(uintptr_t& out)
     static uint64_t last_report = 0;
     static uint64_t scanned_bytes = 0;
     static uint64_t stage_hits = 0;
-    constexpr size_t kScanChunkSize = 0x100000;
+    constexpr size_t kScanChunkSize = 0x40000;
     static std::vector<uint8_t> buffer(kScanChunkSize + kWorkRegionSize - 1);
 
     const uint64_t now_ms = GetTickCount64();
@@ -420,7 +420,7 @@ bool find_candidate(uintptr_t& out)
     }
 
     mem::scan(cursor, buffer, kScanChunkSize, kWorkRegionSize - 1,
-              mem::kWritable, 0x200, SIZE_MAX, 20,
+              mem::kWritable, 0x200, SIZE_MAX, 100,
               [&](uintptr_t address, const uint8_t* data, size_t primary, size_t size) {
         scanned_bytes += primary;
         for (size_t i = 0; i < primary && i + kWorkRegionSize <= size; ++i) {

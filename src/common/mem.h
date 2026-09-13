@@ -63,6 +63,9 @@ bool scan(uintptr_t& cursor, std::vector<uint8_t>& buffer, size_t chunk_size,
         }
         if (end <= cursor) break;
         cursor = end;
+        LARGE_INTEGER now{};
+        QueryPerformanceCounter(&now);
+        if (now.QuadPart >= deadline) return false;
     }
     cursor = 0x10000;
     return false;

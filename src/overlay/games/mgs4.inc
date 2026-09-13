@@ -244,19 +244,24 @@ void draw_mgs4_flashbacks(const GameStats& stats, int scroll)
     const ImVec4 todo_color = unset_color();
     if (begin_fitted_child("mgs4_flashbacks")) {
         apply_scroll(scroll);
-        for (uint16_t i : mgs4::kFlashbacksStoryOrder) {
-            const bool done = (stats.flashback_bits[i / kBitsPerByte]
-                               & (1u << (i % kBitsPerByte))) != 0;
-            push_font(g_font_semibold, 1.0f);
-            ImGui::TextColored(done ? done_color : todo_color, "%s", done ? "✓" : "✗");
-            ImGui::PopFont();
-            ImGui::SameLine();
-            ImGui::TextColored(done ? done_color : todo_color, "%s",
-                               mgs4::kFlashbacks[i].trigger);
-            ImGui::SameLine();
-            push_font(nullptr, kNoteScale);
-            ImGui::TextDisabled("%08x", mgs4::kFlashbacks[i].cue_id);
-            ImGui::PopFont();
+        ImGuiListClipper clipper;
+        clipper.Begin(static_cast<int>(std::size(mgs4::kFlashbacksStoryOrder)));
+        while (clipper.Step()) {
+            for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
+                const uint16_t i = mgs4::kFlashbacksStoryOrder[row];
+                const bool done = (stats.flashback_bits[i / kBitsPerByte]
+                                   & (1u << (i % kBitsPerByte))) != 0;
+                push_font(g_font_semibold, 1.0f);
+                ImGui::TextColored(done ? done_color : todo_color, "%s", done ? "✓" : "✗");
+                ImGui::PopFont();
+                ImGui::SameLine();
+                ImGui::TextColored(done ? done_color : todo_color, "%s",
+                                   mgs4::kFlashbacks[i].trigger);
+                ImGui::SameLine();
+                push_font(nullptr, kNoteScale);
+                ImGui::TextDisabled("%08x", mgs4::kFlashbacks[i].cue_id);
+                ImGui::PopFont();
+            }
         }
     }
     ImGui::EndChild();

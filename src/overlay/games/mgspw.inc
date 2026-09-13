@@ -255,7 +255,7 @@ void draw_mgspw_summary(const GameStats& stats, int)
     }
 
     ImGui::Spacing();
-    const auto match = codename::evaluate_mgspw(stats);
+    const auto& match = g_eval.match;
     ImGui::TextDisabled("Projected codename:");
     ImGui::SameLine(0.0f, ui_size(4.0f));
     push_font(g_font_semibold, 1.0f);
@@ -434,7 +434,7 @@ void draw_mgspw_codenames(const GameStats& stats, int)
     const auto [id_green, id_yellow, id_red] = id_colors(Game::MGSPW);
     const codename::PwAxes axes = codename::pw_axes(stats);
     const ImVec4 pending = unset_color();
-    const auto match = codename::evaluate_mgspw(stats);
+    const auto& match = g_eval.match;
     const ImVec4 title_color = !match ? pending
         : std::strcmp(match->name, "FOXHOUND") == 0 || std::strcmp(match->name, "FOX") == 0
             ? id_green

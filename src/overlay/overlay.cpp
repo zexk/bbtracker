@@ -215,27 +215,19 @@ bool create_rtv(IDXGISwapChain* swap_chain)
     return SUCCEEDED(hr);
 }
 
-// Waits for a fence value, up to timeout_ms. False on timeout: the caller
-// must skip the frame that needed the fence instead of blocking Present.
-// A saturated GPU (or a removed device) used to hang the render thread
-// here without bound.
-bool wait_d3d12(D3D12Frame* frame, DWORD timeout_ms)
+// Teardown waits for GPU work before releasing resources it still uses.
+void wait_d3d12_idle()
 {
-    const UINT64 value = frame ? frame->fence_value : g.next_fence12;
-    if (!value || !g.fence12 || g.fence12->GetCompletedValue() >= value) {
-        return true;
+    const UINT64 value = g.next_fence12;
+    if (!value || !g.fence12 || g.fence12->GetCompletedValue() >= value) return;
+    if (SUCCEEDED(g.fence12->SetEventOnCompletion(value, g.fence_event12))) {
+        WaitForSingleObject(g.fence_event12, INFINITE);
     }
-    if (FAILED(g.fence12->SetEventOnCompletion(value, g.fence_event12))) {
-        return false;
-    }
-    return WaitForSingleObject(g.fence_event12, timeout_ms) == WAIT_OBJECT_0;
 }
 
 void release_d3d12()
 {
-    // Teardown keeps the full wait: nothing may still reference the objects
-    // below once they are released.
-    wait_d3d12(nullptr, INFINITE);
+    wait_d3d12_idle();
     if (g.imgui_ready && g.renderer == Renderer::D3D12) {
         ImGui_ImplDX12_Shutdown();
         ImGui_ImplWin32_Shutdown();
@@ -948,10 +940,8 @@ bool render_d3d12(IDXGISwapChain* swap_chain)
     if (index >= g.frames12.size()) return false;
 
     D3D12Frame& frame = g.frames12[index];
-    // A GPU more than a frame behind means saturation, not overlay work:
-    // skip this frame's overlay rather than stall Present behind it.
-    constexpr DWORD kFenceWaitMs = 100;
-    if (!wait_d3d12(&frame, kFenceWaitMs)) return false;
+    // Never stall game Present while waiting for the overlay's allocator.
+    if (frame.fence_value && g.fence12->GetCompletedValue() < frame.fence_value) return false;
     if (FAILED(frame.allocator->Reset())
         || FAILED(g.command_list12->Reset(frame.allocator, nullptr))) return false;
 

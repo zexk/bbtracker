@@ -46,6 +46,7 @@ code += r'''
 std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     // Mimic draw_panel's 10Hz tick: the panels read matches from the cache.
     g_game = tab == 4 || tab == 5 ? Game::MGS4 : Game::MGSPW;
+    g_eval.match = codename::evaluate_mgspw(stats);
     g_eval.reqs = codename::elite_requirements_mgspw(stats);
     g_eval.matches = codename::all_matches_mgs4(stats);
     ImGui::NewFrame();
