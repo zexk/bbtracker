@@ -209,6 +209,14 @@ int main() {
     assert(codenames.find("109%") == std::string::npos); // Ungrouped slot belongs in lethality denominator.
     assert(codenames.find("No grade yet") != std::string::npos);
     assert(codenames.find("grade 1 needs") != std::string::npos);
+    GameStats invalid_ratio = stats;
+    invalid_ratio.pw_codename_missions_required = 256;
+    invalid_ratio.pw_codename_missions_counted = -922746879;
+    assert(draw(invalid_ratio, 3).find("ratio =") == std::string::npos);
+    invalid_ratio.pw_codename_result_ok = true;
+    assert(draw(invalid_ratio, 3).find("ratio =") == std::string::npos);
+    invalid_ratio.pw_codename_missions_counted = 2;
+    assert(draw(invalid_ratio, 3).find("ratio = 2 / 256") != std::string::npos);
     stats.pw_codename_result_ok = true;
     codenames = draw(stats, 3);
     assert(codenames.find("Grade 0 / 5") != std::string::npos);

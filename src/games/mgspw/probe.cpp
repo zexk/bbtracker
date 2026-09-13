@@ -624,11 +624,16 @@ bool poll_stats(GameStats& out)
         constexpr size_t kResultOff = 0x43D0;
         std::array<uint8_t, 0x2B> result{};
         if (object && mem::copy(object + kResultOff, result.data(), result.size())) {
-            out.pw_codename_missions_required = mem::read<int32_t>(result.data(), 0x20);
-            out.pw_codename_missions_counted = mem::read<int32_t>(result.data(), 0x24);
-            out.pw_codename_grade5_ok = mem::read<uint8_t>(result.data(), 0x28) != 0;
-            out.pw_codename_grade4_ok = mem::read<uint8_t>(result.data(), 0x29) != 0;
-            out.pw_codename_result_ok = mem::read<uint8_t>(result.data(), 0x2A) != 0;
+            const int required = mem::read<int32_t>(result.data(), 0x20);
+            const int counted = mem::read<int32_t>(result.data(), 0x24);
+            if (mem::read<uint8_t>(result.data(), 0x2A) != 0
+                && required >= 0 && counted >= 0) {
+                out.pw_codename_missions_required = required;
+                out.pw_codename_missions_counted = counted;
+                out.pw_codename_grade5_ok = mem::read<uint8_t>(result.data(), 0x28) != 0;
+                out.pw_codename_grade4_ok = mem::read<uint8_t>(result.data(), 0x29) != 0;
+                out.pw_codename_result_ok = true;
+            }
         }
     }
 

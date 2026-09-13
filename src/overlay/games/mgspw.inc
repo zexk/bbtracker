@@ -537,7 +537,9 @@ void draw_mgspw_codenames(const GameStats& stats, int)
     // Show first failing grade, held grade 5, or initial grade 1.
     const int target = grade.next ? grade.next : grade.grade ? grade.grade : 1;
     const codename::PwGradeGate gate = codename::pw_grade_gate(target);
-    const bool ratio_known = stats.pw_codename_missions_required > 0;
+    const bool ratio_known = stats.pw_codename_result_ok
+        && stats.pw_codename_missions_required > 0
+        && stats.pw_codename_missions_counted >= 0;
     if (!stats.pw_codename_result_ok) {
         // Before evaluation, show grade 1 gates without status.
         push_font(nullptr, kNoteScale);
