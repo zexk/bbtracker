@@ -157,12 +157,21 @@ caches are preload sets, so one poster can appear under several stage codes;
 `00654b10`, `00654b26`, `00654b30`, `00654b46`, `00654b50`, `00654b66`,
 `00654bae`, `00654bce`, `00754b8e`, `00754bae`, `00754bce`) exist only on the
 shared `ww/stage/slot` pages and have no per-stage poster path, so the header
-labels them `Hidden`.
+labels them `Unmapped (shared cache)`.
 
 `src/games/mgs4/flashbacks.h` carries the 222 entries in bit order with a
-stage/area label per entry. The label is the earliest story site that ships the
-poster; the comment on each row lists every site. `scripts/gen-mgs4-flashbacks.py`
-regenerates the header from `mgs4.exe` plus the four stage VPAKs.
+stage/area label per entry and a separate campaign-order index for display.
+The label is the earliest story site that ships the poster; the comment on each
+row lists every site. Since stage caches preload posters, this is an approximate
+trigger location, not a proven scene or moment. Cue IDs distinguish entries
+sharing one label. `scripts/gen-mgs4-flashbacks.py` regenerates the header from
+`mgs4.exe` plus the four stage VPAKs. Mission briefings and epilogue stages need
+explicit story ranks because their stage numbers do not follow the acts.
+
+[Tarrun's chronological flashback guide](https://gamefaqs.gamespot.com/ps3/926596-metal-gear-solid-4-guns-of-the-patriots/faqs/64759)
+lists 66 trigger moments, but does not map them to the 222 cue IDs. Direct cue
+references do not appear in the 70 decompressed stage GCX files. Exact
+moment-per-cue labels still need live cue logging or a native trigger map.
 
 ACH_015 "Flashback Mania" is checked right after the bit set at native
 `0xe72d88`: all 27 bytes must read `0xff` and bits 0-5 of byte 27 (`0x5a64`)

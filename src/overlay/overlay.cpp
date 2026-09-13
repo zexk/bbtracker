@@ -1444,13 +1444,14 @@ void draw_mgs4_flashbacks(const GameStats& stats, int scroll)
     const ImVec4 todo_color = unset_color();
     if (begin_fitted_child("mgs4_flashbacks")) {
         apply_scroll(scroll);
-        for (size_t i = 0; i < std::size(mgs4::kFlashbacks); ++i) {
+        for (uint16_t i : mgs4::kFlashbacksStoryOrder) {
             const bool done = (stats.flashback_bits[i >> 3] & (1u << (i & 7))) != 0;
             push_font(g_font_semibold, 1.0f);
             ImGui::TextColored(done ? done_color : todo_color, "%s", done ? "✓" : "✗");
             ImGui::PopFont();
             ImGui::SameLine();
-            ImGui::TextColored(done ? done_color : todo_color, "%s", mgs4::kFlashbacks[i].area);
+            ImGui::TextColored(done ? done_color : todo_color, "%s · %08x",
+                               mgs4::kFlashbacks[i].trigger, mgs4::kFlashbacks[i].cue_id);
         }
     }
     ImGui::EndChild();

@@ -4,11 +4,31 @@
 #include "check.h"
 #include "common/codename/codename.h"
 #include "common/codename/rules_mgs4.h"
+#include "games/mgs4/flashbacks.h"
 
 using namespace bb;
 using namespace bb::codename;
 
 namespace {
+
+void test_flashback_story_order()
+{
+    bool seen[222] = {};
+    size_t act1 = 0, act2_briefing = 0, act2 = 0;
+    for (size_t position = 0; position < std::size(mgs4::kFlashbacksStoryOrder); ++position) {
+        const auto bit_index = mgs4::kFlashbacksStoryOrder[position];
+        if (bit_index >= 222) {
+            CHECK(bit_index < 222);
+            continue;
+        }
+        CHECK(!seen[bit_index]);
+        seen[bit_index] = true;
+        if (bit_index == 3) act1 = position;
+        if (bit_index == 8) act2_briefing = position;
+        if (bit_index == 25) act2 = position;
+    }
+    CHECK(act1 < act2_briefing && act2_briefing < act2);
+}
 
 const char* best(const GameStats& stats)
 {
@@ -155,6 +175,7 @@ void test_elite_requirements_mirror_big_boss()
 int main()
 {
     constexpr bb::test::Case tests[] = {
+        {"flashback_story_order", test_flashback_story_order},
         {"elite_ladder", test_elite_ladder},
         {"elite_strict_boundaries", test_elite_strict_boundaries},
         {"specials_and_multiple_matches", test_specials_and_multiple_matches},
