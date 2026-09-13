@@ -12,6 +12,7 @@ UNVERIFIED and reported as candidates only.
 Usage:
   python3 scripts/probe-mgspw-memory.py [--pid PID] [--dump-text OUT]
   python3 scripts/probe-mgspw-memory.py --watch [--interval 1.0]
+  python3 scripts/probe-mgspw-memory.py --missions
   python3 scripts/probe-mgspw-memory.py --self-test
 """
 
@@ -49,6 +50,97 @@ PATTERNS = {
     "PW_REGIONOBJECT": ("8B 05 ?? ?? ?? ?? 48 8B 1D ?? ?? ?? ?? 85 C0 75 09"
                         " 48 85 DB 0F 84 19 01 00 00 39 43 28", 9),
 }
+
+# Mission-select list object: handle/object globals checked by the getters at
+# 0x140178E20/0x140179480. The list lives at object+0x70, entries at +0x10
+# (stride 0x20), count at +0x20. Builder 0x1401E7210 walks it at results.
+LIST_HANDLE_RVA = 0x141C1F8
+LIST_OBJECT_RVA = 0x141C200
+LIST_SUBOBJ = 0x70
+LIST_ENTRIES_OFF = 0x10
+LIST_COUNT_OFF = 0x20
+ENTRY_STRIDE = 0x20
+ENTRY_FLAGS_OFF = 0x18
+# Result block inside the Player Data object (see the mgspw research doc).
+RESULT_HANDLE_RVA = 0x143A8D0
+RESULT_OBJECT_RVA = 0x143A8D8
+RESULT_OFF = 0x43D0
+# Builder loop positions that bypass the per-entry credit rules.
+SPECIAL_DUAL = (0x1B, 0xA1)
+SPECIAL_SINGLE = (0x9F,)
+
+
+def mission_credit(index, flags, byte19):
+    """Credits the builder counts for one list entry: 0, 1 or 2 rank slots."""
+    if flags & 0x08:
+        return 0
+    if index in SPECIAL_DUAL:
+        return 2
+    if index in SPECIAL_SINGLE:
+        return 1
+    if (flags & 0x02) or byte19 == 1:
+        return 1
+    return 2
+
+
+def missions_report(memory, base, block):
+    handle = struct.unpack("<I", read_mem(memory, base + LIST_HANDLE_RVA, 4))[0]
+    obj = struct.unpack("<Q", read_mem(memory, base + LIST_OBJECT_RVA, 8))[0]
+    if not obj:
+        return {"error": "mission list object absent (open mission select or results)"}
+    object_handle, self_ptr = struct.unpack("<I4xQ", read_mem(memory, obj + 0x28, 16))
+    if object_handle != handle or self_ptr != obj:
+        return {"error": "mission list object stale"}
+    list_obj = obj + LIST_SUBOBJ
+    entries = struct.unpack("<Q", read_mem(memory, list_obj + LIST_ENTRIES_OFF, 8))[0]
+    count = struct.unpack("<I", read_mem(memory, list_obj + LIST_COUNT_OFF, 4))[0]
+    out = {
+        "object": f"{obj:#x}",
+        "count": count,
+        "required": 2 * count - 27,
+        "entries": [],
+        "credits": 0,
+        "dual": 0,
+        "single": 0,
+        "skip": 0,
+    }
+    if not entries or count > 0x1000:
+        out["error"] = "implausible entries/count"
+        return out
+    ranks = ranks2 = None
+    if block:
+        ranks = struct.unpack("<%dH" % count,
+                              read_mem(memory, block + 0x32B4, count * 2))
+        ranks2 = struct.unpack("<%dH" % count,
+                               read_mem(memory, block + 0x46F4, count * 2))
+    for i in range(count):
+        raw = read_mem(memory, entries + i * ENTRY_STRIDE, ENTRY_STRIDE)
+        flags = raw[ENTRY_FLAGS_OFF]
+        byte19 = raw[ENTRY_FLAGS_OFF + 1]
+        credit = mission_credit(i, flags, byte19)
+        out["credits"] += credit
+        out["dual" if credit == 2 else "single" if credit == 1 else "skip"] += 1
+        entry = {"i": i, "hex": raw.hex(), "flags": flags, "byte19": byte19,
+                 "credit": credit}
+        if ranks is not None and ranks2 is not None:
+            entry["rank"] = None if ranks[i] == 0xFFFF else ranks[i]
+            entry["rank2"] = None if ranks2[i] == 0xFFFF else ranks2[i]
+        out["entries"].append(entry)
+    # Result block, when the Player Data object is resident (results screen).
+    rhandle = struct.unpack("<I", read_mem(memory, base + RESULT_HANDLE_RVA, 4))[0]
+    robj = struct.unpack("<Q", read_mem(memory, base + RESULT_OBJECT_RVA, 8))[0]
+    if robj:
+        object_handle, self_ptr = struct.unpack("<I4xQ", read_mem(memory, robj + 0x28, 16))
+        if object_handle == rhandle and self_ptr == robj:
+            result = read_mem(memory, robj + RESULT_OFF, 0x2B)
+            out["result"] = {
+                "required": struct.unpack_from("<i", result, 0x20)[0],
+                "counted": struct.unpack_from("<i", result, 0x24)[0],
+                "grade5": result[0x28],
+                "grade4": result[0x29],
+                "complete": result[0x2A],
+            }
+    return out
 
 
 def module_base(maps_text):
@@ -378,6 +470,16 @@ def self_test():
     raw = 90123
     assert f"{raw // 60000}:{(raw // 1000) % 60:02d}.{raw % 1000:03d}" == "1:30.123"
 
+    # Builder credits: bit 3 skips, 27/161 force both slots, 159 one, and
+    # bit 2 or byte +0x19 == 1 mark single-slot missions.
+    assert mission_credit(0, 0x08, 0) == 0
+    assert mission_credit(0x1B, 0, 0) == 2
+    assert mission_credit(0xA1, 0, 0) == 2
+    assert mission_credit(0x9F, 0, 0) == 1
+    assert mission_credit(3, 0x02, 0) == 1
+    assert mission_credit(3, 0x00, 1) == 1
+    assert mission_credit(3, 0x00, 0) == 2
+
     # Live Puerto del Alba observation, the special mapping, and stale handles.
     fake = bytearray(0x400)
     struct.pack_into("<I4xQ", fake, 0x80, 677, 0x100)
@@ -406,6 +508,9 @@ def main():
                         help="snapshot twice this far apart and report per-field rates")
     parser.add_argument("--idmap", action="store_true",
                         help="dump descriptor id -> (offset, last-delta, value)")
+    parser.add_argument("--missions", action="store_true",
+                        help="dump the mission list: entry flags, credit per entry, "
+                             "and the result block's counted/required")
     parser.add_argument("--id", type=lambda v: int(v, 0), action="append", default=[],
                         help="with --idmap, only show these ids (repeatable)")
     parser.add_argument("--trace", type=float, default=0.0, metavar="SECONDS",
@@ -440,6 +545,16 @@ def main():
                                        for o, x, v in vlist]
                            for k, vlist in sorted(table.items())}},
                 indent=2))
+            return
+
+        if args.missions:
+            sr = resolved.get("PW_SAVEROOT")
+            block = 0
+            if sr is not None:
+                block = struct.unpack("<Q", read_mem(memory, sr, 8))[0]
+            print(json.dumps({"pid": pid, "base": f"{base:#x}",
+                              "missions": missions_report(memory, base, block)},
+                             indent=2))
             return
 
         def emit():
