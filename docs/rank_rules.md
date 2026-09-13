@@ -52,6 +52,15 @@ Probe uses scored live-stage records derived from NeopolitanDreamz's
 kills, rations, continues, alerts, saves, game time, health, difficulty, radar state,
 and Diazepam duration.
 
+[Issue #10](https://github.com/zexk/bbtracker/issues/10) has two logs where the
+overlay polls but never reports `mgs1 work array`; the failure occurs before
+run-latch classification. One local 0.4.1 log found the array after 13 seconds.
+The hunt now scans all committed writable regions, including those above the
+old 64 MiB region cap, and accepts stage records with nonzero leading bytes.
+The moving game clock and stat plausibility checks still validate candidates.
+While searching, `mgs1 work scan` reports bytes read, stage matches, and
+candidate count every 10 seconds so another failing log can locate rejection.
+
 ## MGS2
 
 Sources: [muni_shinobu's MGS2 codename chart](https://www.tentenpro.com/muni_shinobu/mgs2/codename.html),

@@ -351,9 +351,6 @@ constexpr bool valid_stage_name(std::string_view stage)
 
 bool looks_like_stage_anchor(const uint8_t* p)
 {
-    if (p[0] != 0 || p[1] != 0 || p[2] != 0) {
-        return false;
-    }
     size_t len = 0;
     while (len < 7 && p[FieldOffsets::kStage + len] != 0) {
         ++len;
@@ -377,8 +374,8 @@ bool is_logger_table(const uint8_t* p)
 
 bool find_candidate(uintptr_t& out)
 {
-    // ponytail: startup latch can take ~12s because this scans process memory. Replace with a
-    // verified PSX RAM anchor when available; keep this scan as the compatibility fallback.
+    // ponytail: whole-process search can cost 50ms per poll; use a verified PSX RAM pointer
+    // when available and keep this scan as the compatibility fallback.
     struct Candidate {
         uintptr_t address;
         std::array<uint32_t, kGameTimeOffsets.size()> clocks;
@@ -386,6 +383,9 @@ bool find_candidate(uintptr_t& out)
     };
     static uintptr_t cursor = 0x10000;
     static std::vector<Candidate> candidates;
+    static uint64_t last_report = 0;
+    static uint64_t scanned_bytes = 0;
+    static uint64_t stage_hits = 0;
     constexpr size_t kScanChunkSize = 0x100000;
     static std::vector<uint8_t> buffer(kScanChunkSize + kWorkRegionSize - 1);
 
@@ -420,11 +420,14 @@ bool find_candidate(uintptr_t& out)
     }
 
     mem::scan(cursor, buffer, kScanChunkSize, kWorkRegionSize - 1,
-              mem::kReadable, 0x200, 0x4000000, 20,
+              mem::kWritable, 0x200, SIZE_MAX, 20,
               [&](uintptr_t address, const uint8_t* data, size_t primary, size_t size) {
+        scanned_bytes += primary;
         for (size_t i = 0; i < primary && i + kWorkRegionSize <= size; ++i) {
             if (!looks_like_stage_anchor(data + i) || is_logger_table(data + i)) continue;
+            ++stage_hits;
             const uintptr_t candidate_address = address + i;
+            if (candidate_score(candidate_address) < 8) continue;
             bool known = false;
             for (const Candidate& candidate : candidates) {
                 known |= candidate.address == candidate_address;
@@ -439,6 +442,15 @@ bool find_candidate(uintptr_t& out)
         }
         return false;
     });
+    if (now_ms - last_report >= 10000) {
+        LOG_INFO("mgs1 work scan: %llu bytes read, %llu stage hits, %zu candidates, cursor=%p",
+                 static_cast<unsigned long long>(scanned_bytes),
+                 static_cast<unsigned long long>(stage_hits), candidates.size(),
+                 reinterpret_cast<const void*>(cursor));
+        last_report = now_ms;
+        scanned_bytes = 0;
+        stage_hits = 0;
+    }
     out = 0;
     return false;
 }
