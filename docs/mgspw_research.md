@@ -746,6 +746,22 @@ stores `2*numMis - 27` at `+0x20`, walks mission records and stores the counted
 ones at `+0x24`, sets flags `+0x28`/`+0x29` and clears them by stored rank,
 clearing both unless the count is reached; `+0x2A` marks the block complete.
 
+The builder's `push rbx` / `mov eax,[handle]` / `mov rbx,[object]` /
+`test eax,eax` / `jne` prologue is shared by 23 subsystem accessors, each
+loading its own handle and object globals. A signature with wildcard
+displacements therefore resolves to whichever comes first in `.text` and
+reads a foreign object's `+0x43D0`, which is where the negative missions and
+`-3604480.06` ratios came from. Pin both displacements to the builder
+(`0x14143A8D0` handle, `0x14143A8D8` object) and gate every read on the same
+checks the builder makes: `[object+0x28] == handle` and
+`[object+0x30] == object`.
+
+`+0x2A` is a red herring for evaluation: only `0x1401E7210` writes it, a
+sweep of `.text` finds no reader, and the evaluator ignores it. It latches
+"counted reached required", i.e. cooperation ratio `>= 1.0`, not "the block
+is valid"; the evaluator runs whenever the caller `0x1401E6560` invokes it
+and grades from `+0x20`, `+0x24`, `+0x28` and `+0x29` alone.
+
 Camaraderie is the aggregate at snapshot `+0x30`, built by `0x140544D20`: it
 takes the online table at `*0x140EA4870 + 0x5008`, reads the count at the table
 start, and sums the dword at `table + 0x110*(i+1)` per entry.

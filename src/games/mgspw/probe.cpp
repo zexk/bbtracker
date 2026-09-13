@@ -108,12 +108,13 @@ constexpr bool kOnlineRootWild[] = {
     false, false, false, false, false, false, false, false, false,
     false, false, false, true, true, true, true, false, false, false, false, false, false};
 
+// The Player Data handle/self prologue is shared by 23 accessors, one per
+// subsystem object; wildcarding the displacements resolves whichever comes
+// first in .text and reads a foreign object at +0x43D0. Pin both to the
+// builder 0x1401E7210: handle 0x14143A8D0, object 0x14143A8D8.
 constexpr uint8_t kResultObjectPat[] = {
-    0x40, 0x53, 0x48, 0x83, 0xEC, 0x20, 0x8B, 0x05, 0, 0, 0, 0,
-    0x48, 0x8B, 0x1D, 0, 0, 0, 0, 0x85, 0xC0, 0x75, 0x09};
-constexpr bool kResultObjectWild[] = {
-    false, false, false, false, false, false, false, false, true, true, true, true,
-    false, false, false, true, true, true, true, false, false, false, false};
+    0x40, 0x53, 0x48, 0x83, 0xEC, 0x20, 0x8B, 0x05, 0xB4, 0x36, 0x25, 0x01,
+    0x48, 0x8B, 0x1D, 0xB5, 0x36, 0x25, 0x01, 0x85, 0xC0, 0x75, 0x09};
 
 constexpr uint8_t kRegionObjectPat[] = {
     0x8B, 0x05, 0, 0, 0, 0, 0x48, 0x8B, 0x1D, 0, 0, 0, 0,
@@ -377,7 +378,7 @@ bool pat_match(const uint8_t* p, const uint8_t* pat, const bool* wild, size_t n,
         return false;
     }
     for (size_t i = 0; i < n; ++i) {
-        if (!wild[i] && p[i] != pat[i]) {
+        if ((!wild || !wild[i]) && p[i] != pat[i]) {
             return false;
         }
     }
@@ -436,16 +437,17 @@ void ensure_resolved()
                               std::size(kLocalPlayerPat), 4);
     g_online_root = scan_one(mod, kOnlineRootPat, kOnlineRootWild,
                              std::size(kOnlineRootPat), 12);
-    g_result_object = scan_one(mod, kResultObjectPat, kResultObjectWild,
+    g_result_object = scan_one(mod, kResultObjectPat, nullptr,
                                std::size(kResultObjectPat), 15);
     g_region_object = scan_one(mod, kRegionObjectPat, kRegionObjectWild,
                                std::size(kRegionObjectPat), 9);
     g_mission_id = scan_one(mod, kMissionIdPat, kMissionIdWild,
                             std::size(kMissionIdPat), kMissionIdDisp);
-    LOG_INFO("MGSPW resolved save=%llX time=%llX chars=%llX",
+    LOG_INFO("MGSPW resolved save=%llX time=%llX chars=%llX result=%llX",
              static_cast<unsigned long long>(g_saveroot_ptr ? g_saveroot_ptr - base : 0),
              static_cast<unsigned long long>(g_mission_time ? g_mission_time - base : 0),
-             static_cast<unsigned long long>(g_chararray_ptr ? g_chararray_ptr - base : 0));
+             static_cast<unsigned long long>(g_chararray_ptr ? g_chararray_ptr - base : 0),
+             static_cast<unsigned long long>(g_result_object ? g_result_object - base : 0));
     if (!g_saveroot_ptr) {
         LOG_WARN("MGSPW PW_SAVEROOT pattern not found");
     }
@@ -619,19 +621,36 @@ bool poll_stats(GameStats& out)
         }
     }
 
-    uintptr_t object = 0;
-    if (g_result_object && mem::copy(g_result_object, object)) {
+    // Objects are replaced on load; match the builder's own handle/self
+    // checks before trusting the result block.
+    std::array<uint8_t, 16> result_slot{};
+    if (g_result_object >= 8
+        && mem::copy(g_result_object - 8, result_slot.data(), result_slot.size())) {
+        const auto object = mem::read<uintptr_t>(result_slot.data(), 8);
+        const auto handle = mem::read<uint32_t>(result_slot.data(), 0);
+        std::array<uint8_t, 16> object_head{};
         constexpr size_t kResultOff = 0x43D0;
         std::array<uint8_t, 0x2B> result{};
-        if (object && mem::copy(object + kResultOff, result.data(), result.size())) {
+        if (object
+            && mem::copy(object + 0x28, object_head.data(), object_head.size())
+            && mem::read<uint32_t>(object_head.data(), 0) == handle
+            && mem::read<uintptr_t>(object_head.data(), 8) == object
+            && mem::copy(object + kResultOff, result.data(), result.size())) {
+            // The evaluator 0x1401E7F40 reads the ratio and grade flags
+            // directly and never looks at +0x2A, which is only the builder's
+            // own "all missions counted" latch; any builder-written block
+            // is evaluable. The 0/1 byte checks reject unbuilt heap.
             const int required = mem::read<int32_t>(result.data(), 0x20);
             const int counted = mem::read<int32_t>(result.data(), 0x24);
-            if (mem::read<uint8_t>(result.data(), 0x2A) != 0
-                && required >= 0 && counted >= 0) {
+            const uint8_t grade5_ok = mem::read<uint8_t>(result.data(), 0x28);
+            const uint8_t grade4_ok = mem::read<uint8_t>(result.data(), 0x29);
+            if (required > 0 && counted >= 0
+                && grade5_ok <= 1 && grade4_ok <= 1
+                && mem::read<uint8_t>(result.data(), 0x2A) <= 1) {
                 out.pw_codename_missions_required = required;
                 out.pw_codename_missions_counted = counted;
-                out.pw_codename_grade5_ok = mem::read<uint8_t>(result.data(), 0x28) != 0;
-                out.pw_codename_grade4_ok = mem::read<uint8_t>(result.data(), 0x29) != 0;
+                out.pw_codename_grade5_ok = grade5_ok != 0;
+                out.pw_codename_grade4_ok = grade4_ok != 0;
                 out.pw_codename_result_ok = true;
             }
         }
