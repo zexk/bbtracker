@@ -36,18 +36,25 @@ code = r'''
 #include <cstring>
 #include <string>
 #include <vector>
+#include "common/area.h"
 #include "common/codename/codename.h"
+#include "common/codename/rules_mgs4.h"
+#include "common/format.h"
+#include "games/mgs2/dog_tags.h"
+#include "games/mgs3/checklists.h"
+#include "games/mgs4/flashbacks.h"
+#include "games/mgspw/names.h"
 #include "overlay/overlay.h"
 using namespace bb;
 bool (*g_clock_fn)(uint32_t&) = nullptr;
 Game g_game = Game::MGSPW;
 ImFont* g_font_semibold = nullptr;
 ImFont* g_font_bold = nullptr;
-const char* mgspw_area_name(const char*, int) { return "El Cenagal: Jungle"; }
+constexpr float kPanelAlpha = 0.80f;
+constexpr ImVec4 with_alpha(ImVec4 color, float alpha) { color.w = alpha; return color; }
+using ThemeFn = void (*)(ImGuiStyle&);
 '''
-code += block("void apply_game_theme()\n{", "bool init_imgui(IDXGISwapChain* swap_chain)")
-code += block("struct IdColors", "void checklist")
-code += block("void draw_mgspw_run", "void draw_panel")
+code += block("const char* difficulty_name", "void draw_panel")
 code += r'''
 // --- software rasterizer -------------------------------------------------
 // Enough of a renderer to look at: bilinear-sampled textured triangles with
@@ -194,10 +201,10 @@ void draw_window(const GameStats& stats, int tab)
             if (ImGui::BeginTabItem(names[i], nullptr,
                                     i == tab ? ImGuiTabItemFlags_SetSelected : 0)) {
                 switch (i) {
-                case 0: draw_mgspw_summary(stats); break;
+                case 0: draw_mgspw_summary(stats, 0); break;
                 case 1: draw_mgspw_global(stats, 0); break;
-                case 2: draw_mgspw_insignia(stats); break;
-                case 3: draw_mgspw_codenames(stats); break;
+                case 2: draw_mgspw_insignia(stats, 0); break;
+                case 3: draw_mgspw_codenames(stats, 0); break;
                 }
                 ImGui::EndTabItem();
             }
@@ -403,7 +410,8 @@ with tempfile.TemporaryDirectory() as directory:
     path = Path(directory)
     (path / "mock.cpp").write_text(code)
     subprocess.run(shlex.split(os.environ.get("CXX", "c++")) + [
-        "-std=c++20", "-O2", f"-I{imgui}", f"-I{root / 'src'}", str(path / "mock.cpp"),
+        "-std=c++20", "-O2", f"-I{imgui}", f"-I{root / 'src'}",
+        f"-I{root / 'src/overlay'}", str(path / "mock.cpp"),
         *map(str, (root / "src/common/codename").glob("*.cpp")),
         *[str(imgui / name) for name in
           ("imgui.cpp", "imgui_draw.cpp", "imgui_tables.cpp", "imgui_widgets.cpp")],

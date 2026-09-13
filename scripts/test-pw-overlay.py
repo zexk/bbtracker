@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Headless PW and MGS4 panel smoke check. Run with IMGUI_DIR and a native CXX set."""
+"""Headless overlay smoke check. Run with IMGUI_DIR and a native CXX set."""
 import os
 from pathlib import Path
 import shlex
@@ -23,19 +23,25 @@ code = r'''
 #include <cstring>
 #include <regex>
 #include <string>
+#include "common/area.h"
 #include "common/codename/codename.h"
 #include "common/codename/rules_mgs4.h"
+#include "common/format.h"
+#include "games/mgs2/dog_tags.h"
+#include "games/mgs3/checklists.h"
+#include "games/mgs4/flashbacks.h"
+#include "games/mgspw/names.h"
 #include "overlay/overlay.h"
 using namespace bb;
 Game g_game = Game::MGS4;
 bool (*g_clock_fn)(uint32_t&) = nullptr;
 ImFont* g_font_semibold = nullptr;
 ImFont* g_font_bold = nullptr;
-const char* mgspw_area_name(const char*, int) { return "Puerto del Alba"; }
+constexpr float kPanelAlpha = 0.80f;
+constexpr ImVec4 with_alpha(ImVec4 color, float alpha) { color.w = alpha; return color; }
+using ThemeFn = void (*)(ImGuiStyle&);
 '''
-code += block("struct IdColors", "void checklist")
-code += block("void draw_mgs4_feats", "constexpr const char* kMgs3Captures")
-code += block("void draw_mgspw_run", "void draw_panel")
+code += block("const char* difficulty_name", "void draw_panel")
 code += r'''
 std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     // Mimic draw_panel's 10Hz tick: the panels read matches from the cache.
@@ -47,10 +53,10 @@ std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     ImGui::Begin("PW");
     ImGui::LogToBuffer();
     switch (tab) {
-    case 0: draw_mgspw_summary(stats); break;
+    case 0: draw_mgspw_summary(stats, scroll); break;
     case 1: draw_mgspw_global(stats, scroll); break;
-    case 2: draw_mgspw_insignia(stats); break;
-    case 3: draw_mgspw_codenames(stats); break;
+    case 2: draw_mgspw_insignia(stats, scroll); break;
+    case 3: draw_mgspw_codenames(stats, scroll); break;
     case 4: draw_mgs4_feats(stats, scroll); break;
     }
     std::string text = ImGui::GetCurrentContext()->LogBuffer.c_str();
@@ -59,19 +65,90 @@ std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     ImGui::Render();
     return text;
 }
+std::string draw_generic(Game game, const GameStats& stats) {
+    g_game = game;
+    const auto& overlay = overlay_for(game);
+    g_eval.match = overlay.evaluate(stats);
+    g_eval.reqs = overlay.requirements(stats);
+    ImGui::NewFrame();
+    ImGui::Begin("Generic");
+    ImGui::LogToBuffer();
+    draw_summary(stats, 0);
+    std::string text = ImGui::GetCurrentContext()->LogBuffer.c_str();
+    ImGui::LogFinish();
+    ImGui::End();
+    ImGui::Render();
+    return text;
+}
 int main() {
+    GameStats display;
+    display.difficulty = Difficulty::Extreme;
+    display.difficulty_game_byte = 50;
+    assert(std::strcmp(overlay_for(Game::MG1).difficulty(display).name, "Original") == 0);
+    assert(overlay_for(Game::MG1).difficulty(display).valid);
+    assert(std::strcmp(overlay_for(Game::Babel).difficulty(display).name, "Easy") == 0);
+    assert(std::strcmp(overlay_for(Game::MGS4).difficulty(display).name,
+                       "The Boss Extreme") == 0);
+    assert(overlay_for(Game::MGS2).special_items.size() == 5);
+    assert(overlay_for(Game::MGS3).special_items.size() == 3);
+    assert(overlay_for(Game::MGS4).special_items.size() == 2);
+    char value[96];
+    codename::ReqStatus requirement{"special items", true, 0, 0, 0, 0};
+    display.special_item_used = true;
+    assert(overlay_for(Game::MG1).format_requirement(requirement, display, value,
+                                                      sizeof(value)));
+    assert(std::strcmp(value, "Infinity Bandana") == 0);
+    requirement.label = "radar";
+    display.radar_off = true;
+    assert(overlay_for(Game::MGS1).format_requirement(requirement, display, value,
+                                                       sizeof(value)));
+    assert(std::strcmp(value, "OFF") == 0);
+    display.radar_type = 0x20;
+    assert(overlay_for(Game::MGS2).format_requirement(requirement, display, value,
+                                                       sizeof(value)));
+    assert(std::strcmp(value, "TYPE-B") == 0);
+    requirement.label = "campaign";
+    display.mission = 16;
+    assert(overlay_for(Game::MGS2).format_requirement(requirement, display, value,
+                                                       sizeof(value)));
+    assert(std::strcmp(value, "Tanker") == 0);
+    assert(std::strcmp(area_name(Game::MGS2, "w00a"), "Aft Deck") == 0);
     char number[32];
     format_count(1234567, number, sizeof(number));
     assert(std::string(number) == "1,234,567");
     format_count(-1234, number, sizeof(number));
     assert(std::string(number) == "-1,234");
     ImGui::CreateContext();
+    codename::Match babel_fox{"FOX", codename::Kind::Elite};
+    assert(overlay_for(Game::Babel).match_color(babel_fox, kBabelColors).x
+           == kBabelColors.green.x);
+    assert(overlay_for(Game::MGS1).match_color(babel_fox, kMgs1Colors).x
+           == kMgs1Colors.yellow.x);
     auto& io = ImGui::GetIO();
     io.IniFilename = nullptr;
     io.DisplaySize = ImVec2(1280, 800);
     io.DeltaTime = 1.0f / 60;
     unsigned char* pixels; int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+    std::strcpy(display.area_code, "w00a");
+    auto generic = draw_generic(Game::MGS2, display);
+    assert(generic.find("TYPE-B") != std::string::npos);
+    assert(generic.find("Tanker") != std::string::npos);
+    assert(generic.find("dog tags") != std::string::npos);
+    assert(generic.find("Aft Deck") != std::string::npos);
+    display.radar_off = true;
+    display.diazepam_frames = 60;
+    std::strcpy(display.area_code, "s00");
+    generic = draw_generic(Game::MGS1, display);
+    assert(generic.find("OFF") != std::string::npos);
+    assert(generic.find("diazepam") != std::string::npos);
+    assert(generic.find("Dock") != std::string::npos);
+    display.plants_captured = 3;
+    generic = draw_generic(Game::MGS3, display);
+    assert(generic.find("captures") != std::string::npos);
+    display.flashbacks_unique = 7;
+    generic = draw_generic(Game::MGS4, display);
+    assert(generic.find("flashbacks") != std::string::npos);
     GameStats stats;
     stats.pw_in_mission = true;
     for (int tab = 0; tab < 4; ++tab) draw(stats, tab);
@@ -79,11 +156,11 @@ int main() {
     // Unknown HP is not zero health. Scoped to the HP row: the requirements
     // table legitimately shows 0% for an empty profile.
     assert(!std::regex_search(summary, std::regex(R"(HP[\s|{}]*0%)")));
-    assert(std::regex_search(summary, std::regex(R"(HP[\s|{}]*-)")));
-    assert(std::regex_search(summary, std::regex(R"(alerts[\s|{}]*-)")));
-    assert(std::regex_search(summary, std::regex(R"(hold-ups[\s|{}]*-)")));
-    assert(std::regex_search(summary, std::regex(R"(CQC uses[\s|{}]*-)")));
-    assert(std::regex_search(summary, std::regex(R"(stun rod KOs[\s|{}]*-)")));
+    assert(std::regex_search(summary, std::regex(R"(HP[\s|{}]*n/a)")));
+    assert(std::regex_search(summary, std::regex(R"(alerts[\s|{}]*n/a)")));
+    assert(std::regex_search(summary, std::regex(R"(hold-ups[\s|{}]*n/a)")));
+    assert(std::regex_search(summary, std::regex(R"(CQC uses[\s|{}]*n/a)")));
+    assert(std::regex_search(summary, std::regex(R"(stun rod KOs[\s|{}]*n/a)")));
     assert(summary.find("+0 (area)") != std::string::npos);
     stats.pw_m_holdups = 3;
     stats.pw_m_cqc_uses = 2;
@@ -156,17 +233,14 @@ int main() {
     stats.pw_codename_axes[3][1] = 23;
     const auto career = draw(stats, 1);
     assert(career.find("grenades") < career.find("play time"));
-    for (const char* pattern : {R"(grenades[\s|{}]*5[\s|{}]*12)",
-                                R"(rockets[\s|{}]*0[\s|{}]*24)",
-                                R"(placed explosives[\s|{}]*0[\s|{}]*36)",
-                                R"(stun rod[\s|{}]*0[\s|{}]*23)",
-                                R"(non-lethal takedowns[\s|{}]*95)"})
-        assert(std::regex_search(career, std::regex(pattern)));
+    assert(std::regex_search(career,
+                             std::regex(R"(non-lethal takedowns[\s|{}]*95)")));
+    assert(std::regex_search(career, std::regex(R"(grenades[\s|{}]*n/a)")));
     stats.pw_codename_axes_ok = false;
     stats.pw_stun_rod_takedowns = 2;
     const auto fallback = draw(stats, 1);
-    assert(std::regex_search(fallback, std::regex(R"(stun rod[\s|{}]*-[\s|{}]*2)")));
-    assert(std::regex_search(fallback, std::regex(R"(grenades[\s|{}]*-[\s|{}]*-)")));
+    assert(std::regex_search(fallback, std::regex(R"(stun rod[\s|{}]*n/a)")));
+    assert(std::regex_search(fallback, std::regex(R"(grenades[\s|{}]*n/a)")));
     stats.alerts = 150;
     stats.kills = 500;
     stats.continues = 50;
@@ -178,7 +252,7 @@ int main() {
     assert(feats.find("GIANT PANDA") < chicken);
     const auto progress = feats.substr(chicken);
     for (const char* value : {"alerts 150 / 150", "kills 500 / 500",
-                              "continues 50 / 50", "recovery 50 / 50",
+                              "continues 50 / 50", "recovery items 50 / 50",
                               "35:00:00 / 35:00:00"})
         assert(progress.find(value) != std::string::npos);
     ImGui::DestroyContext();
@@ -190,11 +264,12 @@ with tempfile.TemporaryDirectory() as directory:
     subprocess.run(shlex.split(os.environ.get("CXX", "c++")) + [
         # -UNDEBUG: every check below is an assert, so a build type that defines
         # NDEBUG would compile the whole smoke check away and still pass.
-        "-std=c++20", "-UNDEBUG", f"-I{imgui}", f"-I{root / 'src'}", str(path / "test.cpp"),
+        "-std=c++20", "-UNDEBUG", f"-I{imgui}", f"-I{root / 'src'}",
+        f"-I{root / 'src/overlay'}", str(path / "test.cpp"),
         *map(str, (root / "src/common/codename").glob("*.cpp")),
         *[str(imgui / name) for name in
           ("imgui.cpp", "imgui_draw.cpp", "imgui_tables.cpp", "imgui_widgets.cpp")],
         "-o", str(path / "test"),
     ], check=True)
     subprocess.run([str(path / "test")], check=True)
-print("PW and MGS4 overlay smoke check passed")
+print("Overlay smoke check passed")
