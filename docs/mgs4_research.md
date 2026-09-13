@@ -117,7 +117,8 @@ All multibyte values are little-endian. Timers use 60 Hz ticks.
 | `0x0350` | `uint16[68]` | separate inventory-related array |
 | `0x0526` | `uint16[99]` | item states, IDs `0..98` |
 | `0x0ae0` | `uint16` | recovery items used |
-| `0x5a34` | `uint16` | flashbacks viewed; target `273` |
+| `0x5a34` | `uint16` | flashbacks triggered; increments every press, saturates at 9999 |
+| `0x5a49` | `byte[28]` | unique-flashback bits, 222 bits (ACH_015 condition) |
 
 Native predicate aggregates:
 
@@ -131,29 +132,32 @@ box/drum time        = u32[0x1b8] + u32[0x1bc]
 
 ## Flashbacks
 
-Field `0x5a34` is a career total, not a run counter. It is carried across
-playthroughs: a save with four clears read `181` at Act 1 after 61 minutes of
-play. Target `273` is the Bonus DP cap. No run-scoped second counter is
-identified in the run-stat block; undocumented fields at `0x1a4`, `0x1a6`, and
-`0x1c8..0x1d2` are the remaining candidates and need a live before/after save
-pair to rule in or out. Until then a current-run count must be derived by
-latching `0x5a34` when the run starts and reporting the delta.
+`0x5a34` increments on every flashback trigger and saturates at 9999; repeats
+count, so it is a trigger total rather than a collection count. The handler at
+native `0xe72cb7` writes it, maps the trigger through a 222-entry sorted table,
+and sets the matching bit in the save bit array at `0x5a49` (28 bytes, 222 bits,
+`byte = index >> 3`, `bts` on `index & 7`). Unique progress is therefore the
+popcount of `0x5a49..0x5a64`, not the `0x5a34` value.
 
-Per-flashback state was not found in `MGS4.SAV`. Scans for a 273-byte 0/1 array,
-a 273-entry u16 0/1 array, and 35-byte bitsets with popcount `181` (or the inverse
-`92`) all came up empty. The unexplained pair of 595-byte arrays at `0x5588`
-(value `2`) and `0x57db` (value `8`) share one fully populated 486-entry occupancy
-pattern, so they are not a partial progress list; identity unresolved, possibly
-music/database unlocks.
+ACH_015 "Flashback Mania" is checked right after the bit set at native
+`0xe72d88`: all 27 bytes must read `0xff` and bits 0-5 of byte 27 (`0x5a64`)
+must be set, then it calls unlock thunk `0x53b20(15)`. So the achievement needs
+**222 unique** flashbacks; the Bonus DP input still scales from the `>=273`
+trigger total. The tracker reports unique popcount `/ 222` with the global
+trigger total in parentheses.
+
+The earlier empty scan looked for a 273-entry array or 35-byte bitsets with
+popcount `181`: the array is 28 bytes and its popcount is the unique count
+(144 against 181 triggers in the sample save). The unexplained pair of 595-byte
+arrays at `0x5588` (value `2`) and `0x57db` (value `8`) share one fully populated
+486-entry occupancy pattern, so they are not a partial progress list; identity
+unresolved, possibly music/database unlocks.
 
 Flashback prompts are not staged from GCX script strings: 70 stage scripts were
 extracted from `ww/stage/stage_data_compressed.1/2.pak` and their string tables
 deciphered (650,556 strings); no flashback strings and no raw `flash` references
-appear. Likely homes are cutscene/event data or native code. Native anchors found
-so far: input action `FlashBack` in `.rdata` at file offset `0x16608c8`, and RTTI
-class `VOCELOT_FLASHBACK@@` at file offset `0x1d6978b`. Cross-referencing the
-counter or the flashback entities needs a runtime `.text` capture
-(`probe-mgs4-memory.py --dump-text`), since the shipped `.text` is protected.
+appear. Native anchors: input action `FlashBack` in `.rdata` at file offset
+`0x16608c8`, and RTTI class `VOCELOT_FLASHBACK@@` at file offset `0x1d6978b`.
 
 ## Difficulty and progress
 
@@ -321,8 +325,8 @@ Hard `5`, The Boss Extreme `10`.
 - recovery items: same as continues;
 - weapons: `10,000m` at `>=69`; positive lower counts scale from `5,000m`
   with denominator 68;
-- flashbacks: `10,000m` at `>=273`; positive lower counts scale from `5,000m`
-  with denominator 272;
+- flashbacks: `10,000m` at `>=273` trigger total; positive lower counts scale
+  from `5,000m` with denominator 272;
 - special items: `5,000m` only when `u16[0x17a] == 0`.
 
 Interpolation uses integer division, rounds down to 10 DP, and clamps positive
@@ -527,8 +531,7 @@ Open items:
 - box/drum component identities;
 - run-save integrity algorithm;
 - native trigger sites for Steam achievements;
-- whether emblem predicates run only at results or maintain cached state;
-- flashback per-run counter and per-flashback viewed state (see Flashbacks).
+- whether emblem predicates run only at results or maintain cached state.
 
 None blocks current tracker. All 40 emblem predicates and every required live
 aggregate are implemented for target build.
