@@ -120,37 +120,52 @@ void draw_mgspw_run(const GameStats& stats)
     char buf[64];
     if (stats.pw_mission_id > 0) {
         const char* rank_names[] = {"S", "A", "B", "C"};
-        const char* rank = stats.pw_cur_rank >= 0
-            && stats.pw_cur_rank < static_cast<int>(std::size(rank_names))
-            ? rank_names[stats.pw_cur_rank] : "-";
-        if (stats.pw_cur_best) {
-            // Rank and time are independent bests.
+        const bool rank_known = stats.pw_cur_rank >= 0
+            && stats.pw_cur_rank < static_cast<int>(std::size(rank_names));
+        const char* rank = rank_known ? rank_names[stats.pw_cur_rank] : "-";
+        // Rank and time are independent save records.
+        if (rank_known) {
             push_font(nullptr, kNoteScale);
             ImGui::TextDisabled("Mission %d · Best rank", stats.pw_mission_id);
             ImGui::SameLine(0.0f, ui_size(4.0f));
             push_font(g_font_semibold, 1.0f);
             ImGui::TextDisabled("%s", rank);
             ImGui::PopFont();
+            ImGui::PopFont();
+        } else {
+            push_font(nullptr, kNoteScale);
+            ImGui::TextDisabled("Mission %d · No rank recorded", stats.pw_mission_id);
+            ImGui::PopFont();
+        }
+        if (stats.pw_cur_best) {
+            push_font(nullptr, kNoteScale);
             ImGui::TextDisabled("Best time %llu:%02llu.%03llu",
                                 best_ms / kMillisecondsPerMinute,
                                 (best_ms / kMillisecondsPerSecond) % kSecondsPerMinute,
                                 best_ms % kMillisecondsPerSecond);
             ImGui::PopFont();
-            const double delta = (double(mission_ms) - double(best_ms))
-                / kMillisecondsPerSecond;
-            const double size = delta < 0 ? -delta : delta;
-            char gap[24];
-            if (size < kSecondsPerMinute) {
-                snprintf(gap, sizeof(gap), "%c%.1fs", delta < 0 ? '-' : '+', size);
-            } else {
-                snprintf(gap, sizeof(gap), "%c%d:%04.1f", delta < 0 ? '-' : '+',
-                         int(size) / kSecondsPerMinute,
-                         std::fmod(size, kSecondsPerMinute));
+            if (!results) {
+                ImGui::SameLine();
+                if (mission_ms == best_ms) {
+                    ImGui::TextColored(id_yellow, "best reached");
+                } else {
+                    const double size = std::abs(double(mission_ms) - double(best_ms))
+                        / kMillisecondsPerSecond;
+                    char gap[24];
+                    if (size < kSecondsPerMinute) {
+                        snprintf(gap, sizeof(gap), "%.1fs", size);
+                    } else {
+                        snprintf(gap, sizeof(gap), "%d:%04.1f", int(size) / kSecondsPerMinute,
+                                 std::fmod(size, kSecondsPerMinute));
+                    }
+                    if (mission_ms < best_ms) ImGui::TextDisabled("%s to best", gap);
+                    else ImGui::TextColored(id_red, "%s over best", gap);
+                }
             }
-            ImGui::SameLine();
-            ImGui::TextColored(delta <= 0 ? id_green : id_red, "%s", gap);
         } else {
-            ImGui::TextDisabled("Mission %d · No time recorded", stats.pw_mission_id);
+            push_font(nullptr, kNoteScale);
+            ImGui::TextDisabled("No best time recorded");
+            ImGui::PopFont();
         }
     }
     // Some segment deltas settle at results or lobby exit.

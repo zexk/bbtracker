@@ -45,7 +45,7 @@ code += block("const char* difficulty_name", "void draw_panel")
 code += r'''
 std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     // Mimic draw_panel's 10Hz tick: the panels read matches from the cache.
-    g_game = tab == 4 ? Game::MGS4 : Game::MGSPW;
+    g_game = tab == 4 || tab == 5 ? Game::MGS4 : Game::MGSPW;
     g_eval.reqs = codename::elite_requirements_mgspw(stats);
     g_eval.matches = codename::all_matches_mgs4(stats);
     ImGui::NewFrame();
@@ -58,6 +58,7 @@ std::string draw(const GameStats& stats, int tab, int scroll = 0) {
     case 2: draw_mgspw_insignia(stats, scroll); break;
     case 3: draw_mgspw_codenames(stats, scroll); break;
     case 4: draw_mgs4_feats(stats, scroll); break;
+    case 5: draw_mgs4_flashbacks(stats, scroll); break;
     }
     std::string text = ImGui::GetCurrentContext()->LogBuffer.c_str();
     ImGui::LogFinish();
@@ -144,8 +145,17 @@ int main() {
     assert(generic.find("diazepam") != std::string::npos);
     assert(generic.find("Dock") != std::string::npos);
     display.plants_captured = 3;
+    std::strcpy(display.area_code, "s002a");
     generic = draw_generic(Game::MGS3, display);
     assert(generic.find("captures") != std::string::npos);
+    assert(generic.find("kerotan here") != std::string::npos);
+    assert(generic.find("not collected") != std::string::npos);
+    display.kerotan_mask = uint64_t{1} << 6;
+    generic = draw_generic(Game::MGS3, display);
+    assert(generic.find("✓ collected") != std::string::npos);
+    std::strcpy(display.area_code, "s141a");
+    generic = draw_generic(Game::MGS3, display);
+    assert(generic.find("kerotan here") == std::string::npos);
     display.flashbacks_unique = 7;
     generic = draw_generic(Game::MGS4, display);
     assert(generic.find("flashbacks") != std::string::npos);
@@ -168,12 +178,20 @@ int main() {
     stats.pw_m_heroism = 22;
     stats.pw_mission_id = 7;
     stats.pw_cur_rank = 0;
+    summary = draw(stats, 0);
+    assert(summary.find("Best rank S") != std::string::npos);
+    assert(summary.find("No best time recorded") != std::string::npos);
     stats.pw_cur_best = 18345;
     stats.pw_player_hp = 4500;
     stats.pw_player_max_hp = 9000;
     summary = draw(stats, 0);
     assert(summary.find("Best rank S") != std::string::npos);
     assert(summary.find("Best time 1:01.150") != std::string::npos);
+    assert(summary.find("to best") != std::string::npos);
+    stats.pw_mission_play = stats.pw_cur_best;
+    assert(draw(stats, 0).find("best reached") != std::string::npos);
+    stats.pw_mission_play += 300;
+    assert(draw(stats, 0).find("over best") != std::string::npos);
     assert(summary.find("50%") != std::string::npos);
     assert(std::regex_search(summary, std::regex(R"(hold-ups[\s|{}]*3)")));
     assert(std::regex_search(summary, std::regex(R"(CQC uses[\s|{}]*2)")));
@@ -186,6 +204,8 @@ int main() {
     const auto results = draw(idle, 0);
     assert(results.find("0:53.100") != std::string::npos);
     assert(results.find("Best rank S") != std::string::npos);
+    assert(results.find("to best") == std::string::npos);
+    assert(results.find("over best") == std::string::npos);
     assert(std::regex_search(results, std::regex(R"(stun rod KOs[\s|{}]*1)")));
     assert(std::regex_search(results, std::regex(R"(hold-ups[\s|{}]*3)")));
     // Leaving results flushes run display even if game memory retains values.
@@ -269,6 +289,7 @@ int main() {
                               "continues 50 / 50", "recovery items 50 / 50",
                               "35:00:00 / 35:00:00"})
         assert(progress.find(value) != std::string::npos);
+    assert(draw(stats, 5).find("00554b29") != std::string::npos);
     ImGui::DestroyContext();
 }
 '''

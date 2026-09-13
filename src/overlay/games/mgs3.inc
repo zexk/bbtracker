@@ -153,10 +153,15 @@ void summary_extra_mgs3(const GameStats& stats)
     snprintf(buf, sizeof(buf), "%d / %d", stats.plants_captured, kCaptureCount);
     dim_row("captures", buf);
     const int current_kerotan = mgs3::area_kerotan(stats.area_code);
-    snprintf(buf, sizeof(buf), "%d / %d  %s", stats.kerotans, kKerotanCount,
-             current_kerotan >= 0
-                 && (stats.kerotan_mask & (uint64_t{1} << current_kerotan)) != 0
-                 ? "✓" : "✗");
-    dim_row("kerotans", buf);
+    summary_pair("kerotans", stats.kerotans, kKerotanCount);
+    if (current_kerotan >= 0) {
+        const bool collected = (stats.kerotan_mask & (uint64_t{1} << current_kerotan)) != 0;
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextDisabled("kerotan here");
+        ImGui::TableNextColumn();
+        ImGui::TextColored(collected ? id_colors(g_game).green : id_colors(g_game).yellow,
+                           "%s", collected ? "✓ collected" : "✗ not collected");
+    }
     summary_count("meals eaten", stats.meals_eaten);
 }

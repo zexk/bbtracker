@@ -251,8 +251,12 @@ void draw_mgs4_flashbacks(const GameStats& stats, int scroll)
             ImGui::TextColored(done ? done_color : todo_color, "%s", done ? "✓" : "✗");
             ImGui::PopFont();
             ImGui::SameLine();
-            ImGui::TextColored(done ? done_color : todo_color, "%s · %08x",
-                               mgs4::kFlashbacks[i].trigger, mgs4::kFlashbacks[i].cue_id);
+            ImGui::TextColored(done ? done_color : todo_color, "%s",
+                               mgs4::kFlashbacks[i].trigger);
+            ImGui::SameLine();
+            push_font(nullptr, kNoteScale);
+            ImGui::TextDisabled("%08x", mgs4::kFlashbacks[i].cue_id);
+            ImGui::PopFont();
         }
     }
     ImGui::EndChild();
