@@ -14,12 +14,12 @@ ladder, and insignia progress.
 
 - Live projected rank and codename
 - Rank requirements and remaining allowances
-- Run stats, special-rank counters, MGS2 dog tags, MGS3 checklists, and MGS4 feat progress
+- Run stats, special-rank counters, MGS2 dog tags, MGS3 checklists, and MGS4 feats and flashbacks
 - Peace Walker codename projection, insignia progress, and career counters
 - Windows, Linux, and Steam Deck support through ASI Loader and Proton
 
 Press `F3` to toggle overlay. In MGS2, MGS3, MGS4, and Peace Walker, press `F4` to cycle tabs.
-Use `Up`/`Down` to scroll checklists, MGS4 feats, and Peace Walker career stats.
+Use `Up`/`Down` to scroll checklists, MGS4 feats and flashbacks, and Peace Walker career stats.
 Overlay scales automatically for high-DPI displays and 4K rendering.
 
 ## Install

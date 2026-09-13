@@ -150,8 +150,9 @@ bool poll_stats(GameStats& out)
     // Unique-flashback bit array at 0x5A49: 222 bits, the ACH_015 condition.
     // 0x5A34 counts every trigger, repeats included; this one does not.
     out.flashbacks_unique = 0;
-    for (size_t index = 0; index < 28; ++index) {
+    for (size_t index = 0; index < sizeof(out.flashback_bits); ++index) {
         const uint8_t byte = read<uint8_t>(data, 0x5A49 + index);
+        out.flashback_bits[index] = byte;
         out.flashbacks_unique += std::popcount(static_cast<uint8_t>(byte & (index == 27 ? 0x3F : 0xFF)));
     }
     out.weapons_acquired = 0;

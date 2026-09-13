@@ -134,10 +134,35 @@ box/drum time        = u32[0x1b8] + u32[0x1bc]
 
 `0x5a34` increments on every flashback trigger and saturates at 9999; repeats
 count, so it is a trigger total rather than a collection count. The handler at
-native `0xe72cb7` writes it, maps the trigger through a 222-entry sorted table,
-and sets the matching bit in the save bit array at `0x5a49` (28 bytes, 222 bits,
-`byte = index >> 3`, `bts` on `index & 7`). Unique progress is therefore the
-popcount of `0x5a49..0x5a64`, not the `0x5a34` value.
+native `0xe72cb7` writes it, maps the trigger through a 222-entry sorted table
+of cue IDs at RVA `0x18e1230` (file offset `0x18e0630`), and sets the matching
+bit in the save bit array at `0x5a49` (28 bytes, 222 bits,
+`byte = index >> 3`, `bts` on `index & 7`). Bit index is the cue's rank in the
+sorted table, so it encodes cue-ID allocation order, not story order. Unique
+progress is the popcount of `0x5a49..0x5a64`, not the `0x5a34` value.
+
+The update wrapper at `0xe72c41` owns a cue array and walks it: `[this+0x108]`
+holds `{u32 count, u32 cue_id[]}`; `[this+0xe8]`/`[this+0xec]`/`[this+0xf4]`
+track the active cue. After setting the bit it loads the clip asset with
+`cue_id | 0x5d000000` through the resource lookup at native `0x74bdb0`, then
+builds a display object. Live probing confirmed the loaded resource: the cache
+record for e.g. `0x5d654ad2` points at raw JPEG bytes (`FF D8 FF E0`).
+
+Every cue has a 320x180 JPEG poster named `<cue_id:08x>.jpg`. All 222 exist
+across `common/stage/stageXX/<code>/cache/` and
+`ww/stage/slot/<page>/cache/` in the `stage_data_compressed` VPAKs. The stage
+caches are preload sets, so one poster can appear under several stage codes;
+205 cues appear in at least one `common/stage/<stage>/<code>` directory, and 17
+(`00554b29`, `00554b2e`, `00554b4e`, `00554b8e`, `00554bae`, `00654b06`,
+`00654b10`, `00654b26`, `00654b30`, `00654b46`, `00654b50`, `00654b66`,
+`00654bae`, `00654bce`, `00754b8e`, `00754bae`, `00754bce`) exist only on the
+shared `ww/stage/slot` pages and have no per-stage poster path, so the header
+labels them `Hidden`.
+
+`src/games/mgs4/flashbacks.h` carries the 222 entries in bit order with a
+stage/area label per entry. The label is the earliest story site that ships the
+poster; the comment on each row lists every site. `scripts/gen-mgs4-flashbacks.py`
+regenerates the header from `mgs4.exe` plus the four stage VPAKs.
 
 ACH_015 "Flashback Mania" is checked right after the bit set at native
 `0xe72d88`: all 27 bytes must read `0xff` and bits 0-5 of byte 27 (`0x5a64`)
@@ -511,6 +536,12 @@ python3 scripts/probe-mgs4-memory.py
 python3 scripts/probe-mgs4-memory.py --dump-text /tmp/mgs4-text.bin
 python3 scripts/probe-mgs4-memory.py --self-test
 python3 scripts/list-vpak.py /path/to/archive.pak
+python3 scripts/gen-mgs4-flashbacks.py --exe MGS4/mgs4.exe \
+  --pak common/stage/stage_data_compressed.1.pak \
+  --pak common/stage/stage_data_compressed.2.pak \
+  --pak ww/stage/stage_data_compressed.1.pak \
+  --pak ww/stage/stage_data_compressed.2.pak \
+  --out src/games/mgs4/flashbacks.h
 ```
 
 Tools are read-only.

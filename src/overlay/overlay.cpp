@@ -33,6 +33,7 @@
 #include "../common/log.h"
 #include "../games/mgs2/dog_tags.h"
 #include "../games/mgs3/checklists.h"
+#include "../games/mgs4/flashbacks.h"
 #include "../games/mgspw/names.h"
 
 // Embedded from the Inter release pinned in CMakeLists.txt.
@@ -1410,9 +1411,27 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
     ImGui::EndChild();
 }
 
-
-
-
+void draw_mgs4_flashbacks(const GameStats& stats, int scroll)
+{
+    char header[48];
+    snprintf(header, sizeof(header), "%d / 222 (global %d)", stats.flashbacks_unique,
+             stats.flashbacks_viewed);
+    ImGui::TextUnformatted(header);
+    const ImVec4 done_color = id_colors(g_game).green;
+    const ImVec4 todo_color = unset_color();
+    if (begin_fitted_child("mgs4_flashbacks")) {
+        apply_scroll(scroll);
+        for (size_t i = 0; i < std::size(mgs4::kFlashbacks); ++i) {
+            const bool done = (stats.flashback_bits[i >> 3] & (1u << (i & 7))) != 0;
+            push_font(g_font_semibold, 1.0f);
+            ImGui::TextColored(done ? done_color : todo_color, "%s", done ? "✓" : "✗");
+            ImGui::PopFont();
+            ImGui::SameLine();
+            ImGui::TextColored(done ? done_color : todo_color, "%s", mgs4::kFlashbacks[i].area);
+        }
+    }
+    ImGui::EndChild();
+}
 
 void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
 {
@@ -2271,7 +2290,9 @@ constexpr PanelTab kMgs2Tabs[] = {{"Summary", draw_summary}, {"Dog Tags", draw_m
 constexpr PanelTab kMgs3Tabs[] = {{"Summary", draw_summary},
                                   {"Capture", draw_mgs3_captures},
                                   {"Kerotan", draw_mgs3_kerotans}};
-constexpr PanelTab kMgs4Tabs[] = {{"Summary", draw_summary}, {"Feats", draw_mgs4_feats}};
+constexpr PanelTab kMgs4Tabs[] = {{"Summary", draw_summary},
+                                  {"Feats", draw_mgs4_feats},
+                                  {"Flashbacks", draw_mgs4_flashbacks}};
 constexpr PanelTab kMgspwTabs[] = {{"Summary", draw_mgspw_summary},
                                    {"Career", draw_mgspw_global},
                                    {"Insignia", draw_mgspw_insignia},
