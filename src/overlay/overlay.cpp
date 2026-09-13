@@ -358,409 +358,432 @@ constexpr ImVec4 with_alpha(ImVec4 color, float alpha)
     return color;
 }
 
+using ThemeFn = void (*)(ImGuiStyle&);
+
+void apply_theme_mg1(ImGuiStyle& style)
+{
+    ImVec4* colors = style.Colors;
+    const ImVec4 text{0.72f, 0.73f, 0.72f, 1.0f};
+    const ImVec4 dim{0.43f, 0.44f, 0.43f, 1.0f};
+    const ImVec4 panel{0.01f, 0.01f, 0.01f, 1.0f};
+    const ImVec4 border{0.58f, 0.59f, 0.57f, 1.0f};
+    const ImVec4 frame{0.16f, 0.16f, 0.15f, 1.0f};
+    const ImVec4 hover{0.40f, 0.18f, 0.04f, 1.0f};
+    const ImVec4 active{0.62f, 0.12f, 0.06f, 1.0f};
+    const ImVec4 title{0.22f, 0.03f, 0.02f, 1.0f};
+    const ImVec4 title_active{0.55f, 0.07f, 0.04f, 1.0f};
+    const ImVec4 accent{0.80f, 0.48f, 0.04f, 1.0f};
+    const ImVec4 idle{0.20f, 0.20f, 0.19f, 1.0f};
+
+    colors[ImGuiCol_Text]              = text;
+    colors[ImGuiCol_TextDisabled]      = dim;
+    colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_Border]            = with_alpha(border, 0.72f);
+    colors[ImGuiCol_FrameBg]           = frame;
+    colors[ImGuiCol_FrameBgHovered]    = hover;
+    colors[ImGuiCol_FrameBgActive]     = active;
+    colors[ImGuiCol_TitleBg]           = title;
+    colors[ImGuiCol_TitleBgActive]     = title_active;
+    colors[ImGuiCol_CheckMark]         = accent;
+    colors[ImGuiCol_SliderGrab]        = border;
+    colors[ImGuiCol_SliderGrabActive]  = accent;
+    colors[ImGuiCol_Button]            = idle;
+    colors[ImGuiCol_ButtonHovered]     = hover;
+    colors[ImGuiCol_ButtonActive]      = active;
+    colors[ImGuiCol_Header]            = idle;
+    colors[ImGuiCol_HeaderHovered]     = hover;
+    colors[ImGuiCol_HeaderActive]      = active;
+    colors[ImGuiCol_Separator]         = with_alpha(border, 0.68f);
+    colors[ImGuiCol_TableRowBgAlt]     = with_alpha(frame, 0.70f);
+    colors[ImGuiCol_ResizeGrip]        = with_alpha(active, 0.35f);
+    colors[ImGuiCol_ResizeGripHovered] = with_alpha(accent, 0.75f);
+    colors[ImGuiCol_ResizeGripActive]  = accent;
+}
+
+void apply_theme_mgs1(ImGuiStyle& style)
+{
+    ImVec4* colors = style.Colors;
+    const ImVec4 text{0.55f, 0.76f, 0.69f, 1.0f};
+    const ImVec4 dim{0.32f, 0.47f, 0.43f, 1.0f};
+    const ImVec4 panel{0.03f, 0.07f, 0.07f, 1.0f};
+    const ImVec4 border{0.43f, 0.72f, 0.64f, 1.0f};
+    const ImVec4 frame{0.08f, 0.17f, 0.16f, 1.0f};
+    const ImVec4 hover{0.20f, 0.43f, 0.38f, 1.0f};
+    const ImVec4 active{0.30f, 0.58f, 0.51f, 1.0f};
+    const ImVec4 title{0.05f, 0.13f, 0.13f, 1.0f};
+    const ImVec4 title_active{0.12f, 0.27f, 0.25f, 1.0f};
+    const ImVec4 accent{0.60f, 0.94f, 0.82f, 1.0f};
+    const ImVec4 idle{0.10f, 0.23f, 0.21f, 1.0f};
+    const ImVec4 row{0.08f, 0.18f, 0.17f, 1.0f};
+
+    colors[ImGuiCol_Text]              = text;
+    colors[ImGuiCol_TextDisabled]      = dim;
+    colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_Border]            = with_alpha(border, 0.65f);
+    colors[ImGuiCol_FrameBg]           = frame;
+    colors[ImGuiCol_FrameBgHovered]    = hover;
+    colors[ImGuiCol_FrameBgActive]     = active;
+    colors[ImGuiCol_TitleBg]           = title;
+    colors[ImGuiCol_TitleBgActive]     = title_active;
+    colors[ImGuiCol_CheckMark]         = accent;
+    colors[ImGuiCol_SliderGrab]        = border;
+    colors[ImGuiCol_SliderGrabActive]  = accent;
+    colors[ImGuiCol_Button]            = idle;
+    colors[ImGuiCol_ButtonHovered]     = hover;
+    colors[ImGuiCol_ButtonActive]      = active;
+    colors[ImGuiCol_Header]            = idle;
+    colors[ImGuiCol_HeaderHovered]     = hover;
+    colors[ImGuiCol_HeaderActive]      = active;
+    colors[ImGuiCol_Separator]         = with_alpha(border, 0.65f);
+    colors[ImGuiCol_TableRowBgAlt]     = with_alpha(row, 0.55f);
+    colors[ImGuiCol_ResizeGrip]        = with_alpha(border, 0.30f);
+    colors[ImGuiCol_ResizeGripHovered] = with_alpha(accent, 0.70f);
+    colors[ImGuiCol_ResizeGripActive]  = accent;
+}
+
+void apply_theme_mg2(ImGuiStyle& style)
+{
+    ImVec4* colors = style.Colors;
+    const ImVec4 text{0.72f, 0.75f, 0.76f, 1.0f};
+    const ImVec4 dim{0.42f, 0.46f, 0.50f, 1.0f};
+    const ImVec4 panel{0.00f, 0.01f, 0.03f, 1.0f};
+    const ImVec4 border{0.12f, 0.30f, 0.78f, 1.0f};
+    const ImVec4 frame{0.03f, 0.07f, 0.17f, 1.0f};
+    const ImVec4 hover{0.08f, 0.20f, 0.48f, 1.0f};
+    const ImVec4 active{0.12f, 0.30f, 0.70f, 1.0f};
+    const ImVec4 title{0.02f, 0.05f, 0.16f, 1.0f};
+    const ImVec4 title_active{0.04f, 0.11f, 0.34f, 1.0f};
+    const ImVec4 accent{0.42f, 0.62f, 0.94f, 1.0f};
+    const ImVec4 idle{0.04f, 0.10f, 0.25f, 1.0f};
+    const ImVec4 slider{0.25f, 0.43f, 0.78f, 1.0f};
+
+    colors[ImGuiCol_Text]              = text;
+    colors[ImGuiCol_TextDisabled]      = dim;
+    colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_Border]            = with_alpha(border, 0.80f);
+    colors[ImGuiCol_FrameBg]           = frame;
+    colors[ImGuiCol_FrameBgHovered]    = hover;
+    colors[ImGuiCol_FrameBgActive]     = active;
+    colors[ImGuiCol_TitleBg]           = title;
+    colors[ImGuiCol_TitleBgActive]     = title_active;
+    colors[ImGuiCol_CheckMark]            = accent;
+    colors[ImGuiCol_SliderGrab]           = slider;
+    colors[ImGuiCol_SliderGrabActive]     = accent;
+    colors[ImGuiCol_Button]               = idle;
+    colors[ImGuiCol_ButtonHovered]        = hover;
+    colors[ImGuiCol_ButtonActive]         = active;
+    colors[ImGuiCol_Header]               = idle;
+    colors[ImGuiCol_HeaderHovered]        = hover;
+    colors[ImGuiCol_HeaderActive]         = active;
+    colors[ImGuiCol_Separator]            = with_alpha(border, 0.75f);
+    colors[ImGuiCol_TableRowBgAlt]        = with_alpha(frame, 0.72f);
+    colors[ImGuiCol_ResizeGrip]           = with_alpha(border, 0.35f);
+    colors[ImGuiCol_ResizeGripHovered] = with_alpha(accent, 0.75f);
+    colors[ImGuiCol_ResizeGripActive]  = accent;
+}
+
+void apply_theme_mgs2(ImGuiStyle& style)
+{
+    ImVec4* colors = style.Colors;
+    style.ScrollbarRounding = 0.0f;
+    const ImVec4 text{0.61f, 0.69f, 0.64f, 1.0f};
+    const ImVec4 dim{0.34f, 0.42f, 0.38f, 1.0f};
+    const ImVec4 panel{0.02f, 0.05f, 0.04f, 1.0f};
+    const ImVec4 border{0.38f, 0.53f, 0.47f, 1.0f};
+    const ImVec4 frame{0.07f, 0.13f, 0.11f, 1.0f};
+    const ImVec4 hover{0.28f, 0.10f, 0.07f, 1.0f};
+    const ImVec4 active{0.48f, 0.13f, 0.08f, 1.0f};
+    const ImVec4 title{0.04f, 0.09f, 0.07f, 1.0f};
+    const ImVec4 title_active{0.20f, 0.08f, 0.06f, 1.0f};
+    const ImVec4 accent{0.76f, 0.19f, 0.11f, 1.0f};
+    const ImVec4 idle{0.10f, 0.18f, 0.15f, 1.0f};
+    const ImVec4 row{0.08f, 0.15f, 0.12f, 1.0f};
+    const ImVec4 slider{0.48f, 0.61f, 0.55f, 1.0f};
+    const ImVec4 scrollbar{0.23f, 0.34f, 0.29f, 1.0f};
+
+    colors[ImGuiCol_Text]                 = text;
+    colors[ImGuiCol_TextDisabled]         = dim;
+    colors[ImGuiCol_WindowBg]             = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_Border]               = with_alpha(border, 0.70f);
+    colors[ImGuiCol_FrameBg]              = frame;
+    colors[ImGuiCol_FrameBgHovered]       = hover;
+    colors[ImGuiCol_FrameBgActive]        = active;
+    colors[ImGuiCol_TitleBg]              = title;
+    colors[ImGuiCol_TitleBgActive]        = title_active;
+    colors[ImGuiCol_CheckMark]            = accent;
+    colors[ImGuiCol_SliderGrab]           = slider;
+    colors[ImGuiCol_SliderGrabActive]     = accent;
+    colors[ImGuiCol_Button]               = idle;
+    colors[ImGuiCol_ButtonHovered]        = hover;
+    colors[ImGuiCol_ButtonActive]         = active;
+    colors[ImGuiCol_Header]               = idle;
+    colors[ImGuiCol_HeaderHovered]        = hover;
+    colors[ImGuiCol_HeaderActive]         = active;
+    colors[ImGuiCol_Tab]                  = frame;
+    colors[ImGuiCol_TabHovered]           = hover;
+    colors[ImGuiCol_TabActive]            = active;
+    colors[ImGuiCol_TabUnfocused]         = title;
+    colors[ImGuiCol_TabUnfocusedActive]   = title_active;
+    colors[ImGuiCol_Separator]            = with_alpha(border, 0.70f);
+    colors[ImGuiCol_TableRowBgAlt]        = with_alpha(row, 0.55f);
+    colors[ImGuiCol_ResizeGrip]           = with_alpha(slider, 0.30f);
+    colors[ImGuiCol_ResizeGripHovered]    = with_alpha(accent, 0.70f);
+    colors[ImGuiCol_ResizeGripActive]     = accent;
+    colors[ImGuiCol_ScrollbarBg]          = with_alpha(title, 0.70f);
+    colors[ImGuiCol_ScrollbarGrab]        = with_alpha(scrollbar, 0.85f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = with_alpha(active, 0.90f);
+    colors[ImGuiCol_ScrollbarGrabActive]  = with_alpha(accent, 0.95f);
+}
+
+void apply_theme_mgs4(ImGuiStyle& style)
+{
+    ImVec4* colors = style.Colors;
+    style.ScrollbarRounding = 0.0f;
+    const ImVec4 text{0.84f, 0.83f, 0.66f, 1.0f};
+    const ImVec4 dim{0.49f, 0.48f, 0.36f, 1.0f};
+    const ImVec4 panel{0.08f, 0.08f, 0.05f, 1.0f};
+    const ImVec4 border{0.52f, 0.48f, 0.31f, 1.0f};
+    const ImVec4 frame{0.17f, 0.16f, 0.10f, 1.0f};
+    const ImVec4 hover{0.42f, 0.30f, 0.08f, 1.0f};
+    const ImVec4 active{0.62f, 0.42f, 0.08f, 1.0f};
+    const ImVec4 title{0.13f, 0.12f, 0.07f, 1.0f};
+    const ImVec4 title_active{0.32f, 0.27f, 0.12f, 1.0f};
+    const ImVec4 accent{0.94f, 0.66f, 0.14f, 1.0f};
+    const ImVec4 idle{0.21f, 0.20f, 0.12f, 1.0f};
+    const ImVec4 row{0.20f, 0.19f, 0.12f, 1.0f};
+    const ImVec4 slider{0.58f, 0.53f, 0.32f, 1.0f};
+    const ImVec4 scrollbar{0.38f, 0.35f, 0.21f, 1.0f};
+    const ImVec4 scrollbar_bg{0.10f, 0.10f, 0.06f, 1.0f};
+
+    colors[ImGuiCol_Text]                 = text;
+    colors[ImGuiCol_TextDisabled]         = dim;
+    colors[ImGuiCol_WindowBg]             = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_Border]               = with_alpha(border, 0.72f);
+    colors[ImGuiCol_FrameBg]              = frame;
+    colors[ImGuiCol_FrameBgHovered]       = hover;
+    colors[ImGuiCol_FrameBgActive]        = active;
+    colors[ImGuiCol_TitleBg]              = title;
+    colors[ImGuiCol_TitleBgActive]        = title_active;
+    colors[ImGuiCol_CheckMark]            = accent;
+    colors[ImGuiCol_SliderGrab]           = slider;
+    colors[ImGuiCol_SliderGrabActive]     = accent;
+    colors[ImGuiCol_Button]               = idle;
+    colors[ImGuiCol_ButtonHovered]        = hover;
+    colors[ImGuiCol_ButtonActive]         = active;
+    colors[ImGuiCol_Header]               = idle;
+    colors[ImGuiCol_HeaderHovered]        = hover;
+    colors[ImGuiCol_HeaderActive]         = active;
+    colors[ImGuiCol_Tab]                  = frame;
+    colors[ImGuiCol_TabHovered]           = hover;
+    colors[ImGuiCol_TabActive]            = active;
+    colors[ImGuiCol_TabUnfocused]         = title;
+    colors[ImGuiCol_TabUnfocusedActive]   = title_active;
+    colors[ImGuiCol_Separator]            = with_alpha(border, 0.68f);
+    colors[ImGuiCol_TableRowBgAlt]        = with_alpha(row, 0.60f);
+    colors[ImGuiCol_ResizeGrip]           = with_alpha(active, 0.35f);
+    colors[ImGuiCol_ResizeGripHovered]    = with_alpha(accent, 0.75f);
+    colors[ImGuiCol_ResizeGripActive]     = accent;
+    colors[ImGuiCol_ScrollbarBg]          = with_alpha(scrollbar_bg, 0.85f);
+    colors[ImGuiCol_ScrollbarGrab]        = with_alpha(scrollbar, 0.90f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = with_alpha(active, 0.95f);
+    colors[ImGuiCol_ScrollbarGrabActive]  = accent;
+}
+
+// Peace Walker's own menus are near-black panels with white rules and one
+// saturated red for anything selected or failing, and its tabs are the
+// only rounded ones in the series.
+
+void apply_theme_mgspw(ImGuiStyle& style)
+{
+    ImVec4* colors = style.Colors;
+    style.CellPadding = ImVec2(6.0f, 3.0f);
+    style.TabRounding = 5.0f;
+    style.ScrollbarRounding = 0.0f;
+    const ImVec4 text{0.93f, 0.93f, 0.90f, 1.0f};
+    const ImVec4 dim{0.66f, 0.67f, 0.66f, 1.0f};
+    const ImVec4 panel{0.05f, 0.05f, 0.06f, 1.0f};
+    const ImVec4 border{0.86f, 0.86f, 0.83f, 1.0f};
+    const ImVec4 frame{0.11f, 0.11f, 0.12f, 1.0f};
+    const ImVec4 hover{0.55f, 0.05f, 0.07f, 1.0f};
+    const ImVec4 active{0.86f, 0.06f, 0.09f, 1.0f};
+    const ImVec4 title{0.08f, 0.08f, 0.09f, 1.0f};
+    const ImVec4 title_active{0.14f, 0.14f, 0.15f, 1.0f};
+    const ImVec4 accent{0.94f, 0.94f, 0.92f, 1.0f};
+    const ImVec4 header{0.16f, 0.16f, 0.17f, 1.0f};
+    const ImVec4 header_hover{0.24f, 0.24f, 0.25f, 1.0f};
+    const ImVec4 header_active{0.32f, 0.32f, 0.33f, 1.0f};
+    const ImVec4 slider{0.62f, 0.62f, 0.60f, 1.0f};
+    const ImVec4 tab{0.10f, 0.10f, 0.11f, 1.0f};
+    const ImVec4 tab_unfocused_active{0.45f, 0.04f, 0.06f, 1.0f};
+    const ImVec4 grab_active{0.95f, 0.10f, 0.12f, 1.0f};
+    const ImVec4 table_strong{0.60f, 0.60f, 0.58f, 1.0f};
+    const ImVec4 table_light{0.40f, 0.40f, 0.39f, 1.0f};
+    const ImVec4 row{0.13f, 0.13f, 0.14f, 1.0f};
+    const ImVec4 scrollbar{0.32f, 0.32f, 0.33f, 1.0f};
+    const ImVec4 scrollbar_bg{0.08f, 0.08f, 0.09f, 1.0f};
+
+    colors[ImGuiCol_Text]                 = text;
+    colors[ImGuiCol_TextDisabled]         = dim;
+    colors[ImGuiCol_WindowBg]             = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_Border]               = with_alpha(border, 0.55f);
+    colors[ImGuiCol_FrameBg]              = frame;
+    colors[ImGuiCol_FrameBgHovered]       = hover;
+    colors[ImGuiCol_FrameBgActive]        = active;
+    colors[ImGuiCol_TitleBg]              = title;
+    // Red is a selection colour in these menus, not a chrome colour: the
+    // title bar stays black so the only red plate is the live tab.
+    colors[ImGuiCol_TitleBgActive]        = title_active;
+    colors[ImGuiCol_CheckMark]            = accent;
+    colors[ImGuiCol_SliderGrab]           = slider;
+    colors[ImGuiCol_SliderGrabActive]     = active;
+    colors[ImGuiCol_Button]               = frame;
+    colors[ImGuiCol_ButtonHovered]        = hover;
+    colors[ImGuiCol_ButtonActive]         = active;
+    // Table header rows: dark plates under white text, not red ones. Red is
+    // kept for the selected tab and for a value that is failing.
+    colors[ImGuiCol_Header]               = header;
+    colors[ImGuiCol_HeaderHovered]        = header_hover;
+    colors[ImGuiCol_HeaderActive]         = header_active;
+    colors[ImGuiCol_TableHeaderBg]        = header;
+    colors[ImGuiCol_Tab]                  = tab;
+    colors[ImGuiCol_TabHovered]           = hover;
+    colors[ImGuiCol_TabActive]            = active;
+    colors[ImGuiCol_TabUnfocused]         = title;
+    colors[ImGuiCol_TabUnfocusedActive]   = tab_unfocused_active;
+    colors[ImGuiCol_Separator]            = with_alpha(border, 0.45f);
+    colors[ImGuiCol_TableBorderStrong]    = with_alpha(table_strong, 0.55f);
+    colors[ImGuiCol_TableBorderLight]     = with_alpha(table_light, 0.45f);
+    colors[ImGuiCol_TableRowBgAlt]        = with_alpha(row, 0.55f);
+    colors[ImGuiCol_ResizeGrip]           = with_alpha(active, 0.35f);
+    colors[ImGuiCol_ResizeGripHovered]    = with_alpha(active, 0.75f);
+    colors[ImGuiCol_ResizeGripActive]     = grab_active;
+    colors[ImGuiCol_ScrollbarBg]          = with_alpha(scrollbar_bg, 0.80f);
+    colors[ImGuiCol_ScrollbarGrab]        = with_alpha(scrollbar, 0.90f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = with_alpha(hover, 0.95f);
+    colors[ImGuiCol_ScrollbarGrabActive]  = active;
+}
+
+// Ghost Babel's HUD is a Game Boy Color palette: pure black plates, a
+// one-pixel amber frame with squared corners, white pixel text, the item
+// slots in pure red, and the LIFE bar in teal. Nothing here is tinted or
+// blended — the console had no alpha, so the plates stay flat and only the
+// window itself is translucent enough to play under.
+
+void apply_theme_babel(ImGuiStyle& style)
+{
+    ImVec4* colors = style.Colors;
+    // Ghost Babel's title menu: black ground, white text, the live entry in
+    // the menu green, the second entry in pure red, and unavailable entries
+    // in flat gray. There is no yellow on that screen, so the middle band is
+    // inferred from the same flat, fully saturated GBC palette.
+    // Only the chrome this panel draws: no tabs, no scrollbar or resize grip
+    // under AlwaysAutoResize, no frames, headers or selectables. The button
+    // colors are here for the title bar's close box.
+    const ImVec4 text{0.97f, 0.97f, 0.97f, 1.0f};
+    const ImVec4 dim{0.56f, 0.56f, 0.56f, 1.0f};
+    const ImVec4 panel{0.00f, 0.00f, 0.00f, 1.0f};
+    const ImVec4 rule{0.00f, 0.63f, 0.36f, 1.0f};
+    const ImVec4 title{0.00f, 0.00f, 0.00f, 1.0f};
+    const ImVec4 title_active{0.00f, 0.20f, 0.11f, 1.0f};
+    const ImVec4 button{0.00f, 0.16f, 0.09f, 1.0f};
+    const ImVec4 button_hover{0.00f, 0.42f, 0.24f, 1.0f};
+    const ImVec4 row{0.06f, 0.06f, 0.06f, 1.0f};
+
+    colors[ImGuiCol_Text]              = text;
+    colors[ImGuiCol_TextDisabled]      = dim;
+    colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_Border]            = rule;
+    colors[ImGuiCol_TitleBg]           = title;
+    colors[ImGuiCol_TitleBgActive]     = title_active;
+    colors[ImGuiCol_Button]            = button;
+    colors[ImGuiCol_ButtonHovered]     = button_hover;
+    colors[ImGuiCol_ButtonActive]      = rule;
+    colors[ImGuiCol_Separator]         = with_alpha(rule, 0.55f);
+    colors[ImGuiCol_TableBorderLight]  = with_alpha(dim, 0.35f);
+    colors[ImGuiCol_TableRowBgAlt]     = with_alpha(row, 0.55f);
+}
+
+void apply_theme_mgs3(ImGuiStyle& style)
+{
+    ImVec4* colors = style.Colors;
+    const ImVec4 text{0.86f, 0.87f, 0.76f, 1.0f};
+    const ImVec4 dim{0.48f, 0.49f, 0.42f, 1.0f};
+    const ImVec4 panel{0.09f, 0.10f, 0.08f, 1.0f};
+    const ImVec4 border{0.38f, 0.39f, 0.31f, 1.0f};
+    const ImVec4 frame{0.20f, 0.21f, 0.17f, 1.0f};
+    const ImVec4 frame_hover{0.29f, 0.30f, 0.24f, 1.0f};
+    const ImVec4 frame_active{0.36f, 0.37f, 0.29f, 1.0f};
+    const ImVec4 hover{0.36f, 0.37f, 0.28f, 1.0f};
+    const ImVec4 active{0.44f, 0.45f, 0.33f, 1.0f};
+    const ImVec4 title{0.15f, 0.16f, 0.12f, 1.0f};
+    const ImVec4 title_active{0.31f, 0.33f, 0.25f, 1.0f};
+    const ImVec4 accent{0.72f, 0.75f, 0.51f, 1.0f};
+    const ImVec4 idle{0.25f, 0.26f, 0.20f, 1.0f};
+    const ImVec4 slider{0.55f, 0.57f, 0.41f, 1.0f};
+    const ImVec4 row{0.22f, 0.23f, 0.19f, 1.0f};
+    const ImVec4 scrollbar{0.38f, 0.39f, 0.28f, 1.0f};
+    const ImVec4 scrollbar_bg{0.12f, 0.13f, 0.10f, 1.0f};
+
+    style.ScrollbarRounding = 0.0f;
+    colors[ImGuiCol_Text]                 = text;
+    colors[ImGuiCol_TextDisabled]         = dim;
+    colors[ImGuiCol_WindowBg]             = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_Border]               = with_alpha(border, 0.65f);
+    colors[ImGuiCol_FrameBg]              = frame;
+    colors[ImGuiCol_FrameBgHovered]       = frame_hover;
+    colors[ImGuiCol_FrameBgActive]        = frame_active;
+    colors[ImGuiCol_TitleBg]              = title;
+    colors[ImGuiCol_TitleBgActive]        = title_active;
+    colors[ImGuiCol_CheckMark]            = accent;
+    colors[ImGuiCol_SliderGrab]           = slider;
+    colors[ImGuiCol_SliderGrabActive]     = accent;
+    colors[ImGuiCol_Button]               = idle;
+    colors[ImGuiCol_ButtonHovered]        = hover;
+    colors[ImGuiCol_ButtonActive]         = active;
+    colors[ImGuiCol_Header]               = idle;
+    colors[ImGuiCol_HeaderHovered]        = hover;
+    colors[ImGuiCol_HeaderActive]         = active;
+    colors[ImGuiCol_Tab]                  = frame;
+    colors[ImGuiCol_TabHovered]           = hover;
+    colors[ImGuiCol_TabActive]            = active;
+    colors[ImGuiCol_TabUnfocused]         = title;
+    colors[ImGuiCol_TabUnfocusedActive]   = title_active;
+    colors[ImGuiCol_Separator]            = with_alpha(border, 0.65f);
+    colors[ImGuiCol_TableRowBgAlt]        = with_alpha(row, 0.55f);
+    colors[ImGuiCol_ResizeGrip]           = with_alpha(slider, 0.30f);
+    colors[ImGuiCol_ResizeGripHovered]    = with_alpha(accent, 0.70f);
+    colors[ImGuiCol_ResizeGripActive]     = accent;
+    colors[ImGuiCol_ScrollbarBg]          = with_alpha(scrollbar_bg, 0.70f);
+    colors[ImGuiCol_ScrollbarGrab]        = with_alpha(scrollbar, 0.85f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = with_alpha(slider, 0.90f);
+    colors[ImGuiCol_ScrollbarGrabActive]  = with_alpha(accent, 0.95f);
+}
+
+// Indexed by Game order: MG1, MG2, MGS1, MGS2, MGS3, MGS4, MGSPW, Babel.
+constexpr ThemeFn kThemeFns[] = {
+    apply_theme_mg1,
+    apply_theme_mg2,
+    apply_theme_mgs1,
+    apply_theme_mgs2,
+    apply_theme_mgs3,
+    apply_theme_mgs4,
+    apply_theme_mgspw,
+    apply_theme_babel,
+};
+
+static_assert(std::size(kThemeFns) == 8);
+
 void apply_game_theme()
 {
     ImGui::StyleColorsDark();
-    if (g_game != Game::MG1 && g_game != Game::MG2
-        && g_game != Game::MGS1 && g_game != Game::MGS2
-        && g_game != Game::MGS3 && g_game != Game::MGS4
-        && g_game != Game::MGSPW && g_game != Game::Babel) {
-        return;
-    }
-
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 0.0f;
     style.FrameRounding = 0.0f;
     style.GrabRounding = 0.0f;
     style.TabRounding = 0.0f;
-
-    ImVec4* colors = style.Colors;
-    if (g_game == Game::MG1) {
-        const ImVec4 text{0.72f, 0.73f, 0.72f, 1.0f};
-        const ImVec4 dim{0.43f, 0.44f, 0.43f, 1.0f};
-        const ImVec4 panel{0.01f, 0.01f, 0.01f, 1.0f};
-        const ImVec4 border{0.58f, 0.59f, 0.57f, 1.0f};
-        const ImVec4 frame{0.16f, 0.16f, 0.15f, 1.0f};
-        const ImVec4 hover{0.40f, 0.18f, 0.04f, 1.0f};
-        const ImVec4 active{0.62f, 0.12f, 0.06f, 1.0f};
-        const ImVec4 title{0.22f, 0.03f, 0.02f, 1.0f};
-        const ImVec4 title_active{0.55f, 0.07f, 0.04f, 1.0f};
-        const ImVec4 accent{0.80f, 0.48f, 0.04f, 1.0f};
-        const ImVec4 idle{0.20f, 0.20f, 0.19f, 1.0f};
-
-        colors[ImGuiCol_Text]              = text;
-        colors[ImGuiCol_TextDisabled]      = dim;
-        colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
-        colors[ImGuiCol_Border]            = with_alpha(border, 0.72f);
-        colors[ImGuiCol_FrameBg]           = frame;
-        colors[ImGuiCol_FrameBgHovered]    = hover;
-        colors[ImGuiCol_FrameBgActive]     = active;
-        colors[ImGuiCol_TitleBg]           = title;
-        colors[ImGuiCol_TitleBgActive]     = title_active;
-        colors[ImGuiCol_CheckMark]         = accent;
-        colors[ImGuiCol_SliderGrab]        = border;
-        colors[ImGuiCol_SliderGrabActive]  = accent;
-        colors[ImGuiCol_Button]            = idle;
-        colors[ImGuiCol_ButtonHovered]     = hover;
-        colors[ImGuiCol_ButtonActive]      = active;
-        colors[ImGuiCol_Header]            = idle;
-        colors[ImGuiCol_HeaderHovered]     = hover;
-        colors[ImGuiCol_HeaderActive]      = active;
-        colors[ImGuiCol_Separator]         = with_alpha(border, 0.68f);
-        colors[ImGuiCol_TableRowBgAlt]     = with_alpha(frame, 0.70f);
-        colors[ImGuiCol_ResizeGrip]        = with_alpha(active, 0.35f);
-        colors[ImGuiCol_ResizeGripHovered] = with_alpha(accent, 0.75f);
-        colors[ImGuiCol_ResizeGripActive]  = accent;
-        return;
-    }
-
-    if (g_game == Game::MGS1) {
-        const ImVec4 text{0.55f, 0.76f, 0.69f, 1.0f};
-        const ImVec4 dim{0.32f, 0.47f, 0.43f, 1.0f};
-        const ImVec4 panel{0.03f, 0.07f, 0.07f, 1.0f};
-        const ImVec4 border{0.43f, 0.72f, 0.64f, 1.0f};
-        const ImVec4 frame{0.08f, 0.17f, 0.16f, 1.0f};
-        const ImVec4 hover{0.20f, 0.43f, 0.38f, 1.0f};
-        const ImVec4 active{0.30f, 0.58f, 0.51f, 1.0f};
-        const ImVec4 title{0.05f, 0.13f, 0.13f, 1.0f};
-        const ImVec4 title_active{0.12f, 0.27f, 0.25f, 1.0f};
-        const ImVec4 accent{0.60f, 0.94f, 0.82f, 1.0f};
-        const ImVec4 idle{0.10f, 0.23f, 0.21f, 1.0f};
-        const ImVec4 row{0.08f, 0.18f, 0.17f, 1.0f};
-
-        colors[ImGuiCol_Text]              = text;
-        colors[ImGuiCol_TextDisabled]      = dim;
-        colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
-        colors[ImGuiCol_Border]            = with_alpha(border, 0.65f);
-        colors[ImGuiCol_FrameBg]           = frame;
-        colors[ImGuiCol_FrameBgHovered]    = hover;
-        colors[ImGuiCol_FrameBgActive]     = active;
-        colors[ImGuiCol_TitleBg]           = title;
-        colors[ImGuiCol_TitleBgActive]     = title_active;
-        colors[ImGuiCol_CheckMark]         = accent;
-        colors[ImGuiCol_SliderGrab]        = border;
-        colors[ImGuiCol_SliderGrabActive]  = accent;
-        colors[ImGuiCol_Button]            = idle;
-        colors[ImGuiCol_ButtonHovered]     = hover;
-        colors[ImGuiCol_ButtonActive]      = active;
-        colors[ImGuiCol_Header]            = idle;
-        colors[ImGuiCol_HeaderHovered]     = hover;
-        colors[ImGuiCol_HeaderActive]      = active;
-        colors[ImGuiCol_Separator]         = with_alpha(border, 0.65f);
-        colors[ImGuiCol_TableRowBgAlt]     = with_alpha(row, 0.55f);
-        colors[ImGuiCol_ResizeGrip]        = with_alpha(border, 0.30f);
-        colors[ImGuiCol_ResizeGripHovered] = with_alpha(accent, 0.70f);
-        colors[ImGuiCol_ResizeGripActive]  = accent;
-        return;
-    }
-
-    if (g_game == Game::MG2) {
-        const ImVec4 text{0.72f, 0.75f, 0.76f, 1.0f};
-        const ImVec4 dim{0.42f, 0.46f, 0.50f, 1.0f};
-        const ImVec4 panel{0.00f, 0.01f, 0.03f, 1.0f};
-        const ImVec4 border{0.12f, 0.30f, 0.78f, 1.0f};
-        const ImVec4 frame{0.03f, 0.07f, 0.17f, 1.0f};
-        const ImVec4 hover{0.08f, 0.20f, 0.48f, 1.0f};
-        const ImVec4 active{0.12f, 0.30f, 0.70f, 1.0f};
-        const ImVec4 title{0.02f, 0.05f, 0.16f, 1.0f};
-        const ImVec4 title_active{0.04f, 0.11f, 0.34f, 1.0f};
-        const ImVec4 accent{0.42f, 0.62f, 0.94f, 1.0f};
-        const ImVec4 idle{0.04f, 0.10f, 0.25f, 1.0f};
-        const ImVec4 slider{0.25f, 0.43f, 0.78f, 1.0f};
-
-        colors[ImGuiCol_Text]              = text;
-        colors[ImGuiCol_TextDisabled]      = dim;
-        colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
-        colors[ImGuiCol_Border]            = with_alpha(border, 0.80f);
-        colors[ImGuiCol_FrameBg]           = frame;
-        colors[ImGuiCol_FrameBgHovered]    = hover;
-        colors[ImGuiCol_FrameBgActive]     = active;
-        colors[ImGuiCol_TitleBg]           = title;
-        colors[ImGuiCol_TitleBgActive]     = title_active;
-        colors[ImGuiCol_CheckMark]            = accent;
-        colors[ImGuiCol_SliderGrab]           = slider;
-        colors[ImGuiCol_SliderGrabActive]     = accent;
-        colors[ImGuiCol_Button]               = idle;
-        colors[ImGuiCol_ButtonHovered]        = hover;
-        colors[ImGuiCol_ButtonActive]         = active;
-        colors[ImGuiCol_Header]               = idle;
-        colors[ImGuiCol_HeaderHovered]        = hover;
-        colors[ImGuiCol_HeaderActive]         = active;
-        colors[ImGuiCol_Separator]            = with_alpha(border, 0.75f);
-        colors[ImGuiCol_TableRowBgAlt]        = with_alpha(frame, 0.72f);
-        colors[ImGuiCol_ResizeGrip]           = with_alpha(border, 0.35f);
-        colors[ImGuiCol_ResizeGripHovered] = with_alpha(accent, 0.75f);
-        colors[ImGuiCol_ResizeGripActive]  = accent;
-        return;
-    }
-
-    if (g_game == Game::MGS2) {
-        style.ScrollbarRounding = 0.0f;
-        const ImVec4 text{0.61f, 0.69f, 0.64f, 1.0f};
-        const ImVec4 dim{0.34f, 0.42f, 0.38f, 1.0f};
-        const ImVec4 panel{0.02f, 0.05f, 0.04f, 1.0f};
-        const ImVec4 border{0.38f, 0.53f, 0.47f, 1.0f};
-        const ImVec4 frame{0.07f, 0.13f, 0.11f, 1.0f};
-        const ImVec4 hover{0.28f, 0.10f, 0.07f, 1.0f};
-        const ImVec4 active{0.48f, 0.13f, 0.08f, 1.0f};
-        const ImVec4 title{0.04f, 0.09f, 0.07f, 1.0f};
-        const ImVec4 title_active{0.20f, 0.08f, 0.06f, 1.0f};
-        const ImVec4 accent{0.76f, 0.19f, 0.11f, 1.0f};
-        const ImVec4 idle{0.10f, 0.18f, 0.15f, 1.0f};
-        const ImVec4 row{0.08f, 0.15f, 0.12f, 1.0f};
-        const ImVec4 slider{0.48f, 0.61f, 0.55f, 1.0f};
-        const ImVec4 scrollbar{0.23f, 0.34f, 0.29f, 1.0f};
-
-        colors[ImGuiCol_Text]                 = text;
-        colors[ImGuiCol_TextDisabled]         = dim;
-        colors[ImGuiCol_WindowBg]             = with_alpha(panel, kPanelAlpha);
-        colors[ImGuiCol_Border]               = with_alpha(border, 0.70f);
-        colors[ImGuiCol_FrameBg]              = frame;
-        colors[ImGuiCol_FrameBgHovered]       = hover;
-        colors[ImGuiCol_FrameBgActive]        = active;
-        colors[ImGuiCol_TitleBg]              = title;
-        colors[ImGuiCol_TitleBgActive]        = title_active;
-        colors[ImGuiCol_CheckMark]            = accent;
-        colors[ImGuiCol_SliderGrab]           = slider;
-        colors[ImGuiCol_SliderGrabActive]     = accent;
-        colors[ImGuiCol_Button]               = idle;
-        colors[ImGuiCol_ButtonHovered]        = hover;
-        colors[ImGuiCol_ButtonActive]         = active;
-        colors[ImGuiCol_Header]               = idle;
-        colors[ImGuiCol_HeaderHovered]        = hover;
-        colors[ImGuiCol_HeaderActive]         = active;
-        colors[ImGuiCol_Tab]                  = frame;
-        colors[ImGuiCol_TabHovered]           = hover;
-        colors[ImGuiCol_TabActive]            = active;
-        colors[ImGuiCol_TabUnfocused]         = title;
-        colors[ImGuiCol_TabUnfocusedActive]   = title_active;
-        colors[ImGuiCol_Separator]            = with_alpha(border, 0.70f);
-        colors[ImGuiCol_TableRowBgAlt]        = with_alpha(row, 0.55f);
-        colors[ImGuiCol_ResizeGrip]           = with_alpha(slider, 0.30f);
-        colors[ImGuiCol_ResizeGripHovered]    = with_alpha(accent, 0.70f);
-        colors[ImGuiCol_ResizeGripActive]     = accent;
-        colors[ImGuiCol_ScrollbarBg]          = with_alpha(title, 0.70f);
-        colors[ImGuiCol_ScrollbarGrab]        = with_alpha(scrollbar, 0.85f);
-        colors[ImGuiCol_ScrollbarGrabHovered] = with_alpha(active, 0.90f);
-        colors[ImGuiCol_ScrollbarGrabActive]  = with_alpha(accent, 0.95f);
-        return;
-    }
-
-    if (g_game == Game::MGS4) {
-        style.ScrollbarRounding = 0.0f;
-        const ImVec4 text{0.84f, 0.83f, 0.66f, 1.0f};
-        const ImVec4 dim{0.49f, 0.48f, 0.36f, 1.0f};
-        const ImVec4 panel{0.08f, 0.08f, 0.05f, 1.0f};
-        const ImVec4 border{0.52f, 0.48f, 0.31f, 1.0f};
-        const ImVec4 frame{0.17f, 0.16f, 0.10f, 1.0f};
-        const ImVec4 hover{0.42f, 0.30f, 0.08f, 1.0f};
-        const ImVec4 active{0.62f, 0.42f, 0.08f, 1.0f};
-        const ImVec4 title{0.13f, 0.12f, 0.07f, 1.0f};
-        const ImVec4 title_active{0.32f, 0.27f, 0.12f, 1.0f};
-        const ImVec4 accent{0.94f, 0.66f, 0.14f, 1.0f};
-        const ImVec4 idle{0.21f, 0.20f, 0.12f, 1.0f};
-        const ImVec4 row{0.20f, 0.19f, 0.12f, 1.0f};
-        const ImVec4 slider{0.58f, 0.53f, 0.32f, 1.0f};
-        const ImVec4 scrollbar{0.38f, 0.35f, 0.21f, 1.0f};
-        const ImVec4 scrollbar_bg{0.10f, 0.10f, 0.06f, 1.0f};
-
-        colors[ImGuiCol_Text]                 = text;
-        colors[ImGuiCol_TextDisabled]         = dim;
-        colors[ImGuiCol_WindowBg]             = with_alpha(panel, kPanelAlpha);
-        colors[ImGuiCol_Border]               = with_alpha(border, 0.72f);
-        colors[ImGuiCol_FrameBg]              = frame;
-        colors[ImGuiCol_FrameBgHovered]       = hover;
-        colors[ImGuiCol_FrameBgActive]        = active;
-        colors[ImGuiCol_TitleBg]              = title;
-        colors[ImGuiCol_TitleBgActive]        = title_active;
-        colors[ImGuiCol_CheckMark]            = accent;
-        colors[ImGuiCol_SliderGrab]           = slider;
-        colors[ImGuiCol_SliderGrabActive]     = accent;
-        colors[ImGuiCol_Button]               = idle;
-        colors[ImGuiCol_ButtonHovered]        = hover;
-        colors[ImGuiCol_ButtonActive]         = active;
-        colors[ImGuiCol_Header]               = idle;
-        colors[ImGuiCol_HeaderHovered]        = hover;
-        colors[ImGuiCol_HeaderActive]         = active;
-        colors[ImGuiCol_Tab]                  = frame;
-        colors[ImGuiCol_TabHovered]           = hover;
-        colors[ImGuiCol_TabActive]            = active;
-        colors[ImGuiCol_TabUnfocused]         = title;
-        colors[ImGuiCol_TabUnfocusedActive]   = title_active;
-        colors[ImGuiCol_Separator]            = with_alpha(border, 0.68f);
-        colors[ImGuiCol_TableRowBgAlt]        = with_alpha(row, 0.60f);
-        colors[ImGuiCol_ResizeGrip]           = with_alpha(active, 0.35f);
-        colors[ImGuiCol_ResizeGripHovered]    = with_alpha(accent, 0.75f);
-        colors[ImGuiCol_ResizeGripActive]     = accent;
-        colors[ImGuiCol_ScrollbarBg]          = with_alpha(scrollbar_bg, 0.85f);
-        colors[ImGuiCol_ScrollbarGrab]        = with_alpha(scrollbar, 0.90f);
-        colors[ImGuiCol_ScrollbarGrabHovered] = with_alpha(active, 0.95f);
-        colors[ImGuiCol_ScrollbarGrabActive]  = accent;
-        return;
-    }
-
-    // Peace Walker's own menus are near-black panels with white rules and one
-    // saturated red for anything selected or failing, and its tabs are the
-    // only rounded ones in the series.
-    if (g_game == Game::MGSPW) {
-        style.CellPadding = ImVec2(6.0f, 3.0f);
-        style.TabRounding = 5.0f;
-        style.ScrollbarRounding = 0.0f;
-        const ImVec4 text{0.93f, 0.93f, 0.90f, 1.0f};
-        const ImVec4 dim{0.66f, 0.67f, 0.66f, 1.0f};
-        const ImVec4 panel{0.05f, 0.05f, 0.06f, 1.0f};
-        const ImVec4 border{0.86f, 0.86f, 0.83f, 1.0f};
-        const ImVec4 frame{0.11f, 0.11f, 0.12f, 1.0f};
-        const ImVec4 hover{0.55f, 0.05f, 0.07f, 1.0f};
-        const ImVec4 active{0.86f, 0.06f, 0.09f, 1.0f};
-        const ImVec4 title{0.08f, 0.08f, 0.09f, 1.0f};
-        const ImVec4 title_active{0.14f, 0.14f, 0.15f, 1.0f};
-        const ImVec4 accent{0.94f, 0.94f, 0.92f, 1.0f};
-        const ImVec4 header{0.16f, 0.16f, 0.17f, 1.0f};
-        const ImVec4 header_hover{0.24f, 0.24f, 0.25f, 1.0f};
-        const ImVec4 header_active{0.32f, 0.32f, 0.33f, 1.0f};
-        const ImVec4 slider{0.62f, 0.62f, 0.60f, 1.0f};
-        const ImVec4 tab{0.10f, 0.10f, 0.11f, 1.0f};
-        const ImVec4 tab_unfocused_active{0.45f, 0.04f, 0.06f, 1.0f};
-        const ImVec4 grab_active{0.95f, 0.10f, 0.12f, 1.0f};
-        const ImVec4 table_strong{0.60f, 0.60f, 0.58f, 1.0f};
-        const ImVec4 table_light{0.40f, 0.40f, 0.39f, 1.0f};
-        const ImVec4 row{0.13f, 0.13f, 0.14f, 1.0f};
-        const ImVec4 scrollbar{0.32f, 0.32f, 0.33f, 1.0f};
-        const ImVec4 scrollbar_bg{0.08f, 0.08f, 0.09f, 1.0f};
-
-        colors[ImGuiCol_Text]                 = text;
-        colors[ImGuiCol_TextDisabled]         = dim;
-        colors[ImGuiCol_WindowBg]             = with_alpha(panel, kPanelAlpha);
-        colors[ImGuiCol_Border]               = with_alpha(border, 0.55f);
-        colors[ImGuiCol_FrameBg]              = frame;
-        colors[ImGuiCol_FrameBgHovered]       = hover;
-        colors[ImGuiCol_FrameBgActive]        = active;
-        colors[ImGuiCol_TitleBg]              = title;
-        // Red is a selection colour in these menus, not a chrome colour: the
-        // title bar stays black so the only red plate is the live tab.
-        colors[ImGuiCol_TitleBgActive]        = title_active;
-        colors[ImGuiCol_CheckMark]            = accent;
-        colors[ImGuiCol_SliderGrab]           = slider;
-        colors[ImGuiCol_SliderGrabActive]     = active;
-        colors[ImGuiCol_Button]               = frame;
-        colors[ImGuiCol_ButtonHovered]        = hover;
-        colors[ImGuiCol_ButtonActive]         = active;
-        // Table header rows: dark plates under white text, not red ones. Red is
-        // kept for the selected tab and for a value that is failing.
-        colors[ImGuiCol_Header]               = header;
-        colors[ImGuiCol_HeaderHovered]        = header_hover;
-        colors[ImGuiCol_HeaderActive]         = header_active;
-        colors[ImGuiCol_TableHeaderBg]        = header;
-        colors[ImGuiCol_Tab]                  = tab;
-        colors[ImGuiCol_TabHovered]           = hover;
-        colors[ImGuiCol_TabActive]            = active;
-        colors[ImGuiCol_TabUnfocused]         = title;
-        colors[ImGuiCol_TabUnfocusedActive]   = tab_unfocused_active;
-        colors[ImGuiCol_Separator]            = with_alpha(border, 0.45f);
-        colors[ImGuiCol_TableBorderStrong]    = with_alpha(table_strong, 0.55f);
-        colors[ImGuiCol_TableBorderLight]     = with_alpha(table_light, 0.45f);
-        colors[ImGuiCol_TableRowBgAlt]        = with_alpha(row, 0.55f);
-        colors[ImGuiCol_ResizeGrip]           = with_alpha(active, 0.35f);
-        colors[ImGuiCol_ResizeGripHovered]    = with_alpha(active, 0.75f);
-        colors[ImGuiCol_ResizeGripActive]     = grab_active;
-        colors[ImGuiCol_ScrollbarBg]          = with_alpha(scrollbar_bg, 0.80f);
-        colors[ImGuiCol_ScrollbarGrab]        = with_alpha(scrollbar, 0.90f);
-        colors[ImGuiCol_ScrollbarGrabHovered] = with_alpha(hover, 0.95f);
-        colors[ImGuiCol_ScrollbarGrabActive]  = active;
-        return;
-    }
-
-    // Ghost Babel's HUD is a Game Boy Color palette: pure black plates, a
-    // one-pixel amber frame with squared corners, white pixel text, the item
-    // slots in pure red, and the LIFE bar in teal. Nothing here is tinted or
-    // blended — the console had no alpha, so the plates stay flat and only the
-    // window itself is translucent enough to play under.
-    if (g_game == Game::Babel) {
-        // Ghost Babel's title menu: black ground, white text, the live entry in
-        // the menu green, the second entry in pure red, and unavailable entries
-        // in flat gray. There is no yellow on that screen, so the middle band is
-        // inferred from the same flat, fully saturated GBC palette.
-        // Only the chrome this panel draws: no tabs, no scrollbar or resize grip
-        // under AlwaysAutoResize, no frames, headers or selectables. The button
-        // colors are here for the title bar's close box.
-        const ImVec4 text{0.97f, 0.97f, 0.97f, 1.0f};
-        const ImVec4 dim{0.56f, 0.56f, 0.56f, 1.0f};
-        const ImVec4 panel{0.00f, 0.00f, 0.00f, 1.0f};
-        const ImVec4 rule{0.00f, 0.63f, 0.36f, 1.0f};
-        const ImVec4 title{0.00f, 0.00f, 0.00f, 1.0f};
-        const ImVec4 title_active{0.00f, 0.20f, 0.11f, 1.0f};
-        const ImVec4 button{0.00f, 0.16f, 0.09f, 1.0f};
-        const ImVec4 button_hover{0.00f, 0.42f, 0.24f, 1.0f};
-        const ImVec4 row{0.06f, 0.06f, 0.06f, 1.0f};
-
-        colors[ImGuiCol_Text]              = text;
-        colors[ImGuiCol_TextDisabled]      = dim;
-        colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
-        colors[ImGuiCol_Border]            = rule;
-        colors[ImGuiCol_TitleBg]           = title;
-        colors[ImGuiCol_TitleBgActive]     = title_active;
-        colors[ImGuiCol_Button]            = button;
-        colors[ImGuiCol_ButtonHovered]     = button_hover;
-        colors[ImGuiCol_ButtonActive]      = rule;
-        colors[ImGuiCol_Separator]         = with_alpha(rule, 0.55f);
-        colors[ImGuiCol_TableBorderLight]  = with_alpha(dim, 0.35f);
-        colors[ImGuiCol_TableRowBgAlt]     = with_alpha(row, 0.55f);
-        return;
-    }
-
-    {
-        const ImVec4 text{0.86f, 0.87f, 0.76f, 1.0f};
-        const ImVec4 dim{0.48f, 0.49f, 0.42f, 1.0f};
-        const ImVec4 panel{0.09f, 0.10f, 0.08f, 1.0f};
-        const ImVec4 border{0.38f, 0.39f, 0.31f, 1.0f};
-        const ImVec4 frame{0.20f, 0.21f, 0.17f, 1.0f};
-        const ImVec4 frame_hover{0.29f, 0.30f, 0.24f, 1.0f};
-        const ImVec4 frame_active{0.36f, 0.37f, 0.29f, 1.0f};
-        const ImVec4 hover{0.36f, 0.37f, 0.28f, 1.0f};
-        const ImVec4 active{0.44f, 0.45f, 0.33f, 1.0f};
-        const ImVec4 title{0.15f, 0.16f, 0.12f, 1.0f};
-        const ImVec4 title_active{0.31f, 0.33f, 0.25f, 1.0f};
-        const ImVec4 accent{0.72f, 0.75f, 0.51f, 1.0f};
-        const ImVec4 idle{0.25f, 0.26f, 0.20f, 1.0f};
-        const ImVec4 slider{0.55f, 0.57f, 0.41f, 1.0f};
-        const ImVec4 row{0.22f, 0.23f, 0.19f, 1.0f};
-        const ImVec4 scrollbar{0.38f, 0.39f, 0.28f, 1.0f};
-        const ImVec4 scrollbar_bg{0.12f, 0.13f, 0.10f, 1.0f};
-
-        style.ScrollbarRounding = 0.0f;
-        colors[ImGuiCol_Text]                 = text;
-        colors[ImGuiCol_TextDisabled]         = dim;
-        colors[ImGuiCol_WindowBg]             = with_alpha(panel, kPanelAlpha);
-        colors[ImGuiCol_Border]               = with_alpha(border, 0.65f);
-        colors[ImGuiCol_FrameBg]              = frame;
-        colors[ImGuiCol_FrameBgHovered]       = frame_hover;
-        colors[ImGuiCol_FrameBgActive]        = frame_active;
-        colors[ImGuiCol_TitleBg]              = title;
-        colors[ImGuiCol_TitleBgActive]        = title_active;
-        colors[ImGuiCol_CheckMark]            = accent;
-        colors[ImGuiCol_SliderGrab]           = slider;
-        colors[ImGuiCol_SliderGrabActive]     = accent;
-        colors[ImGuiCol_Button]               = idle;
-        colors[ImGuiCol_ButtonHovered]        = hover;
-        colors[ImGuiCol_ButtonActive]         = active;
-        colors[ImGuiCol_Header]               = idle;
-        colors[ImGuiCol_HeaderHovered]        = hover;
-        colors[ImGuiCol_HeaderActive]         = active;
-        colors[ImGuiCol_Tab]                  = frame;
-        colors[ImGuiCol_TabHovered]           = hover;
-        colors[ImGuiCol_TabActive]            = active;
-        colors[ImGuiCol_TabUnfocused]         = title;
-        colors[ImGuiCol_TabUnfocusedActive]   = title_active;
-        colors[ImGuiCol_Separator]            = with_alpha(border, 0.65f);
-        colors[ImGuiCol_TableRowBgAlt]        = with_alpha(row, 0.55f);
-        colors[ImGuiCol_ResizeGrip]           = with_alpha(slider, 0.30f);
-        colors[ImGuiCol_ResizeGripHovered]    = with_alpha(accent, 0.70f);
-        colors[ImGuiCol_ResizeGripActive]     = accent;
-        colors[ImGuiCol_ScrollbarBg]          = with_alpha(scrollbar_bg, 0.70f);
-        colors[ImGuiCol_ScrollbarGrab]        = with_alpha(scrollbar, 0.85f);
-        colors[ImGuiCol_ScrollbarGrabHovered] = with_alpha(slider, 0.90f);
-        colors[ImGuiCol_ScrollbarGrabActive]  = with_alpha(accent, 0.95f);
+    const size_t index = static_cast<size_t>(g_game);
+    if (index < std::size(kThemeFns)) {
+        kThemeFns[index](style);
     }
 }
 
@@ -1516,31 +1539,6 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
 
 using EvaluateFn = std::optional<codename::Match> (*)(const GameStats&);
 using RequirementsFn = std::vector<codename::ReqStatus> (*)(const GameStats&);
-
-constexpr EvaluateFn kEvaluateFns[] = {
-    [static_cast<int>(Game::MG1)] = codename::evaluate_mg1,
-    [static_cast<int>(Game::MG2)] = codename::evaluate_mg2,
-    [static_cast<int>(Game::MGS1)] = codename::evaluate_mgs1,
-    [static_cast<int>(Game::MGS2)] = codename::evaluate_mgs2,
-    [static_cast<int>(Game::MGS3)] = codename::evaluate_mgs3,
-    [static_cast<int>(Game::MGS4)] = codename::evaluate_mgs4,
-    [static_cast<int>(Game::MGSPW)] = codename::evaluate_mgspw,
-    [static_cast<int>(Game::Babel)] = codename::evaluate_babel,
-};
-
-constexpr RequirementsFn kRequirementsFns[] = {
-    [static_cast<int>(Game::MG1)] = codename::elite_requirements_mg1,
-    [static_cast<int>(Game::MG2)] = codename::elite_requirements_mg2,
-    [static_cast<int>(Game::MGS1)] = codename::elite_requirements_mgs1,
-    [static_cast<int>(Game::MGS2)] = codename::elite_requirements_mgs2,
-    [static_cast<int>(Game::MGS3)] = codename::elite_requirements_mgs3,
-    [static_cast<int>(Game::MGS4)] = codename::elite_requirements_mgs4,
-    [static_cast<int>(Game::MGSPW)] = codename::elite_requirements_mgspw,
-    [static_cast<int>(Game::Babel)] = codename::elite_requirements_babel,
-};
-
-static_assert(std::size(kEvaluateFns) == 8);
-static_assert(std::size(kRequirementsFns) == 8);
 
 // Live sortie clock and tally.
 void draw_mgspw_run(const GameStats& stats)
@@ -2298,15 +2296,30 @@ constexpr PanelTab kMgspwTabs[] = {{"Summary", draw_mgspw_summary},
                                    {"Insignia", draw_mgspw_insignia},
                                    {"Codenames", draw_mgspw_codenames}};
 
-std::span<const PanelTab> panel_tabs(Game game)
+// One row per Game, in enum order: everything draw_panel needs to dispatch.
+struct GameOverlay {
+    EvaluateFn evaluate;
+    RequirementsFn requirements;
+    std::span<const PanelTab> tabs;
+};
+
+constexpr GameOverlay kOverlays[] = {
+    {codename::evaluate_mg1, codename::elite_requirements_mg1, kGenericTabs},
+    {codename::evaluate_mg2, codename::elite_requirements_mg2, kGenericTabs},
+    {codename::evaluate_mgs1, codename::elite_requirements_mgs1, kGenericTabs},
+    {codename::evaluate_mgs2, codename::elite_requirements_mgs2, kMgs2Tabs},
+    {codename::evaluate_mgs3, codename::elite_requirements_mgs3, kMgs3Tabs},
+    {codename::evaluate_mgs4, codename::elite_requirements_mgs4, kMgs4Tabs},
+    {codename::evaluate_mgspw, codename::elite_requirements_mgspw, kMgspwTabs},
+    {codename::evaluate_babel, codename::elite_requirements_babel, kGenericTabs},
+};
+
+static_assert(std::size(kOverlays) == 8);
+
+const GameOverlay& overlay_for(Game game)
 {
-    switch (game) {
-    case Game::MGS2: return kMgs2Tabs;
-    case Game::MGS3: return kMgs3Tabs;
-    case Game::MGS4: return kMgs4Tabs;
-    case Game::MGSPW: return kMgspwTabs;
-    default: return kGenericTabs;
-    }
+    const size_t index = static_cast<size_t>(game);
+    return kOverlays[index < std::size(kOverlays) ? index : 0];
 }
 
 void draw_panel()
@@ -2321,9 +2334,9 @@ void draw_panel()
         have_stats = g_have_stats;
         ReleaseSRWLockShared(&g_stats_lock);
         if (have_stats) {
-            const auto eval_fn = kEvaluateFns[static_cast<int>(g_game)];
+            const auto eval_fn = overlay_for(g_game).evaluate;
             g_eval.match = eval_fn ? eval_fn(stats) : std::optional<codename::Match>{};
-            const auto req_fn = kRequirementsFns[static_cast<int>(g_game)];
+            const auto req_fn = overlay_for(g_game).requirements;
             g_eval.reqs = req_fn ? req_fn(stats) : std::vector<codename::ReqStatus>{};
             g_eval.matches = g_game == Game::MGS4 ? codename::all_matches_mgs4(stats)
                                                   : std::vector<codename::Match>{};
@@ -2358,7 +2371,7 @@ void draw_panel()
     }
 
     static int selected_tab = 0;
-    const std::span<const PanelTab> tabs = panel_tabs(g_game);
+    const std::span<const PanelTab> tabs = overlay_for(g_game).tabs;
     const bool tab_bar = tabs.size() > 1;
     if (tab_bar && key_pressed(kTabKey)) {
         selected_tab = (selected_tab + 1) % static_cast<int>(tabs.size());
