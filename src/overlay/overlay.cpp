@@ -992,6 +992,9 @@ HRESULT STDMETHODCALLTYPE hk_present(IDXGISwapChain* swap_chain, UINT sync_inter
             return oPresent(swap_chain, sync_interval, flags);
         }
     }
+    if (g.renderer == Renderer::D3D11 && !g.rtv && !create_rtv(swap_chain)) {
+        return oPresent(swap_chain, sync_interval, flags);
+    }
 
     if (g.renderer == Renderer::D3D11) ImGui_ImplDX11_NewFrame();
     else ImGui_ImplDX12_NewFrame();

@@ -139,19 +139,12 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
         collected += mgs2::dog_tag_collected(stats.dog_tag_mask, tag.id);
     }
 
-    ImGui::Text("%d / %d", collected, available);
+    ImGui::Text("%d / %d tags · %s roster", collected, available,
+                stats.mgs2_dog_tags_2002 ? "2002" : "2001");
     if (collected != stats.dog_tags) {
-        ImGui::SameLine();
         push_font(nullptr, kNoteScale);
-        ImGui::TextDisabled("(%d total flags)", stats.dog_tags);
+        ImGui::TextDisabled("%d saved overall", stats.dog_tags);
         ImGui::PopFont();
-    }
-    {
-        const char* variant = stats.mgs2_dog_tags_2002 ? "2002" : "2001";
-        const float width = ImGui::CalcTextSize(variant).x;
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - width);
-        ImGui::TextUnformatted(variant);
     }
     if (begin_fitted_child("mgs2_dog_tags")) {
         apply_scroll(scroll);
@@ -240,7 +233,7 @@ bool requirement_mgs2(const codename::ReqStatus& req, const GameStats& stats,
 
 void summary_extra_mgs2(const GameStats& stats)
 {
-    summary_count("dog tags", stats.dog_tags);
+    summary_count("saved dog tags", stats.dog_tags);
     summary_pair("health", stats.current_health, stats.max_health);
     dim_row("sea louse", stats.sea_louse ? "YES" : "NO");
     summary_count("clearing escapes", stats.clearing_escapes);
