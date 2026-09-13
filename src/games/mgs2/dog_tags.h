@@ -7,6 +7,9 @@
 namespace bb::mgs2 {
 
 constexpr size_t kDogTagWordCount = 32;
+constexpr int kPlantMission = 0;
+constexpr int kTankerMission = 16;
+constexpr int kFullCampaignMission = 32;
 
 struct DogTag {
     uint16_t id;
@@ -443,8 +446,9 @@ constexpr int dog_tag_count(const uint32_t* flags)
 constexpr bool dog_tag_available(const DogTag& tag, int mission, uint8_t difficulty)
 {
     const uint8_t roster = difficulty > 4 ? 4 : difficulty;
-    const uint8_t campaign = mission == 16 ? 0 : 1;
-    return tag.difficulty == roster && (mission == 32 || tag.campaign == campaign);
+    const uint8_t campaign = mission == kTankerMission ? 0 : 1;
+    return tag.difficulty == roster
+        && (mission == kFullCampaignMission || tag.campaign == campaign);
 }
 
 constexpr const char* dog_tag_name(const DogTag& tag, bool use_2002)

@@ -15,6 +15,11 @@ enum class Difficulty : uint8_t {
     Count,
 };
 
+constexpr uint16_t kUnknownMgs2Story = 0xFFFF;
+constexpr unsigned long long kPwTicksPerSecond = 300;
+// Snake's nominal max HP also sets the damage-counter scale.
+constexpr int kPwDamageUnitsPerBar = 8000;
+
 struct GameStats {
     Difficulty difficulty = Difficulty::VeryEasy;
     uint8_t difficulty_raw = 0;
@@ -35,7 +40,7 @@ struct GameStats {
     int dog_tags = 0;
     uint32_t dog_tag_mask[32] = {};
     bool mgs2_dog_tags_2002 = false;
-    uint16_t mgs2_p_story = 0xFFFF;
+    uint16_t mgs2_p_story = kUnknownMgs2Story;
     uint32_t mgs2_dog_tag_flags = 0;
 
     int cqc_chokes = 0;

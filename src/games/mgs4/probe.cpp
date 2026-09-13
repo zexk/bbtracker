@@ -14,6 +14,7 @@
 #include "../../common/stats.h"
 #include "../../overlay/overlay.h"
 #include "../asi_main.h"
+#include "flashbacks.h"
 
 namespace bb::mgs4 {
 
@@ -23,6 +24,21 @@ namespace {
 
 constexpr uintptr_t kLinkvarbufPointer = 0x1C28B28;
 constexpr size_t kLinkvarbufSize = 0x8344;
+constexpr uint32_t kLastValidProgress = 291;
+constexpr size_t kStageCodeLength = 7;
+constexpr double kFramesPerSecond = 60.0;
+constexpr size_t kBitsPerByte = 8;
+constexpr size_t kFlashbackCount = std::size(kFlashbacks);
+constexpr size_t kLastFlashbackByte = (kFlashbackCount - 1) / kBitsPerByte;
+constexpr uint8_t kLastFlashbackByteMask =
+    static_cast<uint8_t>((1u << ((kFlashbackCount - 1) % kBitsPerByte + 1)) - 1);
+constexpr size_t kFlashbackFlagsOffset = 0x5A49;
+constexpr size_t kFirstWeaponId = 1;
+constexpr size_t kLastWeaponId = 73;
+constexpr size_t kUnusedWeaponId = 11;
+constexpr size_t kWeaponStatesOffset = 0x1D4;
+
+static_assert(kFlashbackCount <= sizeof(GameStats{}.flashback_bits) * kBitsPerByte);
 
 // MGS4 shifts the collection codes: Naked Normal is 30, Solid Normal 35.
 constexpr DifficultyCode kDifficultyCodes[] = {
@@ -30,7 +46,16 @@ constexpr DifficultyCode kDifficultyCodes[] = {
     {30, Difficulty::Easy},
     {35, Difficulty::Normal},
     {40, Difficulty::Hard},
+    {50, Difficulty::Extreme},
 };
+
+constexpr bool known_difficulty(uint16_t value)
+{
+    for (const DifficultyCode& code : kDifficultyCodes) {
+        if (code.code == value) return true;
+    }
+    return false;
+}
 
 Difficulty difficulty(uint16_t value)
 {
@@ -39,7 +64,7 @@ Difficulty difficulty(uint16_t value)
 
 constexpr bool ranked_stage(std::string_view stage)
 {
-    return stage.size() == 7 && stage[0] == 's'
+    return stage.size() == kStageCodeLength && stage[0] == 's'
             && ((stage[1] == '0' && stage[2] >= '0' && stage[2] <= '5')
                 || (stage[1] == '1' && stage[2] == '0')
                 || (stage[1] == '2' && stage[2] == '0')
@@ -101,8 +126,7 @@ bool poll_stats(GameStats& out)
 
     const uint16_t raw_difficulty = read<uint16_t>(data, 0x006);
     const uint32_t progress = read<uint32_t>(data, 0x054);
-    if ((raw_difficulty != 20 && raw_difficulty != 30 && raw_difficulty != 35
-         && raw_difficulty != 40 && raw_difficulty != 50) || progress > 291) {
+    if (!known_difficulty(raw_difficulty) || progress > kLastValidProgress) {
         return g_run.hold(out);
     }
 
@@ -114,8 +138,8 @@ bool poll_stats(GameStats& out)
     }
 
     out = {};
-    char stage[8]{};
-    std::memcpy(stage, data + 0x034, 7);
+    char stage[kStageCodeLength + 1]{};
+    std::memcpy(stage, data + 0x034, kStageCodeLength);
     const size_t stage_length = std::char_traits<char>::length(stage);
     set_area(out, stage);
     out.difficulty_raw = static_cast<uint8_t>(raw_difficulty);
@@ -123,7 +147,7 @@ bool poll_stats(GameStats& out)
     out.difficulty = difficulty(raw_difficulty);
     out.mission = static_cast<int>(progress);
     out.continues = read<uint16_t>(data, 0x158);
-    out.play_time_seconds = read<uint32_t>(data, 0x168) / 60.0;
+    out.play_time_seconds = read<uint32_t>(data, 0x168) / kFramesPerSecond;
     out.alerts = read<uint16_t>(data, 0x16E);
     out.kills = read<uint16_t>(data, 0x178);
     out.special_items_mask = read<uint16_t>(data, 0x17A);
@@ -141,24 +165,26 @@ bool poll_stats(GameStats& out)
     out.items_given = read<uint16_t>(data, 0x198);
     out.syringe_uses = read<uint16_t>(data, 0x19A) + read<uint16_t>(data, 0x19C);
     out.magazine_pages = read<uint16_t>(data, 0x19E) + read<uint16_t>(data, 0x1A0);
-    out.crouch_time_seconds = read<uint32_t>(data, 0x1A8) / 60.0;
-    out.crawl_time_seconds = read<uint32_t>(data, 0x1AC) / 60.0;
-    out.wall_time_seconds = read<uint32_t>(data, 0x1B4) / 60.0;
-    out.box_time_seconds = (read<uint32_t>(data, 0x1B8) + read<uint32_t>(data, 0x1BC)) / 60.0;
+    out.crouch_time_seconds = read<uint32_t>(data, 0x1A8) / kFramesPerSecond;
+    out.crawl_time_seconds = read<uint32_t>(data, 0x1AC) / kFramesPerSecond;
+    out.wall_time_seconds = read<uint32_t>(data, 0x1B4) / kFramesPerSecond;
+    out.box_time_seconds = (read<uint32_t>(data, 0x1B8) + read<uint32_t>(data, 0x1BC))
+        / kFramesPerSecond;
     out.rations_used = read<uint16_t>(data, 0xAE0);
     out.flashbacks_viewed = read<uint16_t>(data, 0x5A34);
     // Unique-flashback bit array at 0x5A49: 222 bits, the ACH_015 condition.
     // 0x5A34 counts every trigger, repeats included; this one does not.
     out.flashbacks_unique = 0;
     for (size_t index = 0; index < sizeof(out.flashback_bits); ++index) {
-        const uint8_t byte = read<uint8_t>(data, 0x5A49 + index);
+        const uint8_t byte = read<uint8_t>(data, kFlashbackFlagsOffset + index);
         out.flashback_bits[index] = byte;
-        out.flashbacks_unique += std::popcount(static_cast<uint8_t>(byte & (index == 27 ? 0x3F : 0xFF)));
+        out.flashbacks_unique += std::popcount(static_cast<uint8_t>(
+            byte & (index == kLastFlashbackByte ? kLastFlashbackByteMask : 0xFF)));
     }
     out.weapons_acquired = 0;
-    for (size_t id = 1; id <= 73; ++id) {
-        if (id == 11) continue;
-        const uint16_t state = read<uint16_t>(data, 0x1D4 + id * 2);
+    for (size_t id = kFirstWeaponId; id <= kLastWeaponId; ++id) {
+        if (id == kUnusedWeaponId) continue;
+        const uint16_t state = read<uint16_t>(data, kWeaponStatesOffset + id * sizeof(uint16_t));
         out.weapons_acquired += state == 1 || state == 2;
     }
     return g_run.update(out, run_state({stage, stage_length}));

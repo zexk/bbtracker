@@ -70,7 +70,6 @@ constexpr size_t kWeaponUseOff = 0x14;
 constexpr size_t kCharCount = 40;
 constexpr size_t kHpOff = 0x11BE;     // u16, regenerates ~20/s
 constexpr size_t kMaxHpOff = 0x11C0;  // u16, the deployed soldier's own maximum
-constexpr int kNominalMaxHp = 8000;   // Snake's, and the damage-counter scale
 constexpr size_t kWeaponIdOff = 0x14B8;
 
 // Render thread reads both clocks after poll_stats resolves their anchors.
@@ -510,7 +509,7 @@ bool poll_stats(GameStats& out)
         out.pw_mission_raw = mem::read<uint64_t>(mission_clock.data(), 0);
         out.pw_mission_play = mem::read<uint32_t>(mission_clock.data(), kMissionPlayOff);
         // Active game time at 300 ticks/s.
-        out.play_time_seconds = static_cast<double>(out.pw_mission_raw) / 300.0;
+        out.play_time_seconds = static_cast<double>(out.pw_mission_raw) / kPwTicksPerSecond;
         any = true;
         if (!g_dumped) {
             g_dumped = true;
@@ -645,7 +644,7 @@ bool poll_stats(GameStats& out)
                     out.pw_player_max_hp = static_cast<int>(mem::read<uint16_t>(health.data(), 2));
                     out.current_health = out.pw_player_hp;
                     out.max_health = out.pw_player_max_hp > 0 ? out.pw_player_max_hp
-                                                             : kNominalMaxHp;
+                                                             : kPwDamageUnitsPerBar;
                 }
                 int16_t weapon = -1;
                 if (mem::copy(player + kWeaponIdOff, weapon)) out.pw_weapon_id = weapon;

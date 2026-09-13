@@ -8,8 +8,12 @@ namespace bb {
 
 inline void format_time(double seconds, char* out, size_t size)
 {
+    constexpr int kSecondsPerMinute = 60;
+    constexpr int kSecondsPerHour = kSecondsPerMinute * kSecondsPerMinute;
     const int total = static_cast<int>(seconds);
-    std::snprintf(out, size, "%d:%02d:%02d", total / 3600, (total / 60) % 60, total % 60);
+    std::snprintf(out, size, "%d:%02d:%02d", total / kSecondsPerHour,
+                  (total / kSecondsPerMinute) % kSecondsPerMinute,
+                  total % kSecondsPerMinute);
 }
 
 inline void format_count(int64_t value, char* out, size_t size)

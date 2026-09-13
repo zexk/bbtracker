@@ -50,6 +50,7 @@ constexpr uintptr_t kGclVariableBufRva = 0x017D51E0;
 constexpr size_t kLinkVarBufSize = 5528; // MAX_LINKVARBUF
 constexpr size_t kVarBufSize = 7168;     // MAX_VAR_BUF
 constexpr size_t kStoryOffset = 0x68;    // $w:p_story
+constexpr double kFramesPerSecond = 60.0;
 
 // NewGclVariableMove relocates linkvarbuf inside gcl_variable_buf. In one
 // layout linkvarbuf is near the start and var_buf follows it; in the other
@@ -66,7 +67,7 @@ uint16_t read_p_story(uintptr_t var_buf)
 {
     uint8_t bytes[2] = {};
     if (!mem::copy(var_buf + kStoryOffset, bytes, sizeof(bytes))) {
-        return 0xFFFF;
+        return kUnknownMgs2Story;
     }
     return static_cast<uint16_t>(bytes[0] | (bytes[1] << 8));
 }
@@ -125,16 +126,16 @@ static_assert(run_state(0, "") == RunState::Unknown);
 constexpr int codename_mission(uint16_t title_menu_status)
 {
     switch (title_menu_status & kStorySelectionMask) {
-    case kStoryTanker: return 16;
-    case kStoryTankerAndPlant: return 32;
+    case kStoryTanker: return kTankerMission;
+    case kStoryTankerAndPlant: return kFullCampaignMission;
     case kStoryPlant:
-    default: return 0;
+    default: return kPlantMission;
     }
 }
 
-static_assert(codename_mission(kStoryTanker) == 16);
-static_assert(codename_mission(kStoryPlant) == 0);
-static_assert(codename_mission(kStoryTankerAndPlant) == 32);
+static_assert(codename_mission(kStoryTanker) == kTankerMission);
+static_assert(codename_mission(kStoryPlant) == kPlantMission);
+static_assert(codename_mission(kStoryTankerAndPlant) == kFullCampaignMission);
 
 uintptr_t g_last_player = 0;
 
@@ -227,8 +228,8 @@ bool poll_stats(GameStats& out)
         : -1.0;
     out.play_time_seconds =
         static_cast<double>(read_at<uint32_t>(data, kStatsBlockOffset + StatOffsets::kPlayTimeFrames))
-        / 60.0;
-    out.stage_time_seconds = read_at<uint32_t>(data, kStagePlayTimeOffset) / 60.0;
+        / kFramesPerSecond;
+    out.stage_time_seconds = read_at<uint32_t>(data, kStagePlayTimeOffset) / kFramesPerSecond;
     out.rations_used = read_at<uint16_t>(data, kRationsOffset);
     out.sea_louse = read_at<uint16_t>(data, kShipwormOffset) != 0;
     out.clearing_escapes = read_at<uint16_t>(data, kClearingEscapesOffset);
@@ -270,7 +271,7 @@ bool poll_stats(GameStats& out)
                  out.mgs2_dog_tags_2002 ? "2002" : "2001");
         last_configuration2 = configuration2;
     }
-    static uint16_t last_p_story = 0xFFFF;
+    static uint16_t last_p_story = kUnknownMgs2Story;
     static uint32_t last_dog_tag_flags = 0xFFFFFFFF;
     if (out.mgs2_p_story != last_p_story || out.mgs2_dog_tag_flags != last_dog_tag_flags) {
         LOG_INFO("mgs2 p_story %u, dog tag flags 0x%02x",
