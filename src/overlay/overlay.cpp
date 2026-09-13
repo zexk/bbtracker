@@ -2227,7 +2227,10 @@ void draw_summary(const GameStats& stats, int)
             dim_row("kerotans", buf);
             plain_count("meals eaten", stats.meals_eaten);
         } else if (g_game == Game::MGS4) {
-            plain_count("flashbacks", stats.flashbacks_viewed);
+            char buf[48];
+            snprintf(buf, sizeof(buf), "%d / 222 (global %d)", stats.flashbacks_unique,
+                     stats.flashbacks_viewed);
+            dim_row("flashbacks", buf);
         }
         ImGui::EndTable();
     }

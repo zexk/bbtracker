@@ -1,6 +1,7 @@
 #include <windows.h>
 
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <cstring>
 #include <string_view>
@@ -146,6 +147,13 @@ bool poll_stats(GameStats& out)
     out.box_time_seconds = (read<uint32_t>(data, 0x1B8) + read<uint32_t>(data, 0x1BC)) / 60.0;
     out.rations_used = read<uint16_t>(data, 0xAE0);
     out.flashbacks_viewed = read<uint16_t>(data, 0x5A34);
+    // Unique-flashback bit array at 0x5A49: 222 bits, the ACH_015 condition.
+    // 0x5A34 counts every trigger, repeats included; this one does not.
+    out.flashbacks_unique = 0;
+    for (size_t index = 0; index < 28; ++index) {
+        const uint8_t byte = read<uint8_t>(data, 0x5A49 + index);
+        out.flashbacks_unique += std::popcount(static_cast<uint8_t>(byte & (index == 27 ? 0x3F : 0xFF)));
+    }
     out.weapons_acquired = 0;
     for (size_t id = 1; id <= 73; ++id) {
         if (id == 11) continue;

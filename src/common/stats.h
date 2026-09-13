@@ -54,6 +54,7 @@ struct GameStats {
     int pickups = 0;
     int combat_highs = 0;
     int flashbacks_viewed = 0;
+    int flashbacks_unique = 0;
 
     double box_time_seconds = 0.0;
     double wall_time_seconds = 0.0;
