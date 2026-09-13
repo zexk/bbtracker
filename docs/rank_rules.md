@@ -239,4 +239,4 @@ and [Dammit9x's rank and memory guide](https://gamefaqs.gamespot.com/nes/587630-
 
 Native tests validate encoded thresholds and boundary behavior. Live addresses and
 rank projections still require in-game checks after game updates. Failed probes must
-leave overlay running with `no active ranked run` and must never write game memory.
+leave overlay running with `waiting for game data` and must never write game memory.

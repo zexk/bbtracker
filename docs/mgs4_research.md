@@ -179,8 +179,8 @@ ACH_015 "Flashback Mania" is checked right after the bit set at native
 `0xe72d88`: all 27 bytes must read `0xff` and bits 0-5 of byte 27 (`0x5a64`)
 must be set, then it calls unlock thunk `0x53b20(15)`. So the achievement needs
 **222 unique** flashbacks; the Bonus DP input still scales from the `>=273`
-trigger total. The tracker reports unique popcount `/ 222` with the global
-trigger total in parentheses.
+trigger total. The tracker labels unique popcount `/ 222` and total trigger
+presses separately.
 
 The earlier empty scan looked for a 273-entry array or 35-byte bitsets with
 popcount `181`: the array is 28 bytes and its popcount is the unique count

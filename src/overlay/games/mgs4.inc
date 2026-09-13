@@ -236,7 +236,7 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
 void draw_mgs4_flashbacks(const GameStats& stats, int scroll)
 {
     char header[48];
-    snprintf(header, sizeof(header), "%d / %d (global %d)", stats.flashbacks_unique,
+    snprintf(header, sizeof(header), "%d / %d unique · %d presses", stats.flashbacks_unique,
              kFlashbackCount,
              stats.flashbacks_viewed);
     ImGui::TextUnformatted(header);
@@ -272,7 +272,7 @@ DifficultyDisplay difficulty_mgs4(const GameStats& stats)
 void summary_extra_mgs4(const GameStats& stats)
 {
     char buf[48];
-    snprintf(buf, sizeof(buf), "%d / %d (global %d)", stats.flashbacks_unique,
+    snprintf(buf, sizeof(buf), "%d / %d unique · %d presses", stats.flashbacks_unique,
              kFlashbackCount,
              stats.flashbacks_viewed);
     dim_row("flashbacks", buf);

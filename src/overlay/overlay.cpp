@@ -890,7 +890,7 @@ void draw_panel()
     g.reset_window = false;
 
     if (!have_stats) {
-        ImGui::TextDisabled("no active ranked run");
+        ImGui::TextDisabled("waiting for game data");
         ImGui::End();
         return;
     }

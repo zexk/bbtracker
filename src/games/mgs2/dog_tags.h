@@ -568,7 +568,7 @@ inline constexpr DogTagAreaState kDogTagAreaStates[] = {
     {"w17a", 122, "before Fatman", "after Fatman"},
     {"w19a", 122, "before Fatman", "after Fatman"},
     {"w20a", 323, "before Vamp sniper", "after Vamp sniper"},
-    {"w22a", 92, "before Peter", "after Peter"},
+    {"w22a", 92, "before Stillman", "after Stillman"},
     {"w24a", 180, "before Ames death", "after Ames death"},
     {"w24b", 176, "before Ames found", "after Ames found"},
 };
