@@ -762,6 +762,13 @@ sweep of `.text` finds no reader, and the evaluator ignores it. It latches
 is valid"; the evaluator runs whenever the caller `0x1401E6560` invokes it
 and grades from `+0x20`, `+0x24`, `+0x28` and `+0x29` alone.
 
+The object is not resident for the whole session: the pair (handle, object)
+is created by `0x1401E7520` and cleared by `0x1401E5D20`, `0x1401E5DA0` and
+the leaf at `0x1401EC5B0`, and the results-screen values are gone once the
+player exits results. Read the block when the handle/self checks pass and
+latch the last builder-written values for display in between; the counts
+only change when the builder runs at the next result.
+
 Camaraderie is the aggregate at snapshot `+0x30`, built by `0x140544D20`: it
 takes the online table at `*0x140EA4870 + 0x5008`, reads the count at the table
 start, and sums the dword at `table + 0x110*(i+1)` per entry.

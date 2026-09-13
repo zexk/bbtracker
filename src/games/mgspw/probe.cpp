@@ -621,6 +621,23 @@ bool poll_stats(GameStats& out)
         }
     }
 
+    // The Player Data object is built for the results flow and torn down
+    // afterwards, so the block is not resident for the whole session. Latch
+    // the last block the builder wrote; only the title menu starts a new
+    // session's counters.
+    struct ResultLatch {
+        int required;
+        int counted;
+        uint8_t grade4;
+        uint8_t grade5;
+        bool valid;
+    };
+    static ResultLatch latched{};
+    if (std::strcmp(out.pw_stage, "title") == 0
+        || std::strcmp(out.pw_stage, "r_title") == 0) {
+        latched = {};
+    }
+
     // Objects are replaced on load; match the builder's own handle/self
     // checks before trusting the result block.
     std::array<uint8_t, 16> result_slot{};
@@ -647,13 +664,16 @@ bool poll_stats(GameStats& out)
             if (required > 0 && counted >= 0
                 && grade5_ok <= 1 && grade4_ok <= 1
                 && mem::read<uint8_t>(result.data(), 0x2A) <= 1) {
-                out.pw_codename_missions_required = required;
-                out.pw_codename_missions_counted = counted;
-                out.pw_codename_grade5_ok = grade5_ok != 0;
-                out.pw_codename_grade4_ok = grade4_ok != 0;
-                out.pw_codename_result_ok = true;
+                latched = {required, counted, grade4_ok, grade5_ok, true};
             }
         }
+    }
+    if (latched.valid) {
+        out.pw_codename_missions_required = latched.required;
+        out.pw_codename_missions_counted = latched.counted;
+        out.pw_codename_grade4_ok = latched.grade4 != 0;
+        out.pw_codename_grade5_ok = latched.grade5 != 0;
+        out.pw_codename_result_ok = true;
     }
 
     uintptr_t arr = 0;
