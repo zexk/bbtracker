@@ -156,8 +156,10 @@ caches are preload sets, so one poster can appear under several stage codes;
 (`00554b29`, `00554b2e`, `00554b4e`, `00554b8e`, `00554bae`, `00654b06`,
 `00654b10`, `00654b26`, `00654b30`, `00654b46`, `00654b50`, `00654b66`,
 `00654bae`, `00654bce`, `00754b8e`, `00754bae`, `00754bce`) exist only on the
-shared `ww/stage/slot` pages and have no per-stage poster path, so the header
-labels them `Unmapped (shared cache)`.
+shared `ww/stage/slot` pages and have no per-stage poster path. `gen-mgs4-flashbacks.py`
+maps those cues to identified trigger prompts from their posters (Act 2 jungle
+Solidus/Vamp memories, Act 4 Otacon's office and REX hangar, MGS1 briefing and
+MGS2 codec stills); the remaining unplaced ones sort last.
 
 `src/games/mgs4/flashbacks.h` carries the 222 entries in bit order with a
 stage/area label per entry and a separate campaign-order index for display.

@@ -202,11 +202,17 @@ int main() {
     stats.pw_headshots = 1000000;
     assert(draw(stats, 2).find("110 / 110 insignias earned") != std::string::npos);
     stats.pw_codename_axes_ok = true;
-    for (int slot = 0; slot < 12; ++slot) stats.pw_codename_axes[1][slot] = 10;
+    // Slot 10 is a phantom class: no weapon feeds it, its counters stay zero,
+    // and the spread predicate skips it rather than reading a 100% miss.
+    for (int slot = 0; slot < 12; ++slot) {
+        if (slot == 10) continue;
+        stats.pw_codename_axes[1][slot] = 10;
+    }
     auto codenames = draw(stats, 3);
-    assert(codenames.find("120") != std::string::npos);
+    assert(codenames.find("110") != std::string::npos);
     assert(codenames.find("100%") != std::string::npos);
     assert(codenames.find("109%") == std::string::npos); // Ungrouped slot belongs in lethality denominator.
+    assert(std::regex_search(codenames, std::regex(R"(slot spread[\s|{}]*0% / 10%)")));
     assert(codenames.find("No grade yet") != std::string::npos);
     assert(codenames.find("grade 1 needs") != std::string::npos);
     GameStats invalid_ratio = stats;

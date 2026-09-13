@@ -50,6 +50,7 @@ constexpr uintptr_t kGclVariableBufRva = 0x017D51E0;
 constexpr size_t kLinkVarBufSize = 5528; // MAX_LINKVARBUF
 constexpr size_t kVarBufSize = 7168;     // MAX_VAR_BUF
 constexpr size_t kStoryOffset = 0x68;    // $w:p_story
+constexpr size_t kTankerStoryOffset = 0x06; // $w:t_story
 constexpr double kFramesPerSecond = 60.0;
 
 // NewGclVariableMove relocates linkvarbuf inside gcl_variable_buf. In one
@@ -63,10 +64,10 @@ uintptr_t var_buf_address(uintptr_t module_base, uintptr_t linkvarbuf)
                                    : linkvarbuf - kVarBufSize;
 }
 
-uint16_t read_p_story(uintptr_t var_buf)
+uint16_t read_story(uintptr_t var_buf, size_t offset)
 {
     uint8_t bytes[2] = {};
-    if (!mem::copy(var_buf + kStoryOffset, bytes, sizeof(bytes))) {
+    if (!mem::copy(var_buf + offset, bytes, sizeof(bytes))) {
         return kUnknownMgs2Story;
     }
     return static_cast<uint16_t>(bytes[0] | (bytes[1] << 8));
@@ -242,7 +243,8 @@ bool poll_stats(GameStats& out)
     out.radar_type = configuration & kRadarSettingMask;
     out.mgs2_dog_tags_2002 = (configuration2 & kDogTags2002) != 0;
     const uintptr_t var_buf = var_buf_address(base, player);
-    out.mgs2_p_story = read_p_story(var_buf);
+    out.mgs2_p_story = read_story(var_buf, kStoryOffset);
+    out.mgs2_t_story = read_story(var_buf, kTankerStoryOffset);
     out.mgs2_dog_tag_flags = read_dog_tag_flags(var_buf);
     static uintptr_t last_var_buf = 0;
     if (var_buf != last_var_buf) {

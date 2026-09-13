@@ -41,6 +41,7 @@ struct GameStats {
     uint32_t dog_tag_mask[32] = {};
     bool mgs2_dog_tags_2002 = false;
     uint16_t mgs2_p_story = kUnknownMgs2Story;
+    uint16_t mgs2_t_story = kUnknownMgs2Story;
     uint32_t mgs2_dog_tag_flags = 0;
 
     int cqc_chokes = 0;

@@ -195,14 +195,15 @@ The codename is three independent axes: which weapon class dominates career
 takedowns, whether camaraderie is over 10000 (cooperation titles) and whether
 non-lethal takedowns beat twice the lethal ones. All-weapons titles (FOX,
 FOXHOUND, HOUND, DOBERMAN) need no class to dominate: the evaluator measures
-its twelve weapon slots against their own average and wants every one within a
-tenth of it.
+its eleven live weapon slots against their own average and wants every one
+within a tenth of it (slot 10 is a phantom class no weapon record carries).
 
-The evaluator reads those twelve slots on four axes (kills, sleeps, stuns,
-incapacitations). When that snapshot has not been read, the panel falls back to
-the career takedown counters rolled into the six classes, and the spread is
-approximated as four classes in use with no class holding 40% of the total.
-The two paths gate the spread on different numbers, so each reports its own.
+The evaluator reads twelve slots on four axes (kills, sleeps, stuns,
+incapacitations); slot 10 is the phantom. When that snapshot has not been read,
+the panel falls back to the career takedown counters rolled into the six classes,
+and the spread is approximated as four classes in use with no class holding 40%
+of the total. The two paths gate the spread on different numbers, so each
+reports its own.
 
 Grades 1 to 5 stack camaraderie steps (10000, 50000, 100000, 200000, 500000), a
 cooperation ratio over missions counted against missions required (0.05, 0.5,

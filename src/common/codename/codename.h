@@ -236,7 +236,8 @@ struct PwGrade {
 
 PwGrade pw_grade(const GameStats& s);
 
-// Native weapon slots and their six title classes; slot 10 has no class.
+// Native weapon slots and their six title classes; slot 10 is a phantom class
+// with no weapon records, so the spread skips it.
 struct PwAxes {
     int slot[12] = {};
     int by_class[6] = {};

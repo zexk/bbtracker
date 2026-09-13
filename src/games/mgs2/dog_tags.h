@@ -7,6 +7,7 @@
 namespace bb::mgs2 {
 
 constexpr size_t kDogTagWordCount = 32;
+constexpr uint16_t kLastTankerStoryStep = 58; // story.h ST_PASS clear-code end.
 constexpr int kPlantMission = 0;
 constexpr int kTankerMission = 16;
 constexpr int kFullCampaignMission = 32;
@@ -470,11 +471,11 @@ struct DogTagFlag {
 inline constexpr DogTagFlag kDogTagFlags[] = {
     {0x0D1E, 7}, // w02a falling soldier seen
     {0x0C6F, 7}, // w02a door repair event done
-    {0x1062, 3}, // w24d exercise soldier seen
-    {0x04C4, 1}, // w01b shadow found
-    {0x0C42, 6}, // global right watertight door opened
+    {0x1062, 3}, // w24d exercise soldier seen (changes route, not tag)
+    {0x04C4, 1}, // w01b shadow found (changes route, not tag)
+    {0x0C42, 6}, // global right watertight door opened (changes route, not tag)
     {0x036D, 6}, // Olga gone
-    {0x09B2, 0}, // w45a Tengu appeared
+    {0x09B2, 0}, // w45a Tengu appeared (changes Snake position, not tag)
 };
 
 struct DogTagGate {
@@ -483,72 +484,54 @@ struct DogTagGate {
     DogTagGateSource source;
     uint16_t value; // p_story threshold, or index into kDogTagFlags
     const char* trigger;
+    uint8_t tanker_story_start = 0; // $w:t_story; Olga's tag appears after her fight.
 };
 
 inline constexpr DogTagGate kDogTagGates[] = {
-    {207, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman"},
-    {208, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman"},
-    {209, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman"},
-    {210, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman"},
-    {211, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman"},
-    {182, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman"},
-    {183, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman"},
-    {184, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman"},
-    {185, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman"},
-    {186, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman"},
-    {212, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {213, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {214, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {215, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {216, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {219, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {220, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {221, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {223, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {224, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {226, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {217, DogTagGateKind::After, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {218, DogTagGateKind::After, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {222, DogTagGateKind::After, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {225, DogTagGateKind::After, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {227, DogTagGateKind::After, DogTagGateSource::Story, 323, "Vamp sniper"},
-    {255, DogTagGateKind::After, DogTagGateSource::Story, 92, "Peter"},
-    {256, DogTagGateKind::After, DogTagGateSource::Story, 92, "Peter"},
-    {113, DogTagGateKind::Until, DogTagGateSource::Flag, 0, "falling soldier"},
-    {114, DogTagGateKind::Until, DogTagGateSource::Flag, 0, "falling soldier"},
-    {115, DogTagGateKind::Until, DogTagGateSource::Flag, 0, "falling soldier"},
-    {116, DogTagGateKind::Until, DogTagGateSource::Flag, 0, "falling soldier"},
-    {117, DogTagGateKind::Until, DogTagGateSource::Flag, 0, "falling soldier"},
-    {118, DogTagGateKind::Until, DogTagGateSource::Flag, 1, "door repair"},
-    {119, DogTagGateKind::Until, DogTagGateSource::Flag, 1, "door repair"},
-    {120, DogTagGateKind::Until, DogTagGateSource::Flag, 1, "door repair"},
-    {121, DogTagGateKind::Until, DogTagGateSource::Flag, 1, "door repair"},
-    {122, DogTagGateKind::Until, DogTagGateSource::Flag, 1, "door repair"},
-    {311, DogTagGateKind::Until, DogTagGateSource::Flag, 2, "exercise soldier"},
-    {312, DogTagGateKind::Until, DogTagGateSource::Flag, 2, "exercise soldier"},
-    {313, DogTagGateKind::Until, DogTagGateSource::Flag, 2, "exercise soldier"},
-    {314, DogTagGateKind::Until, DogTagGateSource::Flag, 2, "exercise soldier"},
-    {315, DogTagGateKind::Until, DogTagGateSource::Flag, 2, "exercise soldier"},
-    {38, DogTagGateKind::Until, DogTagGateSource::Flag, 3, "shadow"},
-    {39, DogTagGateKind::Until, DogTagGateSource::Flag, 3, "shadow"},
-    {40, DogTagGateKind::Until, DogTagGateSource::Flag, 3, "shadow"},
-    {41, DogTagGateKind::Until, DogTagGateSource::Flag, 3, "shadow"},
-    {42, DogTagGateKind::Until, DogTagGateSource::Flag, 3, "shadow"},
-    {25, DogTagGateKind::Until, DogTagGateSource::Flag, 4, "right door"},
-    {26, DogTagGateKind::Until, DogTagGateSource::Flag, 4, "right door"},
-    {27, DogTagGateKind::Until, DogTagGateSource::Flag, 4, "right door"},
-    {28, DogTagGateKind::Until, DogTagGateSource::Flag, 4, "right door"},
-    {29, DogTagGateKind::Until, DogTagGateSource::Flag, 4, "right door"},
-    {0, DogTagGateKind::Until, DogTagGateSource::Flag, 5, "Olga leaves"},
-    {1, DogTagGateKind::Until, DogTagGateSource::Flag, 5, "Olga leaves"},
-    {2, DogTagGateKind::Until, DogTagGateSource::Flag, 5, "Olga leaves"},
-    {3, DogTagGateKind::Until, DogTagGateSource::Flag, 5, "Olga leaves"},
-    {4, DogTagGateKind::Until, DogTagGateSource::Flag, 5, "Olga leaves"},
-    {5, DogTagGateKind::Until, DogTagGateSource::Flag, 6, "Tengu"},
-    {6, DogTagGateKind::Until, DogTagGateSource::Flag, 6, "Tengu"},
-    {7, DogTagGateKind::Until, DogTagGateSource::Flag, 6, "Tengu"},
-    {8, DogTagGateKind::Until, DogTagGateSource::Flag, 6, "Tengu"},
-    {9, DogTagGateKind::Until, DogTagGateSource::Flag, 6, "Tengu"},
+    {207, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman bomb disposal"},
+    {208, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman bomb disposal"},
+    {209, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman bomb disposal"},
+    {210, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman bomb disposal"},
+    {211, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman bomb disposal"},
+    {182, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman bomb disposal"},
+    {183, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman bomb disposal"},
+    {184, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman bomb disposal"},
+    {185, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman bomb disposal"},
+    {186, DogTagGateKind::After, DogTagGateSource::Story, 122, "Fatman bomb disposal"},
+    {212, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {213, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {214, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {215, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {216, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {219, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {220, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {221, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {223, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {224, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {226, DogTagGateKind::Until, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {217, DogTagGateKind::After, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {218, DogTagGateKind::After, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {222, DogTagGateKind::After, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {225, DogTagGateKind::After, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {227, DogTagGateKind::After, DogTagGateSource::Story, 323, "Vamp sniper fight"},
+    {255, DogTagGateKind::After, DogTagGateSource::Story, 92, "meeting Stillman"},
+    {256, DogTagGateKind::After, DogTagGateSource::Story, 92, "meeting Stillman"},
+    {257, DogTagGateKind::After, DogTagGateSource::Story, 148, "getting Card 2"},
+    {113, DogTagGateKind::Until, DogTagGateSource::Flag, 0, "falling soldier event"},
+    {114, DogTagGateKind::Until, DogTagGateSource::Flag, 0, "falling soldier event"},
+    {115, DogTagGateKind::Until, DogTagGateSource::Flag, 0, "falling soldier event"},
+    {116, DogTagGateKind::Until, DogTagGateSource::Flag, 0, "falling soldier event"},
+    {117, DogTagGateKind::Until, DogTagGateSource::Flag, 0, "falling soldier event"},
+    {118, DogTagGateKind::Until, DogTagGateSource::Flag, 1, "door repair event"},
+    {119, DogTagGateKind::Until, DogTagGateSource::Flag, 1, "door repair event"},
+    {120, DogTagGateKind::Until, DogTagGateSource::Flag, 1, "door repair event"},
+    {121, DogTagGateKind::Until, DogTagGateSource::Flag, 1, "door repair event"},
+    {122, DogTagGateKind::Until, DogTagGateSource::Flag, 1, "door repair event"},
+    {0, DogTagGateKind::Until, DogTagGateSource::Flag, 5, "entering bridge", 29},
+    {1, DogTagGateKind::Until, DogTagGateSource::Flag, 5, "entering bridge", 29},
+    {2, DogTagGateKind::Until, DogTagGateSource::Flag, 5, "entering bridge", 29},
+    {3, DogTagGateKind::Until, DogTagGateSource::Flag, 5, "entering bridge", 29},
+    {4, DogTagGateKind::Until, DogTagGateSource::Flag, 5, "entering bridge", 29},
 };
 
 constexpr const DogTagGate* dog_tag_gate(uint16_t id)
@@ -559,8 +542,13 @@ constexpr const DogTagGate* dog_tag_gate(uint16_t id)
     return nullptr;
 }
 
-constexpr bool dog_tag_gate_available(const DogTagGate& gate, uint16_t p_story, uint32_t flags)
+constexpr bool dog_tag_gate_available(const DogTagGate& gate, uint16_t p_story,
+                                      uint32_t flags, uint16_t t_story)
 {
+    if (gate.tanker_story_start
+        && (t_story < gate.tanker_story_start || t_story > kLastTankerStoryStep)) {
+        return false;
+    }
     if (gate.source == DogTagGateSource::Story) {
         return gate.kind == DogTagGateKind::After ? p_story >= gate.value : p_story < gate.value;
     }

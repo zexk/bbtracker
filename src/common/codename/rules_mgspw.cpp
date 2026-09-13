@@ -54,7 +54,9 @@ constexpr int pw_count(int value)
 }
 
 // The twelve slots the evaluator reads, mapped onto the six title classes.
-// Slot 10 is in none of them.
+// Slot 10 is a phantom class: no weapon record carries it, its four counters
+// never move, and the spread predicate skips it.
+constexpr int kPwPhantomSlot = 10;
 constexpr int kPwSlotClass[12] = {
     static_cast<int>(WeaponClass::Cqc),       // 0
     static_cast<int>(WeaponClass::Stun),      // 1
@@ -123,8 +125,9 @@ PwProfile pw_profile(const GameStats& s)
         p.dominant = pw_dominant_class(slots, p.top);
         const double average = static_cast<double>(p.total) / 11.0;
         p.balanced = true;
-        for (int value : slots) {
-            if (std::abs(static_cast<double>(value) - average) > average * 0.1) {
+        for (int slot = 0; slot < 12; ++slot) {
+            if (slot == kPwPhantomSlot) continue;
+            if (std::abs(static_cast<double>(slots[slot]) - average) > average * 0.1) {
                 p.balanced = false;
                 break;
             }
@@ -459,8 +462,9 @@ std::vector<ReqStatus> elite_requirements_mgspw(const GameStats& s)
         const double average = slot_total / 11.0;
         double worst = 0.0;
         if (average > 0.0) {
-            for (int value : axes.slot) {
-                const double off = 100.0 * std::abs(value - average) / average;
+            for (int slot = 0; slot < 12; ++slot) {
+                if (slot == kPwPhantomSlot) continue;
+                const double off = 100.0 * std::abs(axes.slot[slot] - average) / average;
                 if (off > worst) worst = off;
             }
         }

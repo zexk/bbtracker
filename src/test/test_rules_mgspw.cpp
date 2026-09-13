@@ -178,7 +178,31 @@ void test_native_axes_titles()
 
     stats = {};
     stats.pw_codename_axes_ok = true;
-    for (int slot = 0; slot < 12; ++slot) stats.pw_codename_axes[1][slot] = 10;
+    // Slot 10 is a phantom class: no weapon feeds it and its counters stay
+    // zero, so the spread predicate skips it.
+    for (int slot = 0; slot < 12; ++slot) {
+        if (slot == 10) continue;
+        stats.pw_codename_axes[1][slot] = 10;
+    }
+    CHECK(std::string_view(title(stats)) == "FOX");
+    stats.pw_camaraderie = 10001;
+    CHECK(std::string_view(title(stats)) == "FOXHOUND");
+}
+
+// The phantom slot must not read as a 100% deviation against the eleven real
+// slots; before the skip, every even career failed the FOX/FOXHOUND spread.
+void test_phantom_slot_ignored()
+{
+    GameStats stats{};
+    stats.pw_codename_axes_ok = true;
+    for (int slot = 0; slot < 12; ++slot) {
+        if (slot == 10) continue;
+        stats.pw_codename_axes[1][slot] = 10;
+    }
+    CHECK(pw_axes(stats).slot[10] == 0);
+    const auto rows = elite_requirements_mgspw(stats);
+    CHECK(rows[0].pass);
+    CHECK(rows[0].current == 0.0);
     CHECK(std::string_view(title(stats)) == "FOX");
     stats.pw_camaraderie = 10001;
     CHECK(std::string_view(title(stats)) == "FOXHOUND");
@@ -300,19 +324,21 @@ void test_elite_requirements()
     // Non-lethal counts the tranquillizer and CQC banks together.
     CHECK(rows[2].pass && rows[2].current == 20 && rows[2].limit == 0);
 
-    // Native axes: the evaluator measures the twelve slots against their own
-    // average, so the same spread is reported as one deviation.
+    // Native axes: the evaluator measures the eleven real slots against their
+    // own average, so the same spread is reported as one deviation.
     GameStats balanced{};
     balanced.pw_codename_axes_ok = true;
     for (int slot = 0; slot < 12; ++slot) {
+        if (slot == 10) continue;
         balanced.pw_codename_axes[1][slot] = 10;
     }
     const auto native = elite_requirements_mgspw(balanced);
     CHECK(native.size() == 2);
     CHECK(std::string_view(native[0].label) == "slot spread");
     CHECK(native[0].pass && native[0].limit == 10.0);
+    CHECK(native[0].current == 0.0);
     CHECK(static_cast<ReqFmt>(native[0].fmt) == ReqFmt::Percent);
-    CHECK(native[1].pass);  // 120 non-lethal against no kills
+    CHECK(native[1].pass);  // 110 non-lethal against no kills
 
     balanced.pw_codename_axes[1][3] = 40;
     const auto uneven = elite_requirements_mgspw(balanced);
@@ -360,6 +386,7 @@ int main()
          test_dominant_is_the_top_type_not_the_top_class},
         {"native_axes", test_native_axes},
         {"native_axes_titles", test_native_axes_titles},
+        {"phantom_slot_ignored", test_phantom_slot_ignored},
         {"class_names_and_gates", test_class_names_and_gates},
         {"grade_ladder", test_grade_ladder},
         {"grade_heroism_floor", test_grade_heroism_floor},

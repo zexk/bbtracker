@@ -724,8 +724,10 @@ indices:
 
 The all-weapons pairs are HOUND (`13`) / DOBERMAN (`7`) lethal and FOX (`9`) /
 FOXHOUND (`10`) non-lethal, again solo / cooperation. Their spread predicate is
-`average = total / 11.0`, with every one of the twelve slot totals required to
-satisfy `abs(slot - average) <= average * 0.1`. A zero-total profile passes the
+`average = total / 11.0`, with every one of the eleven live slot totals required
+to satisfy `abs(slot - average) <= average * 0.1`. Slot index `10` is a phantom:
+no weapon record carries class `10`, its four counters never move, and the
+unrolled check skips it (`cmp rdx, 0xa`). A zero-total profile passes the
 spread test but fails the grade conditions.
 
 Grades run 1..5, and the evaluator calls the granter only when the candidate
@@ -1054,7 +1056,9 @@ Open items:
   indistinguishable;
 - `0x442002E` counts tranq-weapon takedowns, not all non-lethal ones; CQC never
   touches it across three runs;
-- takedown slot `10` remains unclassified; slot `6` is confirmed SMG by the
+- takedown slot `10` is a phantom class - no weapon record carries it, its four
+  counters (`0x200E7`, `0x200F4`, `0x20101`, `0x2010E`) never move, and the
+  evaluator's spread check skips the slot; slot `6` is confirmed SMG by the
   native weapon table (placed explosives and mines use slot `11`);
 - `save+0x22` and global `0x1415969F4` are mission-scoped; the event at
   `0x14017084E` is unidentified;

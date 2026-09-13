@@ -115,7 +115,6 @@ const char* mgs2_area_state(const GameStats& stats)
     };
     static constexpr FlagState kFlagStates[] = {
         {"w02a", 1, "before door repair", "after door repair"},
-        {"w24d", 2, "before exercise soldier", "after exercise soldier"},
         {"w01b", 3, "before shadow", "after shadow"},
         {"w00c", 4, "before right door", "after right door"},
         {"w45a", 6, "before Tengu", "after Tengu"},
@@ -170,24 +169,34 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
                     header = true;
                 }
                 const bool done = mgs2::dog_tag_collected(stats.dog_tag_mask, tag.id);
-                const bool state_known = stats.mgs2_p_story != kUnknownMgs2Story
-                    && stats.mgs2_p_story <= kLastKnownStoryStep;
-                const mgs2::DogTagGate* gate =
-                    state_known ? mgs2::dog_tag_gate(tag.id) : nullptr;
-                const bool gate_ok = !gate
-                    || mgs2::dog_tag_gate_available(*gate, stats.mgs2_p_story,
-                                                    stats.mgs2_dog_tag_flags);
+                const mgs2::DogTagGate* gate = mgs2::dog_tag_gate(tag.id);
+                const bool state_known = gate && gate->tanker_story_start
+                    ? stats.mgs2_t_story != kUnknownMgs2Story
+                          && stats.mgs2_t_story <= mgs2::kLastTankerStoryStep
+                    : stats.mgs2_p_story != kUnknownMgs2Story
+                          && stats.mgs2_p_story <= kLastKnownStoryStep;
+                if (!state_known) gate = nullptr;
+                const bool gate_ok = !gate || mgs2::dog_tag_gate_available(
+                    *gate, stats.mgs2_p_story, stats.mgs2_dog_tag_flags,
+                    stats.mgs2_t_story);
                 ImVec4 color = done ? id_colors(g_game).green : unset_color();
                 if (!done && gate && !gate_ok) {
                     color = gate->kind == mgs2::DogTagGateKind::Until
+                            && (!gate->tanker_story_start
+                                || stats.mgs2_t_story >= gate->tanker_story_start)
                         ? id_colors(g_game).red : unset_color();
                 }
                 char suffix[48] = {};
                 if (gate) {
-                    std::snprintf(suffix, sizeof(suffix), "[%s %s]",
-                                  gate->kind == mgs2::DogTagGateKind::After ? "after"
-                                                                             : "until",
-                                  gate->trigger);
+                    if (gate->tanker_story_start) {
+                        std::snprintf(suffix, sizeof(suffix), "[after Olga fight, before %s]",
+                                      gate->trigger);
+                    } else {
+                        std::snprintf(suffix, sizeof(suffix), "[%s %s]",
+                                      gate->kind == mgs2::DogTagGateKind::After ? "after"
+                                                                                 : "before",
+                                      gate->trigger);
+                    }
                 }
                 const float bluff_scale = tag.bluff ? 1.15f : 1.0f;
                 if (tag.bluff) push_font(g_font_bold, bluff_scale);

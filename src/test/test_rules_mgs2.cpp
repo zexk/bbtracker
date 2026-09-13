@@ -65,14 +65,29 @@ void test_dog_tag_bits_and_rosters()
             CHECK(gate.value < flag_count);
         }
     }
+    for (size_t i = 0; i < std::size(mgs2::kDogTagGates); ++i) {
+        for (size_t j = i + 1; j < std::size(mgs2::kDogTagGates); ++j) {
+            CHECK(mgs2::kDogTagGates[i].id != mgs2::kDogTagGates[j].id);
+        }
+    }
+    for (uint16_t id : {uint16_t{5}, uint16_t{25}, uint16_t{38}, uint16_t{311}}) {
+        CHECK(mgs2::dog_tag_gate(id) == nullptr);
+    }
     CHECK(mgs2::dog_tag_gate(206) == nullptr);
     CHECK(mgs2::dog_tag_gate(207) != nullptr);
     // w19a second guard only after Fatman.
-    CHECK(!mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(207), 121, 0));
-    CHECK(mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(207), 122, 0));
+    CHECK(!mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(207), 121, 0, 0));
+    CHECK(mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(207), 122, 0, 0));
     // w02a door repair guard until its flag (index 1) is set.
-    CHECK(mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(118), 0, 0));
-    CHECK(!mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(118), 0, uint32_t{1} << 1));
+    CHECK(mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(118), 0, 0, 0));
+    CHECK(!mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(118), 0, uint32_t{1} << 1, 0));
+    // Olga's tag exists after the fight, until entering the bridge.
+    CHECK(!mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(0), 0, 0, 25));
+    CHECK(!mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(0), 0, 0, 0xFFFF));
+    CHECK(mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(0), 0, 0, 29));
+    CHECK(!mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(0), 0, uint32_t{1} << 5, 29));
+    CHECK(!mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(257), 147, 0, 0));
+    CHECK(mgs2::dog_tag_gate_available(*mgs2::dog_tag_gate(257), 148, 0, 0));
 }
 
 void test_big_boss_exact()
