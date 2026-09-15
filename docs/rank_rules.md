@@ -35,11 +35,15 @@ The tracker image embeds the same strings and is excluded from the scan.
 When game-time resets for a newly booted image, probe clears latched serial and
 timer offset, then discovers both again. This supports returning to collection
 menu and launching another edition without restarting process.
-Region never derives from memory layout: game-time offset selection (western
-originals and Integral `-0x939D`, assumed shared since EU is the only western
-edition probed; JP `-0x9495`; third candidate `-0x9B11` of unknown provenance)
-only picks which counter to read, and a mismatch with the serial variant is
-logged as a warning.
+Region never derives from memory layout: game-time offset selection only picks
+which counter to read. Western originals and Integral share `-0x939D`
+(assumed, since EU is the only western edition probed); JP Premium Package
+disc 1 (`SLPM_861.11`/`SLPM-86111`) is confirmed at `-0x9495` from a live
+`bbtracker.log`. Both are now assigned directly from the disc serial, no
+clock-delta wait. Disc 2 (`SLPM_861.12`/`SLPM-86112`) is unconfirmed and still
+falls back to the clock-delta heuristic, along with the untested third
+candidate `-0x9B11`; a mismatch between the heuristic's pick and the serial's
+expected offset is logged as a warning.
 
 Rank differences by edition, per muni's chart and the speedrun community:
 the Japanese original offers only its fixed Easy-equivalent difficulty and

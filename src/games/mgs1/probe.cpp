@@ -251,6 +251,24 @@ uint32_t read_game_frames()
             continue;
         }
     }
+    // Offset is fixed per disc, no need to guess from clock behavior once the
+    // serial is known: western/Integral share -0x939D, and disc 1 of the JP
+    // Premium Package (SLPM_861.11/86111) is confirmed at -0x9495. Disc 2
+    // (SLPM_861.12/86112) is unconfirmed, so it still falls through to the
+    // clock-delta heuristic below.
+    if (g_game_time_index < 0) {
+        const PsxVariant variant = disc_variant();
+        if (variant == PsxVariant::WesternOriginal || variant == PsxVariant::Integral) {
+            g_game_time_index = 0;
+        } else if (variant == PsxVariant::JapaneseOriginal
+                   && (std::strstr(g_serial, "861.11") || std::strstr(g_serial, "86111"))) {
+            g_game_time_index = 1;
+        }
+        if (g_game_time_index >= 0) {
+            LOG_INFO("mgs1 game-time offset -0x%04X (from serial %s)",
+                     static_cast<unsigned>(kGameTimeOffsets[g_game_time_index]), g_serial);
+        }
+    }
     if (g_game_time_index >= 0) {
         const uint32_t selected = current[static_cast<size_t>(g_game_time_index)];
         if (clock_reset(g_last_game_frames, selected)) {
