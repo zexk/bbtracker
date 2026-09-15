@@ -315,7 +315,7 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         weapon("assault rifles", 3, stats.pw_ar_takedowns, -1);
         weapon("sniper rifles", 4, stats.pw_sniper_takedowns, stats.pw_sniper_nonlethal);
         weapon("machine guns", 5, stats.pw_lmg_takedowns, -1);
-        weapon("submachine guns", 6, -1, -1);
+        weapon("submachine guns", 6, stats.pw_smg_takedowns, -1);
         weapon("shotguns", 7, stats.pw_shotgun_takedowns, -1);
         weapon("CQC", 0, -1, stats.pw_cqc_takedowns);
         weapon("stun rod", 1, -1, stats.pw_stun_rod_takedowns);

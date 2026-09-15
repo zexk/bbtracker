@@ -135,7 +135,7 @@ PwProfile pw_profile(const GameStats& s)
         if (p.balanced) p.dominant = WeaponClass::All;
         return p;
     }
-    // Rebuild available slots from career counters; slots 6 and 10 stay absent.
+    // Rebuild available slots from career counters; slot 10 stays absent.
     int slots[12]{};
     slots[0] = pw_count(s.pw_cqc_takedowns);
     slots[1] = pw_count(s.pw_stun_rod_takedowns);
@@ -143,6 +143,7 @@ PwProfile pw_profile(const GameStats& s)
     slots[3] = pw_count(s.pw_ar_takedowns);
     slots[4] = pw_count(s.pw_sniper_takedowns) + pw_count(s.pw_sniper_nonlethal);
     slots[5] = pw_count(s.pw_lmg_takedowns);
+    slots[6] = pw_count(s.pw_smg_takedowns);
     slots[7] = pw_count(s.pw_shotgun_takedowns);
     slots[8] = pw_count(s.pw_rocket_takedowns);
     slots[9] = pw_count(s.pw_grenade_takedowns);

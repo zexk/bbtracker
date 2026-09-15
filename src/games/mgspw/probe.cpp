@@ -184,6 +184,7 @@ constexpr uint32_t kArIds[] = {0x200E0};      // lethal, assault rifle
 constexpr uint32_t kShotgunIds[] = {0x200E4}; // lethal, shotgun
 constexpr uint32_t kSniperIds[] = {0x200E1};  // lethal, sniper rifle
 constexpr uint32_t kLmgIds[] = {0x200E2};     // lethal, LMG
+constexpr uint32_t kSmgIds[] = {0x200E3};     // lethal, submachine gun
 constexpr uint32_t kSniperNlIds[] = {0x200FB}; // non-lethal, sniper (Mosin)
 constexpr uint32_t kFultonIds[] = {0x2008E};    // Fulton: enemies
 constexpr uint32_t kPrisonerIds[] = {0x2008F};  // Fulton: prisoners
@@ -226,6 +227,7 @@ void read_stat_families(uintptr_t block, GameStats& out)
         {kShotgunIds, std::size(kShotgunIds), &out.pw_shotgun_takedowns, nullptr},
         {kSniperIds, std::size(kSniperIds), &out.pw_sniper_takedowns, nullptr},
         {kLmgIds, std::size(kLmgIds), &out.pw_lmg_takedowns, nullptr},
+        {kSmgIds, std::size(kSmgIds), &out.pw_smg_takedowns, nullptr},
         {kSniperNlIds, std::size(kSniperNlIds), &out.pw_sniper_nonlethal, nullptr},
         {kPistolLethalIds, std::size(kPistolLethalIds), &out.pw_pistol_lethal, nullptr},
         {kCqcIds, std::size(kCqcIds), &out.pw_cqc_takedowns, nullptr},
