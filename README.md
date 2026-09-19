@@ -22,6 +22,11 @@ Press `F3` to toggle overlay. In MGS2, MGS3, MGS4, and Peace Walker, press `F4` 
 Use `Up`/`Down` to scroll checklists, MGS4 feats and flashbacks, and Peace Walker career stats.
 Overlay scales automatically for high-DPI displays and 4K rendering.
 
+To move or resize the overlay, edit `bbtracker.ini` next to the ASI and
+uncomment both values in the `x`/`y` or `width`/`height` pair. Values use
+back-buffer pixels; leaving them commented keeps the default left-center,
+automatic-size layout.
+
 ## Install
 
 Requires Ultimate ASI Loader. Recommended setup:

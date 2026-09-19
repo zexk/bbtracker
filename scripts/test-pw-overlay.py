@@ -138,6 +138,12 @@ int main() {
     assert(generic.find("Tanker") != std::string::npos);
     assert(generic.find("dog tags") != std::string::npos);
     assert(generic.find("Aft Deck") != std::string::npos);
+    display.mission = 32;
+    display.snake_pull_ups = 123;
+    display.raiden_pull_ups = 456;
+    generic = draw_generic(Game::MGS2, display);
+    assert(generic.find("Tanker + Plant") != std::string::npos);
+    assert(generic.find("Snake 123 · Raiden 456") != std::string::npos);
     display.radar_off = true;
     display.diazepam_frames = 60;
     std::strcpy(display.area_code, "s00");

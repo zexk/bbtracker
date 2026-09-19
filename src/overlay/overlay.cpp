@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <atomic>
 #include <cfloat>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -91,6 +92,15 @@ GameStats g_stats{};
 bool g_have_stats = false;
 SRWLOCK g_stats_lock = SRWLOCK_INIT;
 
+struct OverlayConfig {
+    bool position_set = false;
+    bool size_set = false;
+    ImVec2 position{};
+    ImVec2 size{};
+};
+
+OverlayConfig g_config{};
+
 using PresentFn = HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT);
 using ResizeBuffersFn =
     HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
@@ -112,8 +122,6 @@ constexpr float kBaseFontSize = 14.0f;
 constexpr DWORD kStatsPollMs = 100;
 constexpr DWORD kModuleRetryMs = 500;
 constexpr DWORD kHookRetryMs = 5000;
-constexpr unsigned kProbeTimingSampleCount = 240;
-constexpr uint64_t kMicrosecondsPerSecond = 1000000;
 constexpr int kDummyWindowSize = 100;
 
 bool key_pressed(UINT key)
@@ -895,15 +903,20 @@ void draw_panel()
     const ImGuiCond initial_layout = g.reset_window ? ImGuiCond_Always : ImGuiCond_FirstUseEver;
     const ImVec2 anchor(viewport->WorkPos.x + ui_size(16),
                         viewport->WorkPos.y + viewport->WorkSize.y * 0.5f);
-    ImGui::SetNextWindowPos(anchor, initial_layout, ImVec2(0.0f, 0.5f));
+    ImGui::SetNextWindowPos(g_config.position_set ? g_config.position : anchor,
+                            initial_layout,
+                            g_config.position_set ? ImVec2{} : ImVec2(0.0f, 0.5f));
+    if (g_config.size_set) {
+        ImGui::SetNextWindowSize(g_config.size, initial_layout);
+    }
     push_font(g_font_semibold, kSectionScale);
-    ImGui::Begin(panel_title, nullptr,
-                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
-                     | ImGuiWindowFlags_AlwaysAutoResize);
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
+        | (g_config.size_set ? 0 : ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Begin(panel_title, nullptr, flags);
     ImGui::PopFont();
     static float placed_height = -1.0f;
     const float panel_height = ImGui::GetWindowHeight();
-    if (panel_height != placed_height) {
+    if (!g_config.position_set && panel_height != placed_height) {
         ImGui::SetWindowPos(ImVec2(anchor.x, anchor.y - panel_height * 0.5f));
         placed_height = panel_height;
     }
@@ -996,19 +1009,37 @@ bool render_d3d12(IDXGISwapChain* swap_chain)
     return true;
 }
 
-// A Present from another swap chain means the one we bound to is gone: MGS4
-// tears its window down for the Act 4 emulated MGS1 segment and builds a new
-// swap chain on the way back, leaving the bound device objects drawing into a
-// back buffer nobody presents. Rebuild against whatever is presenting now.
-void rebind_swap_chain(IDXGISwapChain* swap_chain)
+// MGS4 replaces its main swap chain around the Act 4 emulated MGS1 segment.
+// Ignore unrelated live-window swap chains; rendering bound resources during
+// their Present would target the wrong back buffer.
+bool select_swap_chain(IDXGISwapChain* swap_chain)
 {
     if (!g.imgui_ready || swap_chain == g.swap_chain) {
-        return;
+        return true;
+    }
+    DXGI_SWAP_CHAIN_DESC desc{};
+    if (FAILED(swap_chain->GetDesc(&desc))
+        || (IsWindow(g.hwnd) && desc.OutputWindow != g.hwnd)) {
+        return false;
     }
     LOG_INFO("swap chain %p replaced by %p, rebuilding overlay",
              reinterpret_cast<void*>(g.swap_chain), reinterpret_cast<void*>(swap_chain));
-    if (g.renderer == Renderer::D3D12) release_d3d12();
-    else release_d3d11();
+    if (g.renderer == Renderer::D3D12) {
+        ID3D12Device* next_device = nullptr;
+        bool device_changed = false;
+        if (SUCCEEDED(swap_chain->GetDevice(IID_PPV_ARGS(&next_device)))) {
+            device_changed = next_device != g.device12;
+            next_device->Release();
+        }
+        release_d3d12();
+        if (device_changed) {
+            ID3D12CommandQueue* queue = g.queue12.exchange(nullptr);
+            if (queue) queue->Release();
+        }
+    } else {
+        release_d3d11();
+    }
+    return true;
 }
 
 HRESULT STDMETHODCALLTYPE hk_present(IDXGISwapChain* swap_chain, UINT sync_interval, UINT flags)
@@ -1017,7 +1048,9 @@ HRESULT STDMETHODCALLTYPE hk_present(IDXGISwapChain* swap_chain, UINT sync_inter
     if (!g.show) {
         return oPresent(swap_chain, sync_interval, flags);
     }
-    rebind_swap_chain(swap_chain);
+    if (!select_swap_chain(swap_chain)) {
+        return oPresent(swap_chain, sync_interval, flags);
+    }
     if (!g.imgui_ready) {
         ID3D11Device* device11 = nullptr;
         const bool is_d3d11 = SUCCEEDED(swap_chain->GetDevice(IID_PPV_ARGS(&device11)));
@@ -1225,6 +1258,24 @@ std::filesystem::path dll_dir()
     return std::filesystem::path(path).parent_path();
 }
 
+void load_overlay_config(const std::filesystem::path& path)
+{
+    constexpr int kUnset = INT_MIN;
+    const std::wstring file = path.wstring();
+    const int x = GetPrivateProfileIntW(L"overlay", L"x", kUnset, file.c_str());
+    const int y = GetPrivateProfileIntW(L"overlay", L"y", kUnset, file.c_str());
+    const int width = GetPrivateProfileIntW(L"overlay", L"width", kUnset, file.c_str());
+    const int height = GetPrivateProfileIntW(L"overlay", L"height", kUnset, file.c_str());
+    g_config.position_set = x != kUnset && y != kUnset;
+    g_config.size_set = width > 0 && height > 0;
+    if (g_config.position_set) {
+        g_config.position = {static_cast<float>(x), static_cast<float>(y)};
+    }
+    if (g_config.size_set) {
+        g_config.size = {static_cast<float>(width), static_cast<float>(height)};
+    }
+}
+
 } // namespace
 
 void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game_module,
@@ -1236,6 +1287,7 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
     g_game = game;
 
     std::filesystem::path dir = dll_dir();
+    load_overlay_config(dir / L"bbtracker.ini");
     std::string log_path = (dir / L"bbtracker.log").string();
 
     if (!log_init(log_path.c_str())) {
@@ -1276,38 +1328,17 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
     }
 
     LOG_INFO("D3D%d hooks installed", use_d3d12 ? 12 : 11);
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
 
-    LARGE_INTEGER frequency{};
-    QueryPerformanceFrequency(&frequency);
-    uint64_t total_ticks = 0;
-    uint64_t max_ticks = 0;
-    unsigned timing_samples = 0;
     for (;;) {
-        LARGE_INTEGER started{};
-        LARGE_INTEGER finished{};
-        QueryPerformanceCounter(&started);
         GameStats stats{};
         const bool have_stats = g_stats_fn && g_stats_fn(stats);
-        QueryPerformanceCounter(&finished);
-        const uint64_t elapsed = static_cast<uint64_t>(finished.QuadPart - started.QuadPart);
-        total_ticks += elapsed;
-        max_ticks = elapsed > max_ticks ? elapsed : max_ticks;
         AcquireSRWLockExclusive(&g_stats_lock);
         g_stats = stats;
         g_have_stats = have_stats;
         ReleaseSRWLockExclusive(&g_stats_lock);
-        if (++timing_samples == kProbeTimingSampleCount) {
-            LOG_INFO("probe timing: avg=%lluus max=%lluus",
-                     static_cast<unsigned long long>(total_ticks * kMicrosecondsPerSecond
-                                                     / frequency.QuadPart / timing_samples),
-                     static_cast<unsigned long long>(max_ticks * kMicrosecondsPerSecond
-                                                     / frequency.QuadPart));
-            total_ticks = 0;
-            max_ticks = 0;
-            timing_samples = 0;
-        }
         // 10 Hz: the live per-mission tallies are read here, and at 4 Hz the
-        // sampling lag was visible in game. PW probe costs ~80us per poll.
+        // sampling lag was visible in game.
         Sleep(kStatsPollMs);
     }
 }

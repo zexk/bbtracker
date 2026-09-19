@@ -461,9 +461,10 @@ bool find_candidate(uintptr_t& out)
         return false;
     });
     if (now_ms - last_report >= 10000) {
-        LOG_INFO("mgs1 work scan: %llu bytes read, %llu stage hits, %zu candidates, cursor=%p",
+        LOG_INFO("mgs1 work scan: %llu bytes read, %llu stage hits, %llu candidates, cursor=%p",
                  static_cast<unsigned long long>(scanned_bytes),
-                 static_cast<unsigned long long>(stage_hits), candidates.size(),
+                 static_cast<unsigned long long>(stage_hits),
+                 static_cast<unsigned long long>(candidates.size()),
                  reinterpret_cast<const void*>(cursor));
         last_report = now_ms;
         scanned_bytes = 0;
