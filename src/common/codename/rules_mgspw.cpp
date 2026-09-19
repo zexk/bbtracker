@@ -409,8 +409,11 @@ PwGrade pw_grade(const GameStats& s)
         // Grades 3+ allow equality; grades 1-2 require a strict pass.
         const bool ratio_ok = grade >= 3 ? ratio >= kPwCoopRatioGate[i]
                                          : ratio > kPwCoopRatioGate[i];
-        const bool cam_ok = coop ? s.pw_camaraderie > kPwCamaraderieStep[i]
-                                 : s.pw_camaraderie <= kPwCamaraderieStep[i];
+        // Unresolved camaraderie reads -1, which would satisfy the solo
+        // "at or below the step" test on no evidence at all.
+        const bool cam_ok = s.pw_camaraderie >= 0
+            && (coop ? s.pw_camaraderie > kPwCamaraderieStep[i]
+                     : s.pw_camaraderie <= kPwCamaraderieStep[i]);
         const bool flag_ok = grade == 5 ? s.pw_codename_grade5_ok
             : grade == 4 ? s.pw_codename_grade4_ok : true;
         // Heroism floor is strict.

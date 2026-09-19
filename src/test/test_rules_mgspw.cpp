@@ -248,6 +248,13 @@ void test_grade_ladder()
     CHECK(pw_grade(stats).grade == 0);
 
     stats.pw_codename_result_ok = true;
+    // An unread camaraderie counter is not a passing solo reading.
+    GameStats unread = stats;
+    unread.pw_camaraderie = -1;
+    CHECK(pw_grade(unread).grade == 0);
+    CHECK(pw_grade(unread).next == 1);
+    CHECK(std::string_view(pw_grade(unread).blocker) == "camaraderie under");
+
     // Ratio 1.0 clears grades 1 to 3; grade 4 waits on its own flag.
     PwGrade grade = pw_grade(stats);
     CHECK(grade.grade == 3);
