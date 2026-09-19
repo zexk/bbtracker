@@ -18,14 +18,15 @@ ladder, and insignia progress.
 - Peace Walker codename projection, insignia progress, and career counters
 - Windows, Linux, and Steam Deck support through ASI Loader and Proton
 
-Press `F3` to toggle overlay. In MGS2, MGS3, MGS4, and Peace Walker, press `F4` to cycle tabs.
-Use `Up`/`Down` to scroll checklists, MGS4 feats and flashbacks, and Peace Walker career stats.
+By default, press `F3` to toggle overlay. In MGS2, MGS3, MGS4, and Peace Walker,
+press `F4` to cycle tabs. `Up`/`Down` scroll checklists, MGS4 feats and
+flashbacks, and Peace Walker career stats.
 Overlay scales automatically for high-DPI displays and 4K rendering.
 
-To move or resize the overlay, edit `bbtracker.ini` next to the ASI and
-uncomment both values in the `x`/`y` or `width`/`height` pair. Values use
-back-buffer pixels; leaving them commented keeps the default left-center,
-automatic-size layout.
+Edit `bbtracker.ini` next to the ASI to control position, size, UI scale,
+opacity, initial visibility, hotkeys, checklist height, mouse interaction,
+and logging. Enable `mouse=1` for clickable tabs, title-bar close/move, and
+the resize grip. Leaving values commented keeps the defaults.
 
 ## Install
 
