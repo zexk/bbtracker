@@ -549,7 +549,8 @@ bool poll_stats(GameStats& out)
         constexpr size_t kGmpOff = 0xB52C;
         constexpr size_t kClearsOff = 0x656C;
         out.pw_heroism_delta = mem::read<int32_t>(save.data(), kHeroismDeltaOff);
-        out.pw_heroism = mem::read<int32_t>(save.data(), kHeroismOff);
+        const int save_heroism = mem::read<int32_t>(save.data(), kHeroismOff);
+        out.pw_heroism = save_heroism;
         out.pw_gmp = mem::read<uint32_t>(save.data(), kGmpOff);
         out.pw_clears = mem::read<int32_t>(save.data(), kClearsOff);
         // Rank array: 0 = S, 0xFFFF = never cleared; trailing zeros are unused.
@@ -588,6 +589,10 @@ bool poll_stats(GameStats& out)
             }
         }
         read_stat_families(save_block, out);
+        // Descriptor 0x4420077 carries the same lifetime Heroism as the save
+        // field, and the descriptor array reallocates between missions: keep
+        // the save copy rather than reporting the counter as unresolved.
+        if (out.pw_heroism < 0) out.pw_heroism = save_heroism;
         read_codename_axes(out);
         read_codename_state(saved, out);
         read_insignia_state(saved, out);
