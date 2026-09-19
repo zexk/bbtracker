@@ -195,7 +195,11 @@ void draw_mgs4_feats(const GameStats& stats, int scroll)
             row("PIGEON", text);
             count("BLUE BIRD", stats.items_given, goals::kBlueBirdItems, "items given");
             count("HAWK", stats.praises, goals::kHawkPraises, "praises");
-            count("LITTLE GRAY", stats.weapons_acquired, goals::kLittleGrayWeapons, "weapons");
+            // Already claimed means the results screen will pass it over, so
+            // say that here rather than leave the projected title unexplained.
+            snprintf(text, sizeof(text), "%d / %d weapons%s", stats.weapons_acquired,
+                     goals::kLittleGrayWeapons, stats.little_gray_claimed ? " (claimed)" : "");
+            row("LITTLE GRAY", text);
             count("ANT", stats.body_searches, goals::kAntSearches, "searches");
             count("GIBBON", stats.hold_ups, goals::kGibbonHoldUps, "hold-ups");
             time("TORTOISE", stats.box_time_seconds,

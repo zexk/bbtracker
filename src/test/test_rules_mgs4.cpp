@@ -142,7 +142,46 @@ void test_chicken_priority()
     stats.rations_used = 50;
     stats.play_time_seconds = 35 * 3600;
     CHECK(has(stats, "CHICKEN"));
-    CHECK(std::string_view(best(stats)) == "PIG");
+    // PIG sits below the GECKO line, so the results screen shows CHICKEN.
+    CHECK(std::string_view(best(stats)) == "CHICKEN");
+
+    // BEE is one place above the line and keeps the screen.
+    stats.syringe_uses = 50;
+    CHECK(has(stats, "BEE"));
+    CHECK(std::string_view(best(stats)) == "BEE");
+}
+
+void test_little_gray_claimed()
+{
+    GameStats stats{};
+    stats.difficulty = Difficulty::Normal;
+    stats.play_time_seconds = 10 * 3600;
+    stats.alerts = 10;
+    stats.kills = 1;
+    stats.continues = 1;
+    stats.weapons_acquired = mgs4_goals::kLittleGrayWeapons;
+    CHECK(has(stats, "LITTLE GRAY"));
+    CHECK(std::string_view(best(stats)) == "LITTLE GRAY");
+
+    // Second run on the same save: the emblem still matches, but the game
+    // passes over it and shows the next one down.
+    stats.little_gray_claimed = true;
+    CHECK(has(stats, "LITTLE GRAY"));
+    CHECK(std::string_view(best(stats)) == "SCORPION");
+
+    // A better emblem outranks LITTLE GRAY either way.
+    stats.little_gray_claimed = false;
+    stats.praises = mgs4_goals::kHawkPraises;
+    CHECK(std::string_view(best(stats)) == "HAWK");
+}
+
+void test_rule_order_matches_emblem_ids()
+{
+    const auto rules = mgs4_rules();
+    CHECK(rules.size() == 40);
+    CHECK(std::string_view(rules[kLittleGrayRule].name) == "LITTLE GRAY");
+    CHECK(std::string_view(rules[kChickenRule].name) == "CHICKEN");
+    CHECK(std::string_view(rules[kChickenOutranksFrom].name) == "GECKO");
 }
 
 void test_elite_requirements_mirror_big_boss()
@@ -182,6 +221,8 @@ int main()
         {"regular_grid_boundaries", test_regular_grid_boundaries},
         {"other_inclusive_boundaries", test_other_inclusive_boundaries},
         {"chicken_priority", test_chicken_priority},
+        {"little_gray_claimed", test_little_gray_claimed},
+        {"rule_order_matches_emblem_ids", test_rule_order_matches_emblem_ids},
         {"elite_requirements_mirror_big_boss", test_elite_requirements_mirror_big_boss},
     };
 

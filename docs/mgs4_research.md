@@ -328,7 +328,30 @@ Final-result script `ww/stage/stage00/s00a10l/cache/00180720.gcx`, procedure
 Regular grid low means `<=75` alerts, `<=250` kills, `<=25` continues; high
 means `>`. Rows are SCORPION/TARANTULA/CENTIPEDE/SPIDER for low alerts and
 JAGUAR/PANTHER/LEOPARD/PUMA for high alerts, with kill and continue high/low
-forming remaining axes. Game awards all matches and displays highest priority.
+forming remaining axes. Script grants every match unconditionally; the engine
+picks the one shown.
+
+## Displayed emblem selection
+
+Grant command `0x0cda58` (`0x1414bba50`) writes `flags[id-1] = 1` into a
+40-entry run-scoped array at `0x163faeba0`; command `0x1414bb9ed` clears it.
+The results screen at `0x1414bb750` chooses what to display, and priority
+order is not the whole rule:
+
+1. scan `flags[0..39]` for the first set entry, **skipping index 14**
+   (LITTLE GRAY);
+2. if LITTLE GRAY is set, `[linkvarbuf+0x20] & 0x4000` is clear, and the scan
+   found nothing better than index 14, show LITTLE GRAY;
+3. if CHICKEN (index 39) is set and the pick so far is index `>=20` (GECKO or
+   worse), show CHICKEN;
+4. with no pick at all, fall back to CHICKEN.
+
+`linkvarbuf+0x20` bit `0x4000` is the once-per-save gate on LITTLE GRAY: the
+title script zeroes the word on a new save, and that bit is the only consumer
+in the executable, so the emblem is offered on the first run that earns it and
+skipped on every later run. Weapons carry into New Game+, which is why the
+predicate keeps matching. Tracker mirrors steps 1-3; step 4 is unreachable
+because the regular grid matches every alert/kill/continue combination.
 
 ## Weapon count and native commands
 
@@ -573,7 +596,9 @@ Open items:
 - box/drum component identities;
 - run-save integrity algorithm;
 - native trigger sites for Steam achievements;
-- whether emblem predicates run only at results or maintain cached state.
+- whether emblem predicates run only at results or maintain cached state;
+- which code sets `linkvarbuf+0x20` bit `0x4000` after LITTLE GRAY is awarded
+  (only the results-screen reader was located).
 
 None blocks current tracker. All 40 emblem predicates and every required live
 aggregate are implemented for target build.

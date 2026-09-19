@@ -37,6 +37,10 @@ constexpr size_t kFirstWeaponId = 1;
 constexpr size_t kLastWeaponId = 73;
 constexpr size_t kUnusedWeaponId = 11;
 constexpr size_t kWeaponStatesOffset = 0x1D4;
+// The results screen reads this bit before it offers LITTLE GRAY
+// (mgs4.exe 0x1414bb840, `test [linkvarbuf+0x20], 0x4000`).
+constexpr size_t kTitleFlagsOffset = 0x20;
+constexpr uint32_t kLittleGrayClaimedBit = 0x4000;
 
 static_assert(kFlashbackCount <= sizeof(GameStats{}.flashback_bits) * kBitsPerByte);
 
@@ -181,6 +185,8 @@ bool poll_stats(GameStats& out)
         out.flashbacks_unique += std::popcount(static_cast<uint8_t>(
             byte & (index == kLastFlashbackByte ? kLastFlashbackByteMask : 0xFF)));
     }
+    out.little_gray_claimed =
+        (read<uint32_t>(data, kTitleFlagsOffset) & kLittleGrayClaimedBit) != 0;
     out.weapons_acquired = 0;
     for (size_t id = kFirstWeaponId; id <= kLastWeaponId; ++id) {
         if (id == kUnusedWeaponId) continue;

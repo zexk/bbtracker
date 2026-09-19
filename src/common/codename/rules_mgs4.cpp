@@ -122,7 +122,31 @@ std::span<const RankRule> mgs4_rules()
 
 std::optional<Match> evaluate_mgs4(const GameStats& s)
 {
-    return first_match(s, mgs4_rules());
+    // The script grants every emblem the run matches; the results screen
+    // (mgs4.exe 0x1414bb750) then picks what to show, and it does not simply
+    // take the best match. Rule order here is emblem order, so the indices
+    // below are the game's emblem ids minus one.
+    const std::span<const RankRule> rules = mgs4_rules();
+    size_t best = rules.size();
+    for (size_t i = 0; i < rules.size(); ++i) {
+        // The scan steps over LITTLE GRAY; the block below puts it back.
+        if (i == kLittleGrayRule) continue;
+        if (rule_matches(s, rules[i])) {
+            best = i;
+            break;
+        }
+    }
+    // LITTLE GRAY keeps its priority slot, but only until the save claims it.
+    if (best >= kLittleGrayRule && !s.little_gray_claimed
+        && rule_matches(s, rules[kLittleGrayRule])) {
+        best = kLittleGrayRule;
+    }
+    // CHICKEN outranks anything from GECKO down, not just an empty board.
+    if (best >= kChickenOutranksFrom && rule_matches(s, rules[kChickenRule])) {
+        best = kChickenRule;
+    }
+    if (best >= rules.size()) return std::nullopt;
+    return Match{rules[best].name, rules[best].kind};
 }
 
 std::vector<Match> all_matches_mgs4(const GameStats& s)

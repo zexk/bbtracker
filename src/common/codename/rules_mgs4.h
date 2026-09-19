@@ -1,6 +1,20 @@
 #pragma once
 
+#include <cstddef>
+#include <span>
+
+#include "codename.h"
+
 namespace bb::codename {
+
+std::span<const RankRule> mgs4_rules();
+
+// Positions in the mgs4_rules() table, which is in emblem order, so each is
+// the game's emblem id minus one. The results screen singles these out.
+inline constexpr size_t kLittleGrayRule = 14;
+inline constexpr size_t kChickenRule = 39;
+// CHICKEN replaces any pick from this position down (GECKO and worse).
+inline constexpr size_t kChickenOutranksFrom = 20;
 
 // Feat thresholds, shared by the rank rules and the overlay's feat panel
 // so the displayed goals cannot drift from what the ranks match on.

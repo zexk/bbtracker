@@ -62,6 +62,9 @@ struct GameStats {
     int flashbacks_viewed = 0;
     int flashbacks_unique = 0;
     uint8_t flashback_bits[28] = {};
+    // MGS4 offers LITTLE GRAY once per save; the game sets this bit on the
+    // results screen that awards it and skips the emblem on later runs.
+    bool little_gray_claimed = false;
 
     double box_time_seconds = 0.0;
     double wall_time_seconds = 0.0;
