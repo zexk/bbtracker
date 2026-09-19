@@ -37,7 +37,8 @@ Game g_game = Game::MGS4;
 bool (*g_clock_fn)(uint32_t&) = nullptr;
 ImFont* g_font_semibold = nullptr;
 ImFont* g_font_bold = nullptr;
-constexpr float kPanelAlpha = 0.80f;
+constexpr float panel_alpha() { return 0.80f; }
+constexpr float max_list_height() { return 360.0f; }
 constexpr ImVec4 with_alpha(ImVec4 color, float alpha) { color.w = alpha; return color; }
 using ThemeFn = void (*)(ImGuiStyle&);
 '''

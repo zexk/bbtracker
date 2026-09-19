@@ -27,7 +27,7 @@ void apply_theme_babel(ImGuiStyle& style)
 
     colors[ImGuiCol_Text]              = text;
     colors[ImGuiCol_TextDisabled]      = dim;
-    colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_WindowBg]          = with_alpha(panel, panel_alpha());
     colors[ImGuiCol_Border]            = rule;
     colors[ImGuiCol_TitleBg]           = title;
     colors[ImGuiCol_TitleBgActive]     = title_active;

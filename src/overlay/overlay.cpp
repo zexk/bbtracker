@@ -13,18 +13,21 @@
 
 #include <MinHook.h>
 
-#include <cstdlib>
+#include <algorithm>
 #include <atomic>
 #include <cfloat>
 #include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <cwchar>
 #include <cstring>
 #include <array>
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <filesystem>
 
@@ -36,6 +39,8 @@
 #include "../games/mgs3/checklists.h"
 #include "../games/mgs4/flashbacks.h"
 #include "../games/mgspw/names.h"
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 // Embedded from the Inter release pinned in CMakeLists.txt.
 extern const unsigned char inter_regular[];
@@ -95,8 +100,16 @@ SRWLOCK g_stats_lock = SRWLOCK_INIT;
 struct OverlayConfig {
     bool position_set = false;
     bool size_set = false;
+    bool mouse = false;
     ImVec2 position{};
     ImVec2 size{};
+    float scale = 1.0f;
+    float opacity = 0.80f;
+    float max_list_height = 360.0f;
+    UINT toggle_key = VK_F3;
+    UINT tab_key = VK_F4;
+    UINT scroll_up_key = VK_UP;
+    UINT scroll_down_key = VK_DOWN;
 };
 
 OverlayConfig g_config{};
@@ -114,8 +127,6 @@ ExecuteCommandListsFn oExecuteCommandLists = nullptr;
 constexpr UINT kPresentIndex = 8;
 constexpr UINT kResizeBuffersIndex = 13;
 constexpr UINT kExecuteCommandListsIndex = 10;
-constexpr UINT kToggleKey = VK_F3;
-constexpr UINT kTabKey = VK_F4;
 constexpr float kFourKHeight = 2160.0f;
 constexpr float kFourKScale = 2.0f;
 constexpr float kBaseFontSize = 14.0f;
@@ -144,11 +155,54 @@ HMODULE own_module()
 void poll_toggle_key()
 {
     static bool prev_down = false;
-    const bool down = (GetAsyncKeyState(kToggleKey) & 0x8000) != 0;
+    const bool down = (GetAsyncKeyState(g_config.toggle_key) & 0x8000) != 0;
     if (down && !prev_down) {
         g.show = !g.show;
     }
     prev_down = down;
+}
+
+bool mouse_message(UINT message)
+{
+    return (message >= WM_MOUSEFIRST && message <= WM_MOUSELAST)
+        || message == WM_NCMOUSEMOVE || message == WM_SETCURSOR;
+}
+
+constexpr wchar_t kOriginalWndProcProperty[] = L"bbtracker.original_wnd_proc";
+
+LRESULT CALLBACK overlay_wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
+{
+    const auto original = reinterpret_cast<WNDPROC>(GetPropW(hwnd, kOriginalWndProcProperty));
+    if (hwnd == g.hwnd && g.show && g_config.mouse && ImGui::GetCurrentContext()) {
+        const LRESULT handled = ImGui_ImplWin32_WndProcHandler(hwnd, message, wparam, lparam);
+        if (mouse_message(message) && (handled || ImGui::GetIO().WantCaptureMouse)) {
+            return handled ? handled : 1;
+        }
+    }
+    if (message == WM_NCDESTROY) {
+        RemovePropW(hwnd, kOriginalWndProcProperty);
+    }
+    return original ? CallWindowProcW(original, hwnd, message, wparam, lparam)
+                    : DefWindowProcW(hwnd, message, wparam, lparam);
+}
+
+bool hook_mouse_input(HWND hwnd)
+{
+    if (GetPropW(hwnd, kOriginalWndProcProperty)) return true;
+    const auto original = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(hwnd, GWLP_WNDPROC));
+    if (!original || !SetPropW(hwnd, kOriginalWndProcProperty,
+                               reinterpret_cast<HANDLE>(original))) {
+        return false;
+    }
+    SetLastError(ERROR_SUCCESS);
+    const LONG_PTR previous = SetWindowLongPtrW(
+        hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(overlay_wnd_proc));
+    if (!previous && GetLastError() != ERROR_SUCCESS) {
+        RemovePropW(hwnd, kOriginalWndProcProperty);
+        return false;
+    }
+    SetPropW(hwnd, kOriginalWndProcProperty, reinterpret_cast<HANDLE>(previous));
+    return true;
 }
 
 void release_rtv()
@@ -174,7 +228,8 @@ static_assert(overlay_scale(1080.0f, 1.5f) == 1.5f);
 void apply_ui_scale()
 {
     const float scale = overlay_scale(g.render_size.y,
-                                      ImGui_ImplWin32_GetDpiScaleForHwnd(g.hwnd));
+                                      ImGui_ImplWin32_GetDpiScaleForHwnd(g.hwnd))
+        * g_config.scale;
     if (scale == g.ui_scale) return;
 
     apply_game_theme();
@@ -191,7 +246,9 @@ void begin_imgui()
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
-    io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
+    if (!g_config.mouse) {
+        io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
+    }
     ImFontConfig font_cfg;
     font_cfg.FontDataOwnedByAtlas = false;
     // Light auto-hinting: vertical stem snapping without distorting advances.
@@ -206,6 +263,9 @@ void begin_imgui()
                                                  &font_cfg);
     apply_ui_scale();
     ImGui_ImplWin32_Init(g.hwnd);
+    if (g_config.mouse && !hook_mouse_input(g.hwnd)) {
+        LOG_WARN("mouse input hook failed");
+    }
 }
 
 bool create_rtv(IDXGISwapChain* swap_chain)
@@ -382,13 +442,20 @@ bool init_imgui_d3d12(IDXGISwapChain* swap_chain)
     return true;
 }
 
-// Every panel is drawn at the same translucency; only the palette changes.
-constexpr float kPanelAlpha = 0.80f;
-
 constexpr ImVec4 with_alpha(ImVec4 color, float alpha)
 {
     color.w = alpha;
     return color;
+}
+
+float panel_alpha()
+{
+    return g_config.opacity;
+}
+
+float max_list_height()
+{
+    return g_config.max_list_height;
 }
 
 using ThemeFn = void (*)(ImGuiStyle&);
@@ -604,9 +671,8 @@ void join_flags(char* out, size_t len, uint16_t mask, std::span<const char* cons
 
 bool begin_fitted_child(const char* id)
 {
-    constexpr float kMaxChildHeight = 360.0f;
     ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f),
-                                        ImVec2(FLT_MAX, ui_size(kMaxChildHeight)));
+                                        ImVec2(FLT_MAX, ui_size(max_list_height())));
     return ImGui::BeginChild(id, ImVec2(0, 0),
                              ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY);
 }
@@ -910,9 +976,10 @@ void draw_panel()
         ImGui::SetNextWindowSize(g_config.size, initial_layout);
     }
     push_font(g_font_semibold, kSectionScale);
-    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
-        | (g_config.size_set ? 0 : ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Begin(panel_title, nullptr, flags);
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse
+        | (g_config.mouse ? 0 : ImGuiWindowFlags_NoResize)
+        | (!g_config.mouse && !g_config.size_set ? ImGuiWindowFlags_AlwaysAutoResize : 0);
+    const bool open = ImGui::Begin(panel_title, g_config.mouse ? &g.show : nullptr, flags);
     ImGui::PopFont();
     static float placed_height = -1.0f;
     const float panel_height = ImGui::GetWindowHeight();
@@ -921,6 +988,10 @@ void draw_panel()
         placed_height = panel_height;
     }
     g.reset_window = false;
+    if (!open) {
+        ImGui::End();
+        return;
+    }
 
     if (!have_stats) {
         ImGui::TextDisabled("waiting for game data");
@@ -931,11 +1002,11 @@ void draw_panel()
     static int selected_tab = 0;
     const std::span<const PanelTab> tabs = overlay_for(g_game).tabs;
     const bool tab_bar = tabs.size() > 1;
-    if (tab_bar && key_pressed(kTabKey)) {
+    if (tab_bar && key_pressed(g_config.tab_key)) {
         selected_tab = (selected_tab + 1) % static_cast<int>(tabs.size());
     }
-    const bool scroll_up = key_pressed(VK_UP);
-    const bool scroll_down = key_pressed(VK_DOWN);
+    const bool scroll_up = key_pressed(g_config.scroll_up_key);
+    const bool scroll_down = key_pressed(g_config.scroll_down_key);
     const int scroll = scroll_up ? -1 : scroll_down ? 1 : 0;
     if (tab_bar && ImGui::BeginTabBar("tracker_tabs")) {
         for (int i = 0; i < static_cast<int>(tabs.size()); ++i) {
@@ -1258,6 +1329,70 @@ std::filesystem::path dll_dir()
     return std::filesystem::path(path).parent_path();
 }
 
+constexpr UINT function_key(std::wstring_view value)
+{
+    if (value.size() < 2 || value.size() > 3 || (value[0] != L'F' && value[0] != L'f')) {
+        return 0;
+    }
+    unsigned number = 0;
+    for (const wchar_t digit : value.substr(1)) {
+        if (digit < L'0' || digit > L'9') return 0;
+        number = number * 10 + static_cast<unsigned>(digit - L'0');
+    }
+    return number >= 1 && number <= 24 ? VK_F1 + number - 1 : 0;
+}
+
+static_assert(function_key(L"F3") == VK_F3);
+static_assert(function_key(L"f24") == VK_F24);
+static_assert(function_key(L"F25") == 0);
+
+UINT parse_key(const wchar_t* value, UINT fallback)
+{
+    struct NamedKey {
+        const wchar_t* name;
+        UINT code;
+    };
+    static constexpr NamedKey keys[] = {
+        {L"UP", VK_UP}, {L"DOWN", VK_DOWN}, {L"LEFT", VK_LEFT}, {L"RIGHT", VK_RIGHT},
+        {L"HOME", VK_HOME}, {L"END", VK_END}, {L"PAGEUP", VK_PRIOR},
+        {L"PAGEDOWN", VK_NEXT}, {L"INSERT", VK_INSERT}, {L"DELETE", VK_DELETE},
+        {L"SPACE", VK_SPACE}, {L"TAB", VK_TAB}, {L"ENTER", VK_RETURN},
+        {L"ESCAPE", VK_ESCAPE},
+    };
+    for (const NamedKey& key : keys) {
+        if (_wcsicmp(value, key.name) == 0) return key.code;
+    }
+    if (const UINT key = function_key(value)) return key;
+    if (value[0] && !value[1]) {
+        const SHORT key = VkKeyScanW(value[0]);
+        if (key != -1) return LOBYTE(key);
+    }
+    wchar_t* end = nullptr;
+    const unsigned long key = std::wcstoul(value, &end, 0);
+    return end != value && *end == L'\0' && key > 0 && key < 256
+        ? static_cast<UINT>(key) : fallback;
+}
+
+UINT read_key(const std::wstring& file, const wchar_t* name, UINT fallback)
+{
+    wchar_t value[32]{};
+    GetPrivateProfileStringW(L"overlay", name, L"", value, static_cast<DWORD>(std::size(value)),
+                             file.c_str());
+    return value[0] ? parse_key(value, fallback) : fallback;
+}
+
+void load_log_level(const std::wstring& file)
+{
+    wchar_t value[16]{};
+    GetPrivateProfileStringW(L"diagnostics", L"log_level", L"info", value,
+                             static_cast<DWORD>(std::size(value)), file.c_str());
+    if (_wcsicmp(value, L"off") == 0) log_set_level(LogLevel::Off);
+    else if (_wcsicmp(value, L"error") == 0) log_set_level(LogLevel::Error);
+    else if (_wcsicmp(value, L"warn") == 0) log_set_level(LogLevel::Warn);
+    else if (_wcsicmp(value, L"debug") == 0) log_set_level(LogLevel::Debug);
+    else log_set_level(LogLevel::Info);
+}
+
 void load_overlay_config(const std::filesystem::path& path)
 {
     constexpr int kUnset = INT_MIN;
@@ -1266,8 +1401,22 @@ void load_overlay_config(const std::filesystem::path& path)
     const int y = GetPrivateProfileIntW(L"overlay", L"y", kUnset, file.c_str());
     const int width = GetPrivateProfileIntW(L"overlay", L"width", kUnset, file.c_str());
     const int height = GetPrivateProfileIntW(L"overlay", L"height", kUnset, file.c_str());
+    const int scale = GetPrivateProfileIntW(L"overlay", L"scale_percent", 100, file.c_str());
+    const int opacity = GetPrivateProfileIntW(L"overlay", L"opacity_percent", 80, file.c_str());
+    const int list_height = GetPrivateProfileIntW(L"overlay", L"max_list_height", 360,
+                                                   file.c_str());
     g_config.position_set = x != kUnset && y != kUnset;
     g_config.size_set = width > 0 && height > 0;
+    g_config.mouse = GetPrivateProfileIntW(L"overlay", L"mouse", 0, file.c_str()) != 0;
+    g_config.scale = std::clamp(scale, 50, 300) / 100.0f;
+    g_config.opacity = std::clamp(opacity, 0, 100) / 100.0f;
+    g_config.max_list_height = static_cast<float>(std::clamp(list_height, 80, 2160));
+    g_config.toggle_key = read_key(file, L"toggle_key", VK_F3);
+    g_config.tab_key = read_key(file, L"tab_key", VK_F4);
+    g_config.scroll_up_key = read_key(file, L"scroll_up_key", VK_UP);
+    g_config.scroll_down_key = read_key(file, L"scroll_down_key", VK_DOWN);
+    g.show = GetPrivateProfileIntW(L"overlay", L"show_on_start", 1, file.c_str()) != 0;
+    load_log_level(file);
     if (g_config.position_set) {
         g_config.position = {static_cast<float>(x), static_cast<float>(y)};
     }
@@ -1294,7 +1443,7 @@ void start_overlay(const char* game_label, StatsFn stats_fn, const wchar_t* game
         return;
     }
     LOG_INFO("bbtracker %s starting (%s), toggle key vk=0x%02X", BB_VERSION, g_label,
-             kToggleKey);
+             g_config.toggle_key);
 
     bool logged_wait_module = false;
     bool logged_wait_renderer = false;

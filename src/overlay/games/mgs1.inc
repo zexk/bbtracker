@@ -18,7 +18,7 @@ void apply_theme_mgs1(ImGuiStyle& style)
 
     colors[ImGuiCol_Text]              = text;
     colors[ImGuiCol_TextDisabled]      = dim;
-    colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_WindowBg]          = with_alpha(panel, panel_alpha());
     colors[ImGuiCol_Border]            = with_alpha(border, 0.65f);
     colors[ImGuiCol_FrameBg]           = frame;
     colors[ImGuiCol_FrameBgHovered]    = hover;

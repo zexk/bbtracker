@@ -18,7 +18,7 @@ void apply_theme_mg1(ImGuiStyle& style)
 
     colors[ImGuiCol_Text]              = text;
     colors[ImGuiCol_TextDisabled]      = dim;
-    colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_WindowBg]          = with_alpha(panel, panel_alpha());
     colors[ImGuiCol_Border]            = with_alpha(border, 0.72f);
     colors[ImGuiCol_FrameBg]           = frame;
     colors[ImGuiCol_FrameBgHovered]    = hover;
@@ -59,7 +59,7 @@ void apply_theme_mg2(ImGuiStyle& style)
 
     colors[ImGuiCol_Text]              = text;
     colors[ImGuiCol_TextDisabled]      = dim;
-    colors[ImGuiCol_WindowBg]          = with_alpha(panel, kPanelAlpha);
+    colors[ImGuiCol_WindowBg]          = with_alpha(panel, panel_alpha());
     colors[ImGuiCol_Border]            = with_alpha(border, 0.80f);
     colors[ImGuiCol_FrameBg]           = frame;
     colors[ImGuiCol_FrameBgHovered]    = hover;
