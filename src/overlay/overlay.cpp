@@ -72,6 +72,8 @@ struct OverlayState {
     HANDLE fence_event12 = nullptr;
     UINT64 next_fence12 = 0;
     std::vector<D3D12Frame> frames12;
+    // The swap chain every bound resource above belongs to.
+    IDXGISwapChain* swap_chain = nullptr;
     HWND hwnd = nullptr;
     ImVec2 render_size{};
     float ui_scale = 0.0f;
@@ -251,6 +253,27 @@ void release_d3d12()
     g.fence_event12 = nullptr;
     g.device12 = nullptr;
     g.next_fence12 = 0;
+    g.swap_chain = nullptr;
+    g.ui_scale = 0.0f;
+    g.imgui_ready = false;
+    g.renderer = Renderer::Unknown;
+}
+
+// Mirror of release_d3d12 for the D3D11 path; safe on a half-built state, so
+// the init failure paths can use it too.
+void release_d3d11()
+{
+    if (g.imgui_ready && g.renderer == Renderer::D3D11) {
+        ImGui_ImplDX11_Shutdown();
+        ImGui_ImplWin32_Shutdown();
+        ImGui::DestroyContext();
+    }
+    release_rtv();
+    if (g.context) g.context->Release();
+    if (g.device) g.device->Release();
+    g.context = nullptr;
+    g.device = nullptr;
+    g.swap_chain = nullptr;
     g.ui_scale = 0.0f;
     g.imgui_ready = false;
     g.renderer = Renderer::Unknown;
@@ -286,6 +309,7 @@ bool init_imgui_d3d12(IDXGISwapChain* swap_chain)
         return false;
     }
     g.hwnd = desc.OutputWindow;
+    g.swap_chain = swap_chain;
     g.frames12.resize(desc.BufferCount);
 
     D3D12_DESCRIPTOR_HEAP_DESC rtv_desc{};
@@ -365,17 +389,21 @@ bool init_imgui(IDXGISwapChain* swap_chain)
 {
     if (FAILED(swap_chain->GetDevice(__uuidof(ID3D11Device), reinterpret_cast<void**>(&g.device)))
         || !g.device) {
+        release_d3d11();
         return false;
     }
     g.device->GetImmediateContext(&g.context);
 
     DXGI_SWAP_CHAIN_DESC desc{};
     if (FAILED(swap_chain->GetDesc(&desc))) {
+        release_d3d11();
         return false;
     }
     g.hwnd = desc.OutputWindow;
+    g.swap_chain = swap_chain;
 
     if (!create_rtv(swap_chain)) {
+        release_d3d11();
         return false;
     }
 
@@ -968,12 +996,28 @@ bool render_d3d12(IDXGISwapChain* swap_chain)
     return true;
 }
 
+// A Present from another swap chain means the one we bound to is gone: MGS4
+// tears its window down for the Act 4 emulated MGS1 segment and builds a new
+// swap chain on the way back, leaving the bound device objects drawing into a
+// back buffer nobody presents. Rebuild against whatever is presenting now.
+void rebind_swap_chain(IDXGISwapChain* swap_chain)
+{
+    if (!g.imgui_ready || swap_chain == g.swap_chain) {
+        return;
+    }
+    LOG_INFO("swap chain %p replaced by %p, rebuilding overlay",
+             reinterpret_cast<void*>(g.swap_chain), reinterpret_cast<void*>(swap_chain));
+    if (g.renderer == Renderer::D3D12) release_d3d12();
+    else release_d3d11();
+}
+
 HRESULT STDMETHODCALLTYPE hk_present(IDXGISwapChain* swap_chain, UINT sync_interval, UINT flags)
 {
     poll_toggle_key();
     if (!g.show) {
         return oPresent(swap_chain, sync_interval, flags);
     }
+    rebind_swap_chain(swap_chain);
     if (!g.imgui_ready) {
         ID3D11Device* device11 = nullptr;
         const bool is_d3d11 = SUCCEEDED(swap_chain->GetDevice(IID_PPV_ARGS(&device11)));
@@ -1010,9 +1054,11 @@ HRESULT STDMETHODCALLTYPE hk_present(IDXGISwapChain* swap_chain, UINT sync_inter
 HRESULT STDMETHODCALLTYPE hk_resize_buffers(IDXGISwapChain* swap_chain, UINT buffer_count, UINT width,
                                             UINT height, DXGI_FORMAT format, UINT flags)
 {
-    if (g.imgui_ready && g.renderer == Renderer::D3D12) {
+    // Only the bound swap chain's buffers are ours to invalidate.
+    const bool bound = g.imgui_ready && swap_chain == g.swap_chain;
+    if (bound && g.renderer == Renderer::D3D12) {
         release_d3d12();
-    } else if (g.imgui_ready) {
+    } else if (bound) {
         ImGui_ImplDX11_InvalidateDeviceObjects();
         release_rtv();
     }
