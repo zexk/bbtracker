@@ -131,10 +131,11 @@ const char* mgs2_area_state(const GameStats& stats)
 void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
 {
     const uint8_t difficulty = static_cast<uint8_t>(stats.difficulty);
+    const int mission = mgs2::dog_tag_display_mission(stats.mission, stats.area_code);
     int available = 0;
     int collected = 0;
     for (const auto& tag : mgs2::kDogTags) {
-        if (!mgs2::dog_tag_available(tag, stats.mission, difficulty)) continue;
+        if (!mgs2::dog_tag_available(tag, mission, difficulty)) continue;
         ++available;
         collected += mgs2::dog_tag_collected(stats.dog_tag_mask, tag.id);
     }
@@ -153,7 +154,7 @@ void draw_mgs2_dog_tags(const GameStats& stats, int scroll)
             bool header = false;
             for (const auto& tag : mgs2::kDogTags) {
                 if (std::strcmp(tag.area, area_code) != 0
-                    || !mgs2::dog_tag_available(tag, stats.mission, difficulty)) {
+                    || !mgs2::dog_tag_available(tag, mission, difficulty)) {
                     continue;
                 }
                 if (!header) {

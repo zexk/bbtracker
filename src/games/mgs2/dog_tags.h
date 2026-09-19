@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 namespace bb::mgs2 {
 
@@ -421,13 +422,25 @@ inline constexpr DogTag kDogTags[] = {
     {393, "Marcin A Cieslinski", "w04c", 0, 4, false, "Nagisa Kase"},
 };
 
-// First tag ID for each normal area; boss/special tags join their area's group.
+// Checklist order within each chapter; boss/special tags join their area's group.
 inline constexpr const char* kDogTagAreas[] = {
     "w00a", "w00c", "w01c", "w01a", "w01b", "w01f", "w01d", "w03a", "w02a",
     "w11a", "w12a", "w12b", "w13a", "w14a", "w15a", "w16a", "w17a", "w18a",
     "w19a", "w20a", "w20b", "w22a", "w23a", "w24a", "w24b", "w24d", "w25d",
     "w28a", "w31a", "w20c", "w04a", "w04b", "w04c", "w43a",
 };
+
+constexpr int dog_tag_display_mission(int selected, std::string_view area)
+{
+    if (selected != kFullCampaignMission || area.size() < 3 || area[0] != 'w') return selected;
+    return area[1] == '0' && area[2] >= '0' && area[2] <= '4'
+        ? kTankerMission : kPlantMission;
+}
+
+static_assert(dog_tag_display_mission(kFullCampaignMission, "w00a") == kTankerMission);
+static_assert(dog_tag_display_mission(kFullCampaignMission, "w04c") == kTankerMission);
+static_assert(dog_tag_display_mission(kFullCampaignMission, "w11a") == kPlantMission);
+static_assert(dog_tag_display_mission(kPlantMission, "w00a") == kPlantMission);
 
 constexpr bool dog_tag_collected(const uint32_t* flags, size_t id)
 {

@@ -39,8 +39,16 @@ void test_dog_tag_bits_and_rosters()
     CHECK(mgs2::dog_tag_available(mgs2::kDogTags[0], 16, 0));
     CHECK(!mgs2::dog_tag_available(mgs2::kDogTags[0], 0, 0));
     CHECK(mgs2::dog_tag_available(mgs2::kDogTags[4], 32, 5));
+    CHECK(mgs2::dog_tag_display_mission(32, "w03a") == 16);
+    CHECK(mgs2::dog_tag_display_mission(32, "w20a") == 0);
+    CHECK(mgs2::dog_tag_display_mission(32, "d001") == 32);
 
     CHECK(std::string_view(mgs2::kDogTagAreas[0]) == "w00a");
+    CHECK(std::string_view(mgs2::kDogTagAreas[8]) == "w02a");
+    CHECK(std::string_view(mgs2::kDogTagAreas[9]) == "w11a");
+    CHECK(std::string_view(mgs2::kDogTagAreas[29]) == "w20c");
+    CHECK(std::string_view(mgs2::kDogTagAreas[30]) == "w04a");
+    CHECK(std::string_view(mgs2::kDogTagAreas[32]) == "w04c");
     CHECK(std::string_view(mgs2::kDogTagAreas[33]) == "w43a");
     int bluff = 0;
     for (const auto& tag : mgs2::kDogTags) {
