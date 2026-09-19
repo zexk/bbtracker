@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(bbtracker VERSION 0.4.1 LANGUAGES C CXX)
+project(bbtracker VERSION 0.5.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -151,6 +151,7 @@ if(WIN32)
   bb_asi(babel "METAL GEAR: GHOST BABEL")
 
   install(TARGETS ${GAMES} RUNTIME DESTINATION bin)
+  install(FILES bbtracker.ini DESTINATION bin)
   install(FILES "${INTER_DIR}/LICENSE.txt" DESTINATION bin RENAME Inter-OFL-1.1.txt)
 endif()
 
