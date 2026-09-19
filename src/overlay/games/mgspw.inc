@@ -291,10 +291,13 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
         ImGui::TableSetupColumn("lethal", ImGuiTableColumnFlags_WidthFixed, ui_size(75));
         ImGui::TableSetupColumn("non-lethal", ImGuiTableColumnFlags_WidthFixed, ui_size(85));
         table_headers_row();
+        // -1 means the class has no such half (CQC/stun rod have no lethal
+        // variant); -2 means it does, but there is no fallback counter for it
+        // outside the native axes. Both stay n/a until axes are healthy.
         const auto weapon = [&](const char* label, int slot, int lethal, int nonlethal) {
             if (stats.pw_codename_axes_ok) {
-                if (lethal >= 0) lethal = stats.pw_codename_axes[0][slot];
-                if (nonlethal >= 0) {
+                if (lethal != -1) lethal = stats.pw_codename_axes[0][slot];
+                if (nonlethal != -1) {
                     nonlethal = stats.pw_codename_axes[1][slot]
                         + stats.pw_codename_axes[2][slot] + stats.pw_codename_axes[3][slot];
                 }
@@ -312,16 +315,16 @@ void draw_mgspw_global(const GameStats& stats, int scroll)
             }
         };
         weapon("handguns", 2, stats.pw_pistol_lethal, stats.pw_pistol_takedowns);
-        weapon("assault rifles", 3, stats.pw_ar_takedowns, -1);
+        weapon("assault rifles", 3, stats.pw_ar_takedowns, -2);
         weapon("sniper rifles", 4, stats.pw_sniper_takedowns, stats.pw_sniper_nonlethal);
-        weapon("machine guns", 5, stats.pw_lmg_takedowns, -1);
-        weapon("submachine guns", 6, stats.pw_smg_takedowns, -1);
-        weapon("shotguns", 7, stats.pw_shotgun_takedowns, -1);
+        weapon("machine guns", 5, stats.pw_lmg_takedowns, -2);
+        weapon("submachine guns", 6, stats.pw_smg_takedowns, -2);
+        weapon("shotguns", 7, stats.pw_shotgun_takedowns, -2);
         weapon("CQC", 0, -1, stats.pw_cqc_takedowns);
         weapon("stun rod", 1, -1, stats.pw_stun_rod_takedowns);
-        weapon("grenades", 9, stats.pw_grenade_takedowns, -1);
-        weapon("rockets", 8, stats.pw_rocket_takedowns, -1);
-        weapon("placed explosives", 11, stats.pw_placed_takedowns, -1);
+        weapon("grenades", 9, stats.pw_grenade_takedowns, -2);
+        weapon("rockets", 8, stats.pw_rocket_takedowns, -2);
+        weapon("placed explosives", 11, stats.pw_placed_takedowns, -2);
         ImGui::EndTable();
     }
     ImGui::Spacing();
@@ -497,6 +500,35 @@ void draw_mgspw_codenames(const GameStats& stats, int)
             plain("camaraderie", stats.pw_camaraderie);
         }
         ImGui::EndTable();
+    }
+
+    if (axes.total > 0) {
+        // The title follows the single biggest weapon type, not its class
+        // total (issue #11); name that type here to disambiguate.
+        int top_slot = 0;
+        for (int slot = 1; slot < 12; ++slot) {
+            if (axes.slot[slot] > axes.slot[top_slot]) top_slot = slot;
+        }
+        if (ImGui::BeginTable("pw_top_type", 3,
+                              ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+            ImGui::TableSetupColumn("top type", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("count", ImGuiTableColumnFlags_WidthFixed, ui_size(50));
+            ImGui::TableSetupColumn("share", ImGuiTableColumnFlags_WidthFixed, ui_size(50));
+            table_headers_row();
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextColored(id_green, "%s", codename::pw_slot_name(top_slot));
+            ImGui::TableNextColumn();
+            format_count(axes.slot[top_slot], buf, sizeof(buf));
+            align_value(buf);
+            ImGui::TextUnformatted(buf);
+            ImGui::TableNextColumn();
+            snprintf(buf, sizeof(buf), "%.0f%%", 100.0 * axes.slot[top_slot] / axes.total);
+            align_value(buf);
+            ImGui::TextColored(id_green, "%s", buf);
+            ImGui::EndTable();
+        }
+        ImGui::Spacing();
     }
 
     if (ImGui::BeginTable("pw_class", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {

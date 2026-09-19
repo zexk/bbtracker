@@ -153,6 +153,17 @@ void test_native_axes()
     CHECK(fallback.total == 50);
     CHECK(fallback.classes_used == 5);
 
+    // Per-type slots are also available without native axes, so the overlay
+    // can name the single type deciding the title (issue #11: the spread
+    // table showed explosive ahead of the sniper type that actually won).
+    GameStats counters{};
+    counters.pw_pistol_lethal = 2;
+    counters.pw_shotgun_takedowns = 2;
+    counters.pw_sniper_takedowns = 3;
+    const PwAxes disambiguated = pw_axes(counters);
+    CHECK(disambiguated.slot[2] == 2 && disambiguated.slot[7] == 2
+          && disambiguated.slot[4] == 3);
+
     GameStats rod{};
     rod.pw_stun_rod_takedowns = 3;
     CHECK(std::string_view(title(rod)) == "EEL");
@@ -214,6 +225,11 @@ void test_class_names_and_gates()
     CHECK(std::string_view(pw_class_name(5)) == "stun rod");
     CHECK(std::string_view(pw_class_name(-1)) == "?");
     CHECK(std::string_view(pw_class_name(6)) == "?");
+
+    CHECK(std::string_view(pw_slot_name(4)) == "sniper rifles");
+    CHECK(std::string_view(pw_slot_name(6)) == "submachine guns");
+    CHECK(std::string_view(pw_slot_name(-1)) == "?");
+    CHECK(std::string_view(pw_slot_name(12)) == "?");
 
     CHECK(pw_grade_gate(1).camaraderie == 10000);
     CHECK(pw_grade_gate(1).heroism == 10000);

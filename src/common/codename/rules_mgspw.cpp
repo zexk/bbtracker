@@ -72,6 +72,33 @@ constexpr int kPwSlotClass[12] = {
     static_cast<int>(WeaponClass::Explosive), // 11
 };
 
+// Per-weapon takedowns for the 12 evaluator slots, from native axes when
+// available or the individual career counters otherwise. Slot 10 is the
+// phantom class and stays zero either way.
+void pw_build_slots(const GameStats& s, int (&slots)[12])
+{
+    for (int i = 0; i < 12; ++i) slots[i] = 0;
+    if (s.pw_codename_axes_ok) {
+        for (int slot = 0; slot < 12; ++slot) {
+            for (int axis = 0; axis < 4; ++axis) {
+                slots[slot] += pw_count(s.pw_codename_axes[axis][slot]);
+            }
+        }
+        return;
+    }
+    slots[0] = pw_count(s.pw_cqc_takedowns);
+    slots[1] = pw_count(s.pw_stun_rod_takedowns);
+    slots[2] = pw_count(s.pw_pistol_lethal) + pw_count(s.pw_pistol_takedowns);
+    slots[3] = pw_count(s.pw_ar_takedowns);
+    slots[4] = pw_count(s.pw_sniper_takedowns) + pw_count(s.pw_sniper_nonlethal);
+    slots[5] = pw_count(s.pw_lmg_takedowns);
+    slots[6] = pw_count(s.pw_smg_takedowns);
+    slots[7] = pw_count(s.pw_shotgun_takedowns);
+    slots[8] = pw_count(s.pw_rocket_takedowns);
+    slots[9] = pw_count(s.pw_grenade_takedowns);
+    slots[11] = pw_count(s.pw_placed_takedowns);
+}
+
 // Highest slot wins; ties use native predicate order.
 WeaponClass pw_dominant_class(const int (&slots)[12], int top)
 {
@@ -109,12 +136,10 @@ constexpr int kPwSpreadClasses = 4;
 PwProfile pw_profile(const GameStats& s)
 {
     PwProfile p;
+    int slots[12]{};
+    pw_build_slots(s, slots);
     if (s.pw_codename_axes_ok) {
-        int slots[12]{};
         for (int slot = 0; slot < 12; ++slot) {
-            for (int axis = 0; axis < 4; ++axis) {
-                slots[slot] += pw_count(s.pw_codename_axes[axis][slot]);
-            }
             p.total += slots[slot];
             if (slots[slot] > p.top) p.top = slots[slot];
             p.lethal += pw_count(s.pw_codename_axes[0][slot]);
@@ -135,20 +160,6 @@ PwProfile pw_profile(const GameStats& s)
         if (p.balanced) p.dominant = WeaponClass::All;
         return p;
     }
-    // Rebuild available slots from career counters; slot 10 stays absent.
-    int slots[12]{};
-    slots[0] = pw_count(s.pw_cqc_takedowns);
-    slots[1] = pw_count(s.pw_stun_rod_takedowns);
-    slots[2] = pw_count(s.pw_pistol_lethal) + pw_count(s.pw_pistol_takedowns);
-    slots[3] = pw_count(s.pw_ar_takedowns);
-    slots[4] = pw_count(s.pw_sniper_takedowns) + pw_count(s.pw_sniper_nonlethal);
-    slots[5] = pw_count(s.pw_lmg_takedowns);
-    slots[6] = pw_count(s.pw_smg_takedowns);
-    slots[7] = pw_count(s.pw_shotgun_takedowns);
-    slots[8] = pw_count(s.pw_rocket_takedowns);
-    slots[9] = pw_count(s.pw_grenade_takedowns);
-    slots[11] = pw_count(s.pw_placed_takedowns);
-
     int top_slot = 0;
     for (int slot = 0; slot < 12; ++slot) {
         if (kPwSlotClass[slot] >= 0) p.by_class[kPwSlotClass[slot]] += slots[slot];
@@ -332,6 +343,15 @@ const char* pw_class_name(int cls)
     return cls >= 0 && cls < 6 ? kNames[cls] : "?";
 }
 
+const char* pw_slot_name(int slot)
+{
+    static constexpr const char* kNames[12] = {
+        "CQC", "stun rod", "handguns", "assault rifles", "sniper rifles",
+        "machine guns", "submachine guns", "shotguns", "rockets", "grenades",
+        "", "placed explosives"};
+    return slot >= 0 && slot < 12 ? kNames[slot] : "?";
+}
+
 PwGradeGate pw_grade_gate(int grade)
 {
     if (grade < 1 || grade > 5) {
@@ -344,25 +364,22 @@ PwGradeGate pw_grade_gate(int grade)
 PwAxes pw_axes(const GameStats& s)
 {
     PwAxes out;
-    if (s.pw_codename_axes_ok) {
-        out.native = true;
+    out.native = s.pw_codename_axes_ok;
+    int slots[12]{};
+    pw_build_slots(s, slots);
+    for (int slot = 0; slot < 12; ++slot) {
+        out.slot[slot] = slots[slot];
+        if (kPwSlotClass[slot] >= 0) out.by_class[kPwSlotClass[slot]] += slots[slot];
+    }
+    if (out.native) {
         for (int slot = 0; slot < 12; ++slot) {
-            for (int axis = 0; axis < 4; ++axis) {
-                out.slot[slot] += pw_count(s.pw_codename_axes[axis][slot]);
-            }
             out.lethal += pw_count(s.pw_codename_axes[0][slot]);
             out.nonlethal += pw_count(s.pw_codename_axes[1][slot])
                 + pw_count(s.pw_codename_axes[2][slot])
                 + pw_count(s.pw_codename_axes[3][slot]);
-            if (kPwSlotClass[slot] >= 0) {
-                out.by_class[kPwSlotClass[slot]] += out.slot[slot];
-            }
         }
     } else {
         const PwProfile p = pw_profile(s);
-        for (int i = 0; i < 6; ++i) {
-            out.by_class[i] = p.by_class[i];
-        }
         out.lethal = p.lethal;
         out.nonlethal = p.nonlethal;
     }

@@ -253,6 +253,9 @@ PwAxes pw_axes(const GameStats& s);
 // Class name for a `by_class` index, and the gates one grade demands.
 const char* pw_class_name(int cls);
 
+// Weapon name for a `slot` index (slot 10 is the phantom class, "").
+const char* pw_slot_name(int slot);
+
 struct PwGradeGate {
     int camaraderie;
     int heroism;
