@@ -11,6 +11,7 @@ namespace bb {
 namespace {
 
 FILE* g_file = nullptr;
+LogLevel g_min_level = LogLevel::Info;
 
 const char* level_tag(LogLevel lvl)
 {
@@ -19,14 +20,23 @@ const char* level_tag(LogLevel lvl)
     case LogLevel::Info: return "INFO";
     case LogLevel::Warn: return "WARN";
     case LogLevel::Error: return "ERROR";
+    case LogLevel::Off: break;
     }
     return "?????";
 }
 
 } // namespace
 
+void log_set_level(LogLevel level)
+{
+    g_min_level = level;
+}
+
 bool log_init(const char* path)
 {
+    if (g_min_level == LogLevel::Off) {
+        return true;
+    }
     if (g_file) {
         return true;
     }
@@ -53,7 +63,7 @@ void log_shutdown()
 
 void log_write(LogLevel lvl, const char* fmt, ...)
 {
-    if (!g_file) {
+    if (!g_file || lvl < g_min_level) {
         return;
     }
     SYSTEMTIME st{};

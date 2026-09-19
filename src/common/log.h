@@ -10,8 +10,10 @@ enum class LogLevel : int {
     Info,
     Warn,
     Error,
+    Off,
 };
 
+void log_set_level(LogLevel level);
 bool log_init(const char* path);
 void log_shutdown();
 void log_hex_dump(const uint8_t* data, size_t len);
