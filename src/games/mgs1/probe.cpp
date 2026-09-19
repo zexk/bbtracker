@@ -127,12 +127,23 @@ constexpr const char* variant_name(PsxVariant v)
     }
 }
 
+constexpr int known_game_time_index(PsxVariant variant, std::string_view serial)
+{
+    if (variant == PsxVariant::WesternOriginal || variant == PsxVariant::Integral) return 0;
+    if (variant == PsxVariant::JapaneseOriginal
+        && (serial.find("861.11") != std::string_view::npos
+            || serial.find("86111") != std::string_view::npos)) return 1;
+    return -1;
+}
+
 static_assert(classify_serial("cdrom:\\SLPM_861.11;1") == PsxVariant::JapaneseOriginal);
 static_assert(classify_serial("SLPM-86248") == PsxVariant::Integral);
 static_assert(classify_serial("SLPM_862.49;1") == PsxVariant::Integral);
 static_assert(classify_serial("SLUS_005.94;1") == PsxVariant::WesternOriginal);
 static_assert(classify_serial("SLES_013.70;1") != PsxVariant::JapaneseOriginal);
 static_assert(classify_serial("garbage") == PsxVariant::Unknown);
+static_assert(known_game_time_index(PsxVariant::JapaneseOriginal, "SLPM_861.11") == 1);
+static_assert(known_game_time_index(PsxVariant::JapaneseOriginal, "SLPM_861.12") == -1);
 
 struct FieldOffsets {
     constexpr static size_t kStage = 0x03;
@@ -251,25 +262,16 @@ uint32_t read_game_frames()
             continue;
         }
     }
-    // Offset is fixed per disc, no need to guess from clock behavior once the
-    // serial is known: western/Integral share -0x939D, and disc 1 of the JP
-    // Premium Package (SLPM_861.11/86111) is confirmed at -0x9495. Disc 2
-    // (SLPM_861.12/86112) is unconfirmed, so it still falls through to the
-    // clock-delta heuristic below.
-    if (g_game_time_index < 0) {
-        const PsxVariant variant = disc_variant();
-        if (variant == PsxVariant::WesternOriginal || variant == PsxVariant::Integral) {
-            g_game_time_index = 0;
-        } else if (variant == PsxVariant::JapaneseOriginal
-                   && (std::strstr(g_serial, "861.11") || std::strstr(g_serial, "86111"))) {
-            g_game_time_index = 1;
-        }
-        if (g_game_time_index >= 0) {
+    // Clock-based discovery can see an engine frame counter before game time starts.
+    // A known disc mapping must therefore override, not merely seed, that heuristic.
+    const int serial_index = known_game_time_index(disc_variant(), g_serial);
+    if (serial_index >= 0) {
+        if (g_game_time_index != serial_index) {
+            g_game_time_index = serial_index;
+            g_last_game_frames = current[static_cast<size_t>(g_game_time_index)];
             LOG_INFO("mgs1 game-time offset -0x%04X (from serial %s)",
                      static_cast<unsigned>(kGameTimeOffsets[g_game_time_index]), g_serial);
         }
-    }
-    if (g_game_time_index >= 0) {
         const uint32_t selected = current[static_cast<size_t>(g_game_time_index)];
         if (clock_reset(g_last_game_frames, selected)) {
             LOG_INFO("mgs1 new emulated session; resetting variant detection");
@@ -541,8 +543,8 @@ bool poll_stats(GameStats& out)
     out.mgs1_integral = g_integral;
     out.mgs1_japanese_original = variant == PsxVariant::JapaneseOriginal;
     if (g_game_time_index >= 0 && variant != PsxVariant::Unknown) {
-        const int expected = out.mgs1_japanese_original ? 1 : 0;
-        if (g_game_time_index != expected) {
+        const int expected = known_game_time_index(variant, g_serial);
+        if (expected >= 0 && g_game_time_index != expected) {
             static bool warned_mismatch = false;
             if (!warned_mismatch) {
                 warned_mismatch = true;

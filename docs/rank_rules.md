@@ -38,12 +38,11 @@ menu and launching another edition without restarting process.
 Region never derives from memory layout: game-time offset selection only picks
 which counter to read. Western originals and Integral share `-0x939D`
 (assumed, since EU is the only western edition probed); JP Premium Package
-disc 1 (`SLPM_861.11`/`SLPM-86111`) is confirmed at `-0x9495` from a live
-`bbtracker.log`. Both are now assigned directly from the disc serial, no
-clock-delta wait. Disc 2 (`SLPM_861.12`/`SLPM-86112`) is unconfirmed and still
-falls back to the clock-delta heuristic, along with the untested third
-candidate `-0x9B11`; a mismatch between the heuristic's pick and the serial's
-expected offset is logged as a warning.
+disc 1 (`SLPM_861.11`/`SLPM-86111`) is `-0x9495`: PSX `0xAC2D8`, confirmed
+against the supported LiveSplit autosplitter and a live process. Known serial
+mappings override clock-based discovery because the `-0x9B11` engine frame
+counter can advance while game time remains zero at title. Disc 2
+(`SLPM_861.12`/`SLPM-86112`) remains unconfirmed and uses the heuristic.
 
 Rank differences by edition, per muni's chart and the speedrun community:
 the Japanese original offers only its fixed Easy-equivalent difficulty and
