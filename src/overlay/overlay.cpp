@@ -1081,16 +1081,15 @@ bool render_d3d12(IDXGISwapChain* swap_chain)
 }
 
 // MGS4 replaces its main swap chain around the Act 4 emulated MGS1 segment.
-// Ignore unrelated live-window swap chains; rendering bound resources during
-// their Present would target the wrong back buffer.
+// Ignore every replacement while the bound window is alive; MGS4 can Present
+// other swap chains during the emulated segment. Rebind only after the window
+// we rendered into was destroyed.
 bool select_swap_chain(IDXGISwapChain* swap_chain)
 {
     if (!g.imgui_ready || swap_chain == g.swap_chain) {
         return true;
     }
-    DXGI_SWAP_CHAIN_DESC desc{};
-    if (FAILED(swap_chain->GetDesc(&desc))
-        || (IsWindow(g.hwnd) && desc.OutputWindow != g.hwnd)) {
+    if (IsWindow(g.hwnd)) {
         return false;
     }
     LOG_INFO("swap chain %p replaced by %p, rebuilding overlay",
