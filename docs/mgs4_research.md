@@ -449,11 +449,17 @@ Plain `0x80` bytes plus LF:
 | `0x2c` | `uint32` | body length `0x8344` |
 | `0x30` | `uint32` | difficulty |
 | `0x34` | `uint32` | whole-second play time |
-| `0x38` | `uint32` | unresolved |
+| `0x38` | `uint32` | unresolved; `5` in both saves seen (difficulty 20 and 50, 19159 s and 2445 s, scenario 291 and 61), so likely a constant |
 | `0x3c` | `uint32` | Drebin points |
 | `0x40` | `uint32` | save-menu progress resource index |
 | `0x44` | `uint32` | scenario progress copy |
 | `0x48` | `byte[56]` | zero/reserved |
+
+In build `25292043` (newer than this page's base build), the save writer `0x4BA910`
+checksums the `0x8344`-byte body with `0xD0B330`, reduces the result mod `0xD658` and stores
+it at `+0x92B0` of its save object, next to the `0x8344` length at `+0x92A8`. Where that
+lands in the files is not yet traced; it is not `METADATA` `+0x38`. The `METADATA` and
+`METADATA.SAV` strings have no direct code references (reached through a table).
 
 ### Launcher `usersv`
 
