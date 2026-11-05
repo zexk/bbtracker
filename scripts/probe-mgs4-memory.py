@@ -9,7 +9,6 @@ import struct
 import sys
 
 TEXT_RVA = 0x1000
-TEXT_SIZE = 0x165CF80
 PROBES = (0, TEXT_RVA, 0x5C780, 0x645E0, 0x69DB0, 0x94040, 0x1844DE0)
 LINKVARBUF_POINTER_RVA = 0x1C28B28
 VARBUF_POINTER_RVA = 0x1C28B38
@@ -40,6 +39,23 @@ def read(memory, address, size):
     if len(data) != size:
         raise ValueError(f"short memory read at {address:#x}")
     return data
+
+
+def text_section(memory, base):
+    headers = read(memory, base, 0x1000)
+    e_lfanew = struct.unpack_from("<I", headers, 0x3C)[0]
+    pe = headers[e_lfanew:]
+    if pe[:4] != b"PE\0\0":
+        raise ValueError("live module is not a PE image")
+    count = struct.unpack_from("<H", pe, 6)[0]
+    opt_size = struct.unpack_from("<H", pe, 20)[0]
+    offset = 24 + opt_size
+    for index in range(count):
+        section = pe[offset + index * 40 : offset + (index + 1) * 40]
+        if section[:8].rstrip(b"\0") == b".text":
+            virtual_size, virtual_address = struct.unpack_from("<II", section, 8)
+            return virtual_address, virtual_size
+    raise ValueError(".text section not found")
 
 
 def write_drebin_points(memory, linkvarbuf, points):
@@ -80,6 +96,9 @@ def main():
         probes = {f"{rva:#x}": read(memory, base + rva, 16).hex() for rva in PROBES}
         if bytes.fromhex(probes["0x0"])[:2] != b"MZ":
             raise ValueError("live module does not start with MZ")
+        text_rva, text_size = text_section(memory, base)
+        if args.dump_text:
+            pathlib.Path(args.dump_text).write_bytes(read(memory, base + text_rva, text_size))
         linkvarbuf = struct.unpack("<Q", read(memory, base + LINKVARBUF_POINTER_RVA, 8))[0]
         varbuf = struct.unpack("<Q", read(memory, base + VARBUF_POINTER_RVA, 8))[0]
         if args.set_drebin is not None:
@@ -87,11 +106,11 @@ def main():
         save_tool = siblings.load("inspect-mgs4-save.py")
         stats = save_tool.inspect(read(memory, linkvarbuf, save_tool.BODY_SIZE))
         stats["eastern_europe_time_ticks"] = struct.unpack("<I", read(memory, varbuf + 0xDB4, 4))[0]
-        if args.dump_text:
-            pathlib.Path(args.dump_text).write_bytes(read(memory, base + TEXT_RVA, TEXT_SIZE))
 
-    print(json.dumps({"pid": pid, "base": f"{base:#x}", "varbuf": f"{varbuf:#x}",
-                      "linkvarbuf": f"{linkvarbuf:#x}", "stats": stats, "probes": probes}, indent=2))
+    print(json.dumps({"pid": pid, "base": f"{base:#x}",
+                      "text": {"rva": f"{text_rva:#x}", "size": text_size},
+                      "varbuf": f"{varbuf:#x}", "linkvarbuf": f"{linkvarbuf:#x}",
+                      "stats": stats, "probes": probes}, indent=2))
 
 
 if __name__ == "__main__":

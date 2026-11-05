@@ -22,7 +22,22 @@ using bb::mem::read;
 
 namespace {
 
-constexpr uintptr_t kLinkvarbufPointer = 0x1C28B28;
+constexpr uintptr_t linkvarbuf_pointer(uint32_t timestamp)
+{
+    switch (timestamp) {
+    case 0x6A8CFC47: // Steam build 24921893
+    case 0x6AA36B7C: // Steam build 25292043
+        return 0x1C28B28;
+    case 0x6AE07392: // Steam build 26451734, verified live 2026-11-05
+        return 0x157A8E8;
+    default:
+        return 0;
+    }
+}
+static_assert(linkvarbuf_pointer(0x6A8CFC47) == 0x1C28B28);
+static_assert(linkvarbuf_pointer(0x6AA36B7C) == 0x1C28B28);
+static_assert(linkvarbuf_pointer(0x6AE07392) == 0x157A8E8);
+static_assert(linkvarbuf_pointer(0) == 0);
 constexpr size_t kLinkvarbufSize = 0x8344;
 constexpr uint32_t kLastValidProgress = 291;
 constexpr size_t kStageCodeLength = 7;
@@ -100,6 +115,7 @@ static_assert(run_state("title") == RunState::Inactive);
 HMODULE g_module = nullptr;
 RunLatch g_run;
 bool g_logged_module = false;
+uintptr_t g_linkvarbuf_pointer = 0;
 
 } // namespace
 
@@ -115,11 +131,14 @@ bool poll_stats(GameStats& out)
         uint32_t timestamp = 0;
         if (mem::module_timestamp(g_module, timestamp)) {
             LOG_INFO("MGS4 module timestamp 0x%08X", static_cast<unsigned>(timestamp));
+            g_linkvarbuf_pointer = linkvarbuf_pointer(timestamp);
+            if (!g_linkvarbuf_pointer) LOG_WARN("Unsupported MGS4 build; stats disabled");
             g_logged_module = true;
         }
     }
     uintptr_t address = 0;
-    if (!module || !mem::copy(module + kLinkvarbufPointer, address)) {
+    if (!g_linkvarbuf_pointer) return g_run.hold(out);
+    if (!module || !mem::copy(module + g_linkvarbuf_pointer, address)) {
         g_module = nullptr;
         return g_run.hold(out);
     }
@@ -137,7 +156,7 @@ bool poll_stats(GameStats& out)
     static uintptr_t last_address = 0;
     if (address != last_address) {
         LOG_INFO("MGS4 linkvarbuf %p (module+0x%llX)", reinterpret_cast<const void*>(address),
-                 static_cast<unsigned long long>(kLinkvarbufPointer));
+                 static_cast<unsigned long long>(g_linkvarbuf_pointer));
         last_address = address;
     }
 
